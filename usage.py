@@ -8,7 +8,6 @@ import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 import numpy as np
 from sklearn.linear_model import LinearRegression
-outputs = [["Team","RCAA","RSAA","Net"]]
 
 def avg(bowler,file_name,item):
     total = []; total2 = []
@@ -32,31 +31,27 @@ def avg(bowler,file_name,item):
 def usage_corrected(bowler,file_name,values):
     if(bowler == 1): a = 'RCAA'
     else: a = 'RSAA'
-    c0 = 1
     team_names = np.unique(file_name['team'].values)
     
     for x in team_names:
-        c = 0
+        c = 0;dummy = 0
         sublist = file_name[(file_name['team'] == x)]
         sublist = sublist.sort_values(by=['usage'],ascending=False)
-        #print(sublist)
         for y in sublist.index:
             if(x != "Free Agent" and bowler == 1):
-                file_name[a][y] = file_name[a][y]*values[c]/file_name['usage'][y]
+                #file_name[a][y] = file_name[a][y]*values[c]/file_name['usage'][y]
                 file_name['usage'][y] = values[c]
+                dummy = dummy + values[c]
                 c = c + 1
             if(x != "Free Agent" and bowler == 0):
                 new_usage = values[c]*file_name['balls/wkt'][y]
-                file_name[a][y] = file_name[a][y]*new_usage/file_name['usage'][y]
+                #file_name[a][y] = file_name[a][y]*new_usage/file_name['usage'][y]
                 file_name['usage'][y] = new_usage
+                dummy = dummy + new_usage
                 c = c + 1
-        val = file_name.loc[(file_name['team']==x),a].sum()/file_name.loc[(file_name['team']==x),'usage'].sum()
-        if(bowler == 1): 
-            outputs.append([x,val])
-        if(bowler == 0): 
-            outputs[c0].append(val)
-            outputs[c0].append(val-outputs[c0][1])
-            c0 = c0 + 1
+        for y in sublist.index:
+            if(x != "Free Agent"): file_name['usage'][y] = file_name['usage'][y]/dummy
+                       
     return file_name
 
 def analyse(u,w):
@@ -94,7 +89,7 @@ def calc_agg(f_bat,f_bowl):
         lg_runs_bowl = ((f_bowl.loc[(f_bowl['team']==x),'usage']*f_bowl.loc[(f_bowl['team']==x),'xECON']).sum()*20)/(f_bowl.loc[(f_bowl['team']==x),'usage'].sum())
         adj_runs = runs_bat + extras
         wins = (adj_runs**15.5)/((adj_runs**15.5)+(runs_bowl**15.5))
-        summary.append([x,adj_runs,runs_bowl,(adj_runs-runs_bowl)/20,14*wins])
+        summary.append([x,adj_runs,runs_bowl,(adj_runs-runs_bowl)/20,wins])
         
     summary = pd.DataFrame(summary)
     summary.columns = summary.iloc[0];summary = summary.drop(0)
@@ -131,8 +126,18 @@ def balance(file_batting,file_bowling,display):
     agg_runs_bat = ones_bat+2*twos_bat+3*threes_bat+4*fours_bat+6*sixes_bat
     agg_runs_bowl = ones_bowl+2*twos_bowl+3*threes_bowl+4*fours_bowl+6*sixes_bowl
     
+    adj_dots = (dots_bat + dots_bowl)/2
+    adj_ones = (ones_bat + ones_bowl)/2
+    adj_twos = (twos_bat + twos_bowl)/2
+    adj_threes = (threes_bat + threes_bowl)/2
+    adj_fours = (fours_bat + fours_bowl)/2
+    adj_sixes = (sixes_bat + sixes_bowl)/2
+    adj_wickets = (wickets_bat + wickets_bowl)/2
+    adj_runs = adj_ones + 2*adj_twos+ 3*adj_threes + 4*adj_fours + 6*adj_sixes
+    
     if(display == 1):
         print("------------------------------------------------------")
+        print("usage bat",file_bt['usage'].sum())
         print("runs scored",runs_bat)
         print("agg runs",agg_runs_bat)
         print("dots",dots_bat)
@@ -145,6 +150,7 @@ def balance(file_batting,file_bowling,display):
         print("xruns scored",lg_runs_bat)
         print("xwickets",lg_wickets_bat)
         print("------------------------------------------------------")
+        print("usage bowl",file_bwl['usage'].sum())
         print("runs conceded",runs_bowl)
         print("agg runs conceded",agg_runs_bowl)
         print("dots",dots_bowl)
@@ -158,15 +164,6 @@ def balance(file_batting,file_bowling,display):
         print("xwickets",lg_wickets_bowl)
         print("extras",extras)
         print("------------------------------------------------------")
-    
-    adj_dots = (dots_bat + dots_bowl)/2
-    adj_ones = (ones_bat + ones_bowl)/2
-    adj_twos = (twos_bat + twos_bowl)/2
-    adj_threes = (threes_bat + threes_bowl)/2
-    adj_fours = (fours_bat + fours_bowl)/2
-    adj_sixes = (sixes_bat + sixes_bowl)/2
-    adj_wickets = (wickets_bat + wickets_bowl)/2
-    adj_runs = adj_ones + 2*adj_twos+ 3*adj_threes + 4*adj_fours + 6*adj_sixes
     
     for c in file_batting.index:
         file_batting['dots/ball'][c] = file_batting['dots/ball'][c]*(adj_dots/dots_bat)
@@ -216,13 +213,12 @@ def team_projections():
         concat.append(x+";"+str(y))
     concat = np.unique(concat)
         
-    (f_bat,f_bowl) = balance(f_bat,f_bowl,1)
-    print(calc_agg(f_bat,f_bowl))
-    #f_bowl_adj = bowl(file_bowl_input,f_bowl,concat)
-    #f_bat_adj = bat(file_bat_input,f_bat,concat)
-    #(f_bat_adj,f_bowl_adj) = balance(f_bat_adj,f_bowl_adj,0)
-    #print(calc_agg(f_bat_adj,f_bowl_adj))
-    print("done")
+    #(f_bat,f_bowl) = balance(f_bat,f_bowl,1)
+    #print(calc_agg(f_bat,f_bowl))
+    f_bowl_adj = bowl(file_bowl_input,f_bowl,concat)
+    f_bat_adj = bat(file_bat_input,f_bat,concat)
+    (f_bat_adj,f_bowl_adj) = balance(f_bat_adj,f_bowl_adj,0)
+    print(calc_agg(f_bat_adj,f_bowl_adj))
+    return (f_bat_adj,f_bowl_adj)
     
-#team_projections()
-
+#(bat,bowl) = team_projections()
