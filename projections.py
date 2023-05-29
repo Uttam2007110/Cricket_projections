@@ -10,10 +10,13 @@ import math
 import datetime
 from usage import *
 
-input_file = 'C:/Users/Subramanya.Ganti/Downloads/cricket/ipl_summary.xlsx' # the output of generate.py
-dumps_file = "C:/Users/Subramanya.Ganti/Downloads/cricket/ipl_comps.xlsx"
-output_file = "C:/Users/Subramanya.Ganti/Downloads/cricket/ipl_projections.xlsx"
-proj_year = 2023
+input_file = 'C:/Users/Subramanya.Ganti/Downloads/cricket/blast_summary.xlsx' # the output of generate.py
+dumps_file = "C:/Users/Subramanya.Ganti/Downloads/cricket/comps.xlsx"
+output_file = "C:/Users/Subramanya.Ganti/Downloads/cricket/blast_projections.xlsx"
+proj_year = 2024
+
+factor = 1; #t20
+#factor = 2.5; #odi
 
 def unique(list1):
     # initialize a null list
@@ -175,14 +178,18 @@ def bowling_projection(df,df2,player,year):
     y1_usage = 0.000001; y1_wickets = 0.000001; y1_PP_usage = 0.000001; y1_mid_usage = 0.000001; y1_setup_usage = 0.000001; y1_death_usage = 0.000001; y1_balls = 0.000001;    y1_runs = 0.000001; y1_dots = 0.000001; y1_ones = 0.000001; y1_twos = 0.000001; y1_threes = 0.000001; y1_fours = 0.000001; y1_sixes = 0.000001; y1_extras = 0.000001;
     y2_usage = 0.000001; y2_wickets = 0.000001; y2_PP_usage = 0.000001; y2_mid_usage = 0.000001; y2_setup_usage = 0.000001; y2_death_usage = 0.000001; y2_balls = 0.000001;    y2_runs = 0.000001; y2_dots = 0.000001; y2_ones = 0.000001; y2_twos = 0.000001; y2_threes = 0.000001; y2_fours = 0.000001; y2_sixes = 0.000001; y2_extras = 0.000001;
     y3_usage = 0.000001; y3_wickets = 0.000001; y3_PP_usage = 0.000001; y3_mid_usage = 0.000001; y3_setup_usage = 0.000001; y3_death_usage = 0.000001; y3_balls = 0.000001;    y3_runs = 0.000001; y3_dots = 0.000001; y3_ones = 0.000001; y3_twos = 0.000001; y3_threes = 0.000001; y3_fours = 0.000001; y3_sixes = 0.000001; y3_extras = 0.000001;
-    y4_usage = 0.000001; y4_wickets = 0.000001; y4_PP_usage = 0.000001; y4_mid_usage = 0.000001; y4_setup_usage = 0.000001; y4_death_usage = 0.000001; y4_balls = 0.000001;    y4_runs = 0.000001; y4_dots = 0.000001; y4_ones = 0.000001; y4_twos = 0.000001; y4_threes = 0.000001; y4_fours = 0.000001; y4_sixes = 0.000001; y4_extras = 0.000001;    
-    p_xECON = 0; p_xSR = 0; y1_xRuns = 0; y2_xRuns = 0;y3_xRuns = 0;y4_xRuns = 0
-    y1_xWickets = 0; y2_xWickets = 0;y3_xWickets = 0;y4_xWickets = 0
+    y4_usage = 0.000001; y4_wickets = 0.000001; y4_PP_usage = 0.000001; y4_mid_usage = 0.000001; y4_setup_usage = 0.000001; y4_death_usage = 0.000001; y4_balls = 0.000001;    y4_runs = 0.000001; y4_dots = 0.000001; y4_ones = 0.000001; y4_twos = 0.000001; y4_threes = 0.000001; y4_fours = 0.000001; y4_sixes = 0.000001; y4_extras = 0.000001;
+    y5_usage = 0.000001; y5_wickets = 0.000001; y5_PP_usage = 0.000001; y5_mid_usage = 0.000001; y5_setup_usage = 0.000001; y5_death_usage = 0.000001; y5_balls = 0.000001;    y5_runs = 0.000001; y5_dots = 0.000001; y5_ones = 0.000001; y5_twos = 0.000001; y5_threes = 0.000001; y5_fours = 0.000001; y5_sixes = 0.000001; y5_extras = 0.000001; 
+    y6_usage = 0.000001; y6_wickets = 0.000001; y6_PP_usage = 0.000001; y6_mid_usage = 0.000001; y6_setup_usage = 0.000001; y6_death_usage = 0.000001; y6_balls = 0.000001;    y6_runs = 0.000001; y6_dots = 0.000001; y6_ones = 0.000001; y6_twos = 0.000001; y6_threes = 0.000001; y6_fours = 0.000001; y6_sixes = 0.000001; y6_extras = 0.000001; 
+    p_xECON = 0; p_xSR = 0; y1_xRuns = 0; y2_xRuns = 0;y3_xRuns = 0;y4_xRuns = 0;y5_xRuns = 0;y6_xRuns = 0
+    y1_xWickets = 0; y2_xWickets = 0;y3_xWickets = 0;y4_xWickets = 0;y5_xWickets = 0;y6_xWickets = 0
     y1_avg_runs = 0; y1_avg_wickets = 0; y1_avg_dots = 0; y1_avg_ones = 0; y1_avg_twos = 0; y1_avg_threes = 0; y1_avg_fours = 0; y1_avg_sixes = 0
     y2_avg_runs = 0; y2_avg_wickets = 0; y2_avg_dots = 0; y2_avg_ones = 0; y2_avg_twos = 0; y2_avg_threes = 0; y2_avg_fours = 0; y2_avg_sixes = 0
     y3_avg_runs = 0; y3_avg_wickets = 0; y3_avg_dots = 0; y3_avg_ones = 0; y3_avg_twos = 0; y3_avg_threes = 0; y3_avg_fours = 0; y3_avg_sixes = 0
     y4_avg_runs = 0; y4_avg_wickets = 0; y4_avg_dots = 0; y4_avg_ones = 0; y4_avg_twos = 0; y4_avg_threes = 0; y4_avg_fours = 0; y4_avg_sixes = 0
-    y1_avg_extras = 0; y2_avg_extras = 0; y3_avg_extras = 0; y4_avg_extras = 0
+    y5_avg_runs = 0; y5_avg_wickets = 0; y5_avg_dots = 0; y5_avg_ones = 0; y5_avg_twos = 0; y5_avg_threes = 0; y5_avg_fours = 0; y5_avg_sixes = 0
+    y6_avg_runs = 0; y6_avg_wickets = 0; y6_avg_dots = 0; y6_avg_ones = 0; y6_avg_twos = 0; y6_avg_threes = 0; y6_avg_fours = 0; y6_avg_sixes = 0
+    y1_avg_extras = 0; y2_avg_extras = 0; y3_avg_extras = 0; y4_avg_extras = 0; y5_avg_extras = 0; y6_avg_extras = 0
     
     for x in names:
         if(names[c]==player and season[c]==year-1):
@@ -258,6 +265,42 @@ def bowling_projection(df,df2,player,year):
             y4_xWickets = xWickets[c]
             y4_xRuns = xRuns[c]
             y4_extras = extras[c]
+        if(names[c]==player and season[c]==year-5):
+            y5_usage = usage[c]
+            y5_wickets = wickets[c]
+            y5_PP_usage = PP_usage[c]
+            y5_mid_usage = mid_usage[c]
+            y5_setup_usage = setup_usage[c]
+            y5_death_usage = death_usage[c]
+            y5_balls = balls[c]
+            y5_runs = runs[c]
+            y5_dots = dots[c]
+            y5_ones = ones[c]
+            y5_twos = twos[c]
+            y5_threes = threes[c]
+            y5_fours = fours[c]
+            y5_sixes = sixes[c]
+            y5_xWickets = xWickets[c]
+            y5_xRuns = xRuns[c]
+            y5_extras = extras[c]
+        if(names[c]==player and season[c]==year-6):
+            y6_usage = usage[c]
+            y6_wickets = wickets[c]
+            y6_PP_usage = PP_usage[c]
+            y6_mid_usage = mid_usage[c]
+            y6_setup_usage = setup_usage[c]
+            y6_death_usage = death_usage[c]
+            y6_balls = balls[c]
+            y6_runs = runs[c]
+            y6_dots = dots[c]
+            y6_ones = ones[c]
+            y6_twos = twos[c]
+            y6_threes = threes[c]
+            y6_fours = fours[c]
+            y6_sixes = sixes[c]
+            y6_xWickets = xWickets[c]
+            y6_xRuns = xRuns[c]
+            y6_extras = extras[c]
         c = c + 1
     
     for y in avg_season:
@@ -300,50 +343,72 @@ def bowling_projection(df,df2,player,year):
             y4_avg_threes = avg_threes[c2]
             y4_avg_fours = avg_fours[c2]
             y4_avg_sixes = avg_sixes[c2]
-            y4_avg_extras = avg_extras[c2]   
+            y4_avg_extras = avg_extras[c2]
+        if(avg_season[c2]==year-5):
+            y5_avg_runs = avg_runs[c2]
+            y5_avg_wickets = avg_wickets[c2]
+            y5_avg_dots = avg_dots[c2]
+            y5_avg_ones = avg_ones[c2]
+            y5_avg_twos = avg_twos[c2]
+            y5_avg_threes = avg_threes[c2]
+            y5_avg_fours = avg_fours[c2]
+            y5_avg_sixes = avg_sixes[c2]
+            y5_avg_extras = avg_extras[c2]
+        if(avg_season[c2]==year-6):
+            y6_avg_runs = avg_runs[c2]
+            y6_avg_wickets = avg_wickets[c2]
+            y6_avg_dots = avg_dots[c2]
+            y6_avg_ones = avg_ones[c2]
+            y6_avg_twos = avg_twos[c2]
+            y6_avg_threes = avg_threes[c2]
+            y6_avg_fours = avg_fours[c2]
+            y6_avg_sixes = avg_sixes[c2]
+            y6_avg_extras = avg_extras[c2]
         c2 = c2 + 1
         
-    w_balls = 8*y1_balls + 5*y2_balls + 4*y3_balls + 3*y4_balls
-    w_runs = 8*y1_runs + 5*y2_runs + 4*y3_runs +3*y4_runs
-    w_dots = 8*y1_dots + 5*y2_dots + 4*y3_dots +3*y4_dots
-    w_ones = 8*y1_ones + 5*y2_ones + 4*y3_ones +3*y4_ones
-    w_twos = 8*y1_twos + 5*y2_twos + 4*y3_twos +3*y4_twos
-    w_threes = 8*y1_threes + 5*y2_threes + 4*y3_threes +3*y4_threes
-    w_fours = 8*y1_fours + 5*y2_fours + 4*y3_fours +3*y4_fours
-    w_sixes = 8*y1_sixes + 5*y2_sixes + 4*y3_sixes +3*y4_sixes
-    w_wickets = 8*y1_wickets + 5*y2_wickets + 4*y3_wickets +3*y4_wickets
-    w_extras = 8*y1_extras + 5*y2_extras + 4*y3_extras +3*y4_extras
-    w_PP_usage = 8*y1_PP_usage + 5*y2_PP_usage + 4*y3_PP_usage +3*y4_PP_usage
-    w_mid_usage = 8*y1_mid_usage + 5*y2_mid_usage + 4*y3_mid_usage +3*y4_mid_usage
-    w_setup_usage = 8*y1_setup_usage + 5*y2_setup_usage + 4*y3_setup_usage +3*y4_setup_usage
-    w_death_usage = 8*y1_death_usage + 5*y2_death_usage + 4*y3_death_usage +3*y4_death_usage
-    w_usage = 8*y1_usage + 5*y2_usage + 4*y3_usage +3*y4_usage
-    p_xECON = 8*y1_xRuns + 5*y2_xRuns + 4*y3_xRuns +3*y4_xRuns
-    p_xSR = 8*y1_xWickets + 5*y2_xWickets + 4*y3_xWickets +3*y4_xWickets
+    w_balls = 8*y1_balls + 5*y2_balls + 4*y3_balls + 3*y4_balls + 2*y5_balls + y6_balls
+    w_runs = 8*y1_runs + 5*y2_runs + 4*y3_runs +3*y4_runs + 2*y5_runs + y6_runs
+    w_dots = 8*y1_dots + 5*y2_dots + 4*y3_dots +3*y4_dots + 2*y5_dots + y6_dots
+    w_ones = 8*y1_ones + 5*y2_ones + 4*y3_ones +3*y4_ones + 2*y5_ones + y6_ones
+    w_twos = 8*y1_twos + 5*y2_twos + 4*y3_twos +3*y4_twos + 2*y5_twos + y6_twos
+    w_threes = 8*y1_threes + 5*y2_threes + 4*y3_threes +3*y4_threes + 2*y5_threes + y6_threes
+    w_fours = 8*y1_fours + 5*y2_fours + 4*y3_fours +3*y4_fours + 2*y5_fours + y6_fours
+    w_sixes = 8*y1_sixes + 5*y2_sixes + 4*y3_sixes +3*y4_sixes + 2*y5_sixes + y6_sixes
+    w_wickets = 8*y1_wickets + 5*y2_wickets + 4*y3_wickets +3*y4_wickets + 2*y5_wickets + y6_wickets
+    w_extras = 8*y1_extras + 5*y2_extras + 4*y3_extras +3*y4_extras + 2*y5_extras + y6_extras
+    w_PP_usage = 8*y1_PP_usage + 5*y2_PP_usage + 4*y3_PP_usage +3*y4_PP_usage + 2*y5_PP_usage + y6_PP_usage
+    w_mid_usage = 8*y1_mid_usage + 5*y2_mid_usage + 4*y3_mid_usage +3*y4_mid_usage + 2*y5_mid_usage + y6_mid_usage
+    w_setup_usage = 8*y1_setup_usage + 5*y2_setup_usage + 4*y3_setup_usage +3*y4_setup_usage + 2*y5_setup_usage + y6_setup_usage
+    w_death_usage = 8*y1_death_usage + 5*y2_death_usage + 4*y3_death_usage +3*y4_death_usage + 2*y5_death_usage + y6_death_usage
+    w_usage = 8*y1_usage + 5*y2_usage + 4*y3_usage +3*y4_usage + 2*y5_usage + y6_usage
+    p_xECON = 8*y1_xRuns + 5*y2_xRuns + 4*y3_xRuns +3*y4_xRuns + 2*y5_xRuns + y6_xRuns
+    p_xSR = 8*y1_xWickets + 5*y2_xWickets + 4*y3_xWickets +3*y4_xWickets + 2*y5_xWickets + y6_xWickets
     #print(w_wickets)
-    mr_runs = (800/w_balls)*(8*y1_balls*y1_avg_runs + 5*y2_balls*y2_avg_runs + 4*y3_balls*y3_avg_runs + 3*y4_balls*y4_avg_runs)    
-    mr_dots = (800/w_balls)*(8*y1_balls*y1_avg_dots + 5*y2_balls*y2_avg_dots + 4*y3_balls*y3_avg_dots + 3*y4_balls*y4_avg_dots)
-    mr_ones = (800/w_balls)*(8*y1_balls*y1_avg_ones + 5*y2_balls*y2_avg_ones + 4*y3_balls*y3_avg_ones + 3*y4_balls*y4_avg_ones)
-    mr_twos = (800/w_balls)*(8*y1_balls*y1_avg_twos + 5*y2_balls*y2_avg_twos + 4*y3_balls*y3_avg_twos + 3*y4_balls*y4_avg_twos)
-    mr_threes = (800/w_balls)*(8*y1_balls*y1_avg_threes + 5*y2_balls*y2_avg_threes + 4*y3_balls*y3_avg_threes + 3*y4_balls*y4_avg_threes)
-    mr_fours = (800/w_balls)*(8*y1_balls*y1_avg_fours + 5*y2_balls*y2_avg_fours + 4*y3_balls*y3_avg_fours + 3*y4_balls*y4_avg_fours)
-    mr_sixes = (800/w_balls)*(8*y1_balls*y1_avg_sixes + 5*y2_balls*y2_avg_sixes + 4*y3_balls*y3_avg_sixes + 3*y4_balls*y4_avg_sixes)
-    mr_wickets = (800/w_balls)*(8*y1_balls*y1_avg_wickets + 5*y2_balls*y2_avg_wickets + 4*y3_balls*y3_avg_wickets + 3*y4_balls*y4_avg_wickets)
-    mr_extras = (800/w_balls)*(8*y1_balls*y1_avg_extras + 5*y2_balls*y2_avg_extras + 4*y3_balls*y3_avg_extras + 3*y4_balls*y4_avg_extras)
+    mr_runs = (800/w_balls)*(8*y1_balls*y1_avg_runs + 5*y2_balls*y2_avg_runs + 4*y3_balls*y3_avg_runs + 3*y4_balls*y4_avg_runs + 2*y5_balls*y5_avg_runs + y6_balls*y6_avg_runs)    
+    mr_dots = (800/w_balls)*(8*y1_balls*y1_avg_dots + 5*y2_balls*y2_avg_dots + 4*y3_balls*y3_avg_dots + 3*y4_balls*y4_avg_dots + 2*y5_balls*y5_avg_dots + y6_balls*y6_avg_dots)
+    mr_ones = (800/w_balls)*(8*y1_balls*y1_avg_ones + 5*y2_balls*y2_avg_ones + 4*y3_balls*y3_avg_ones + 3*y4_balls*y4_avg_ones + 2*y5_balls*y5_avg_ones + y6_balls*y6_avg_ones)
+    mr_twos = (800/w_balls)*(8*y1_balls*y1_avg_twos + 5*y2_balls*y2_avg_twos + 4*y3_balls*y3_avg_twos + 3*y4_balls*y4_avg_twos + 2*y5_balls*y5_avg_twos + y6_balls*y6_avg_twos)
+    mr_threes = (800/w_balls)*(8*y1_balls*y1_avg_threes + 5*y2_balls*y2_avg_threes + 4*y3_balls*y3_avg_threes + 3*y4_balls*y4_avg_threes + 2*y5_balls*y5_avg_threes + y6_balls*y6_avg_threes)
+    mr_fours = (800/w_balls)*(8*y1_balls*y1_avg_fours + 5*y2_balls*y2_avg_fours + 4*y3_balls*y3_avg_fours + 3*y4_balls*y4_avg_fours + 2*y5_balls*y5_avg_fours + y6_balls*y6_avg_fours)
+    mr_sixes = (800/w_balls)*(8*y1_balls*y1_avg_sixes + 5*y2_balls*y2_avg_sixes + 4*y3_balls*y3_avg_sixes + 3*y4_balls*y4_avg_sixes + 2*y5_balls*y5_avg_sixes + y6_balls*y6_avg_sixes)
+    mr_wickets = (800/w_balls)*(8*y1_balls*y1_avg_wickets + 5*y2_balls*y2_avg_wickets + 4*y3_balls*y3_avg_wickets + 3*y4_balls*y4_avg_wickets + 2*y5_balls*y5_avg_wickets + y6_balls*y6_avg_wickets)
+    mr_extras = (800/w_balls)*(8*y1_balls*y1_avg_extras + 5*y2_balls*y2_avg_extras + 4*y3_balls*y3_avg_extras + 3*y4_balls*y4_avg_extras + 2*y5_balls*y5_avg_extras + y6_balls*y6_avg_extras)
     #print(mr_wickets)
     if(y1_usage==0.000001): y1_usage = 0
     if(y2_usage==0.000001): y2_usage = 0
     if(y3_usage==0.000001): y3_usage = 0
     if(y4_usage==0.000001): y4_usage = 0
+    if(y5_usage==0.000001): y5_usage = 0
+    if(y6_usage==0.000001): y6_usage = 0
     #print(p_xECON,p_xSR,w_balls)
-    if(y1_usage==0 and y2_usage==0 and y3_usage==0 and y4_usage==0):
+    if(y1_usage==0 and y2_usage==0 and y3_usage==0 and y4_usage==0 and y5_usage==0 and y6_usage==0):
         p_usage = 0; p_xECON = 999; p_xSR = 999 
     else:
-        p_usage = w_usage/(8*math.ceil(y1_usage) + 5*math.ceil(y2_usage) + 4*math.ceil(y3_usage) + 3*math.ceil(y4_usage))
+        p_usage = w_usage/(8*math.ceil(y1_usage) + 5*math.ceil(y2_usage) + 4*math.ceil(y3_usage) + 3*math.ceil(y4_usage) + 2*math.ceil(y5_usage) + math.ceil(y6_usage))
         p_xECON = 6*p_xECON/w_balls
         p_xSR = w_balls/p_xSR
     
-    p_balls = 120*14*p_usage
+    #p_balls = 120*14*p_usage
     p_runs = (w_runs+mr_runs)/(800+w_balls)
     p_dots = (w_dots+mr_dots)/(800+w_balls)
     p_ones = (w_ones+mr_ones)/(800+w_balls)
@@ -406,8 +471,8 @@ def proj_dump():
     for x in unique_names2:
         p_dummy = batting_projection(file3,file4,x,proj_year)
         if(p_dummy[3] > 0):
-            a = 1.2*(p_dummy[5]-p_dummy[19])*p_dummy[3] #100*(p_dummy[4]/p_dummy[18])
-            b = 120*((1/p_dummy[4])-(1/p_dummy[18]))*p_dummy[3] #100*(p_dummy[5]/p_dummy[19])
+            a = factor*1.2*(p_dummy[5]-p_dummy[19])*p_dummy[3] #100*(p_dummy[4]/p_dummy[18])
+            b = factor*120*((1/p_dummy[4])-(1/p_dummy[18]))*p_dummy[3] #100*(p_dummy[5]/p_dummy[19])
             p_dummy.insert(3,a)
             p_dummy.insert(4,b)
             lolcow4.append(p_dummy)  
@@ -422,8 +487,8 @@ def proj_dump():
         p_dummy = batting_projection_comps(file3,file4,x,proj_year,0)
         #print(x,p_dummy)
         if(p_dummy[3] > 0):
-            a = 1.2*(p_dummy[5]-p_dummy[19])*p_dummy[3] #100*(p_dummy[4]/p_dummy[18])
-            b = 120*((1/p_dummy[4])-(1/p_dummy[18]))*p_dummy[3] #100*(p_dummy[5]/p_dummy[19])
+            a = factor*1.2*(p_dummy[5]-p_dummy[19])*p_dummy[3] #100*(p_dummy[4]/p_dummy[18])
+            b = factor*120*((1/p_dummy[4])-(1/p_dummy[18]))*p_dummy[3] #100*(p_dummy[5]/p_dummy[19])
             p_dummy.insert(3,a)
             p_dummy.insert(4,b)
             lolcow5.append(p_dummy)           
@@ -442,15 +507,15 @@ def proj_dump():
         concat.append(x+";"+str(y))
     concat = np.unique(concat)
         
-    lol = bowl(file,lol,concat)     #for usage adjustment
-    lol4 = bat(file3,lol4,concat)   #for usage adjustment
-    (lol4,lol) = balance(lol4,lol,0)
+    lol = bowls(file,lol,concat)     #for usage adjustment
+    lol4 = bats(file3,lol4,concat)   #for usage adjustment
+    (lol4,lol) = balance(lol4,lol,0,factor)
     print("Marcel based table")
     marcel_table = calc_agg(lol4,lol)
     
-    lol2 = bowl(file,lol2,concat)     #for usage adjustment
-    lol5 = bat(file3,lol5,concat)   #for usage adjustment
-    (lol5,lol2) = balance(lol5,lol2,0)
+    lol2 = bowls(file,lol2,concat)     #for usage adjustment
+    lol5 = bats(file3,lol5,concat)   #for usage adjustment
+    (lol5,lol2) = balance(lol5,lol2,0,factor)
     print("MDist based table")
     mdist_table = calc_agg(lol5,lol2)
     
@@ -575,22 +640,24 @@ def bowling_projection_comps(file,file2,player,year,logs):
     
     comps_expected_weighted = similarity_calc(comps_expected, player, year, base_proj[2])
     
-    for x in projection:
+    for x in projection:        
         if(c<3): delta.append(comps_expected_weighted[c])
+        elif(comps_expected_weighted[c]==0): delta.append(1)
         else: delta.append(projection[c]/comps_expected_weighted[c])
         c = c + 1   
     
-    #n_comps = comps_future(file,comps)
-    #sim_y2 = similarity_calc(n_comps, player, year, base_proj[2])
     c = 0; projection_new = []
     for x in base_proj:
         if(c<3): projection_new.append(base_proj[c])
         else: projection_new.append(delta[c]*base_proj[c])
         c = c + 1
         
-    #projection_new[4] = 6*(projection_new[11]+projection_new[18])
-    #projection_new[5] = 1/projection_new[6]
-        
+    dummy = projection_new[7] + projection_new[8] + projection_new[9] + projection_new[10]
+    projection_new[7] = projection_new[7]/dummy
+    projection_new[8] = projection_new[8]/dummy
+    projection_new[9] = projection_new[9]/dummy
+    projection_new[10] = projection_new[10]/dummy    
+           
     if (logs == 1):
         print("base projection")
         print(base_proj)
@@ -656,7 +723,7 @@ def similarity_calc(comps,player,year,team):
     p_death_usage = w_death_usage/w_dist
     p_xECON = w_xECON/w_dist
     p_xSR = w_xSR/w_dist
-    dummy = (p_PP_usage + p_setup_usage + p_mid_usage + p_death_usage)
+    dummy = (p_PP_usage + p_setup_usage + p_mid_usage + p_death_usage) + 0.00000001
     p_PP_usage = p_PP_usage/dummy
     p_mid_usage = p_mid_usage/dummy
     p_setup_usage = p_setup_usage/dummy
@@ -713,7 +780,7 @@ def similarity_calc_bat(comps,player,year,team):
     p_death_usage = w_death_usage/w_dist
     p_xAVG = w_xAVG/w_dist
     p_xSR = w_xSR/w_dist
-    dummy = (p_PP_usage + p_setup_usage + p_mid_usage + p_death_usage)
+    dummy = (p_PP_usage + p_setup_usage + p_mid_usage + p_death_usage)+0.000000001
     p_PP_usage = p_PP_usage/dummy
     p_mid_usage = p_mid_usage/dummy
     p_setup_usage = p_setup_usage/dummy
@@ -739,11 +806,10 @@ def batting_projection_comps(file,file2,player,year,logs):
     
     for x in projection:
         if(c<3): delta.append(comps_expected_weighted[c])
+        elif(comps_expected_weighted[c]==0): delta.append(1)
         else: delta.append(projection[c]/comps_expected_weighted[c])
         c = c + 1   
     
-    #n_comps = comps_future_bat(file,comps)
-    #sim_y2 = similarity_calc_bat(n_comps, player, year, base_proj[2])
     c = 0; projection_new = []
     for x in base_proj:
         if(c<3): projection_new.append(base_proj[c])
@@ -754,6 +820,12 @@ def batting_projection_comps(file,file2,player,year,logs):
     sum_runs = projection_new[13]+2*projection_new[14]+3*projection_new[15]+4*projection_new[16]+6*projection_new[17]
     sum_usage = projection_new[8]+projection_new[9]+projection_new[10]+projection_new[11]
     
+    dummy = projection_new[11] + projection_new[8] + projection_new[9] + projection_new[10]
+    projection_new[11] = projection_new[11]/dummy
+    projection_new[8] = projection_new[8]/dummy
+    projection_new[9] = projection_new[9]/dummy
+    projection_new[10] = projection_new[10]/dummy
+    
     if (logs == 1):
         print("base projection")
         print(base_proj)
@@ -763,12 +835,8 @@ def batting_projection_comps(file,file2,player,year,logs):
         print(comps_expected_weighted)
         print("delta")
         print(delta)
-        #print("comps weighted y+1 actual")
-        #print(sim_y2)
         print("final projection")
         print(projection_new)
-        #print("balls,runs,usage")
-        #print(sum_balls,sum_runs,sum_usage)
         print("RSAA,OAA")
         print(1.2*(projection_new[5]-projection_new[19])*projection_new[3],120*((1/projection_new[4])-(1/projection_new[18]))*projection_new[3])
         
@@ -792,7 +860,6 @@ def batting_projection(df,df2,player,year):
     threes = df['3s'].values
     fours = df['4s'].values
     sixes = df['6s'].values
-    #extras = df['extras'].values
     xRuns = df['xruns'].values
     xWickets = df['xwickets'].values
     avg_season = df2['Season'].values
@@ -807,16 +874,20 @@ def batting_projection(df,df2,player,year):
     #avg_extras = df2['extras/ball'].values
     #print(avg_season)
     c = 0; c2 = 0; curr_team = "Free Agent"; AVG = 0; SR = 0
-    y1_usage = 0.000001; y1_wickets = 0.000001; y1_PP_usage = 0.000001; y1_mid_usage = 0.000001; y1_setup_usage = 0.000001; y1_death_usage = 0.000001; y1_balls = 0.000001;    y1_runs = 0.000001; y1_dots = 0.000001; y1_ones = 0.000001; y1_twos = 0.000001; y1_threes = 0.000001; y1_fours = 0.000001; y1_sixes = 0.000001; y1_extras = 0.000001;
-    y2_usage = 0.000001; y2_wickets = 0.000001; y2_PP_usage = 0.000001; y2_mid_usage = 0.000001; y2_setup_usage = 0.000001; y2_death_usage = 0.000001; y2_balls = 0.000001;    y2_runs = 0.000001; y2_dots = 0.000001; y2_ones = 0.000001; y2_twos = 0.000001; y2_threes = 0.000001; y2_fours = 0.000001; y2_sixes = 0.000001; y2_extras = 0.000001;
-    y3_usage = 0.000001; y3_wickets = 0.000001; y3_PP_usage = 0.000001; y3_mid_usage = 0.000001; y3_setup_usage = 0.000001; y3_death_usage = 0.000001; y3_balls = 0.000001;    y3_runs = 0.000001; y3_dots = 0.000001; y3_ones = 0.000001; y3_twos = 0.000001; y3_threes = 0.000001; y3_fours = 0.000001; y3_sixes = 0.000001; y3_extras = 0.000001;
-    y4_usage = 0.000001; y4_wickets = 0.000001; y4_PP_usage = 0.000001; y4_mid_usage = 0.000001; y4_setup_usage = 0.000001; y4_death_usage = 0.000001; y4_balls = 0.000001;    y4_runs = 0.000001; y4_dots = 0.000001; y4_ones = 0.000001; y4_twos = 0.000001; y4_threes = 0.000001; y4_fours = 0.000001; y4_sixes = 0.000001; y4_extras = 0.000001;    
-    p_xAVG = 0; p_xSR = 0; y1_xRuns = 0; y2_xRuns = 0;y3_xRuns = 0;y4_xRuns = 0
-    y1_xWickets = 0; y2_xWickets = 0;y3_xWickets = 0;y4_xWickets = 0
+    y1_usage = 0.000001; y1_wickets = 0.000001; y1_PP_usage = 0.000001; y1_mid_usage = 0.000001; y1_setup_usage = 0.000001; y1_death_usage = 0.000001; y1_balls = 0.000001;    y1_runs = 0.000001; y1_dots = 0.000001; y1_ones = 0.000001; y1_twos = 0.000001; y1_threes = 0.000001; y1_fours = 0.000001; y1_sixes = 0.000001
+    y2_usage = 0.000001; y2_wickets = 0.000001; y2_PP_usage = 0.000001; y2_mid_usage = 0.000001; y2_setup_usage = 0.000001; y2_death_usage = 0.000001; y2_balls = 0.000001;    y2_runs = 0.000001; y2_dots = 0.000001; y2_ones = 0.000001; y2_twos = 0.000001; y2_threes = 0.000001; y2_fours = 0.000001; y2_sixes = 0.000001
+    y3_usage = 0.000001; y3_wickets = 0.000001; y3_PP_usage = 0.000001; y3_mid_usage = 0.000001; y3_setup_usage = 0.000001; y3_death_usage = 0.000001; y3_balls = 0.000001;    y3_runs = 0.000001; y3_dots = 0.000001; y3_ones = 0.000001; y3_twos = 0.000001; y3_threes = 0.000001; y3_fours = 0.000001; y3_sixes = 0.000001
+    y4_usage = 0.000001; y4_wickets = 0.000001; y4_PP_usage = 0.000001; y4_mid_usage = 0.000001; y4_setup_usage = 0.000001; y4_death_usage = 0.000001; y4_balls = 0.000001;    y4_runs = 0.000001; y4_dots = 0.000001; y4_ones = 0.000001; y4_twos = 0.000001; y4_threes = 0.000001; y4_fours = 0.000001; y4_sixes = 0.000001
+    y5_usage = 0.000001; y5_wickets = 0.000001; y5_PP_usage = 0.000001; y5_mid_usage = 0.000001; y5_setup_usage = 0.000001; y5_death_usage = 0.000001; y5_balls = 0.000001;    y5_runs = 0.000001; y5_dots = 0.000001; y5_ones = 0.000001; y5_twos = 0.000001; y5_threes = 0.000001; y5_fours = 0.000001; y5_sixes = 0.000001 
+    y6_usage = 0.000001; y6_wickets = 0.000001; y6_PP_usage = 0.000001; y6_mid_usage = 0.000001; y6_setup_usage = 0.000001; y6_death_usage = 0.000001; y6_balls = 0.000001;    y6_runs = 0.000001; y6_dots = 0.000001; y6_ones = 0.000001; y6_twos = 0.000001; y6_threes = 0.000001; y6_fours = 0.000001; y6_sixes = 0.000001 
+    p_xAVG = 0; p_xSR = 0; y1_xRuns = 0; y2_xRuns = 0;y3_xRuns = 0;y4_xRuns = 0;y5_xRuns = 0;y6_xRuns = 0
+    y1_xWickets = 0; y2_xWickets = 0;y3_xWickets = 0;y4_xWickets = 0;y5_xWickets = 0;y6_xWickets = 0
     y1_avg_runs = 0; y1_avg_wickets = 0; y1_avg_dots = 0; y1_avg_ones = 0; y1_avg_twos = 0; y1_avg_threes = 0; y1_avg_fours = 0; y1_avg_sixes = 0
     y2_avg_runs = 0; y2_avg_wickets = 0; y2_avg_dots = 0; y2_avg_ones = 0; y2_avg_twos = 0; y2_avg_threes = 0; y2_avg_fours = 0; y2_avg_sixes = 0
     y3_avg_runs = 0; y3_avg_wickets = 0; y3_avg_dots = 0; y3_avg_ones = 0; y3_avg_twos = 0; y3_avg_threes = 0; y3_avg_fours = 0; y3_avg_sixes = 0
     y4_avg_runs = 0; y4_avg_wickets = 0; y4_avg_dots = 0; y4_avg_ones = 0; y4_avg_twos = 0; y4_avg_threes = 0; y4_avg_fours = 0; y4_avg_sixes = 0
+    y5_avg_runs = 0; y5_avg_wickets = 0; y5_avg_dots = 0; y5_avg_ones = 0; y5_avg_twos = 0; y5_avg_threes = 0; y5_avg_fours = 0; y5_avg_sixes = 0
+    y6_avg_runs = 0; y6_avg_wickets = 0; y6_avg_dots = 0; y6_avg_ones = 0; y6_avg_twos = 0; y6_avg_threes = 0; y6_avg_fours = 0; y6_avg_sixes = 0
     
     for x in names:
         if(names[c]==player and season[c]==year-1):
@@ -892,6 +963,42 @@ def batting_projection(df,df2,player,year):
             y4_xWickets = xWickets[c]
             y4_xRuns = xRuns[c]
             #y4_extras = extras[c]
+        if(names[c]==player and season[c]==year-5):
+            y5_usage = usage[c]
+            y5_wickets = wickets[c]
+            y5_PP_usage = PP_usage[c]
+            y5_mid_usage = mid_usage[c]
+            y5_setup_usage = setup_usage[c]
+            y5_death_usage = death_usage[c]
+            y5_balls = balls[c]
+            y5_runs = runs[c]
+            y5_dots = dots[c]
+            y5_ones = ones[c]
+            y5_twos = twos[c]
+            y5_threes = threes[c]
+            y5_fours = fours[c]
+            y5_sixes = sixes[c]
+            y5_xWickets = xWickets[c]
+            y5_xRuns = xRuns[c]
+            #y5_extras = extras[c]
+        if(names[c]==player and season[c]==year-6):
+            y6_usage = usage[c]
+            y6_wickets = wickets[c]
+            y6_PP_usage = PP_usage[c]
+            y6_mid_usage = mid_usage[c]
+            y6_setup_usage = setup_usage[c]
+            y6_death_usage = death_usage[c]
+            y6_balls = balls[c]
+            y6_runs = runs[c]
+            y6_dots = dots[c]
+            y6_ones = ones[c]
+            y6_twos = twos[c]
+            y6_threes = threes[c]
+            y6_fours = fours[c]
+            y6_sixes = sixes[c]
+            y6_xWickets = xWickets[c]
+            y6_xRuns = xRuns[c]
+            #y6_extras = extras[c]
         c = c + 1
     
     for y in avg_season:
@@ -934,48 +1041,70 @@ def batting_projection(df,df2,player,year):
             y4_avg_threes = avg_threes[c2]
             y4_avg_fours = avg_fours[c2]
             y4_avg_sixes = avg_sixes[c2]
-            #y4_avg_extras = avg_extras[c2]   
+            #y4_avg_extras = avg_extras[c2]
+        if(avg_season[c2]==year-5):
+            y5_avg_runs = avg_runs[c2]
+            y5_avg_wickets = avg_wickets[c2]
+            y5_avg_dots = avg_dots[c2]
+            y5_avg_ones = avg_ones[c2]
+            y5_avg_twos = avg_twos[c2]
+            y5_avg_threes = avg_threes[c2]
+            y5_avg_fours = avg_fours[c2]
+            y5_avg_sixes = avg_sixes[c2]
+            #y5_avg_extras = avg_extras[c2]
+        if(avg_season[c2]==year-6):
+            y6_avg_runs = avg_runs[c2]
+            y6_avg_wickets = avg_wickets[c2]
+            y6_avg_dots = avg_dots[c2]
+            y6_avg_ones = avg_ones[c2]
+            y6_avg_twos = avg_twos[c2]
+            y6_avg_threes = avg_threes[c2]
+            y6_avg_fours = avg_fours[c2]
+            y6_avg_sixes = avg_sixes[c2]
+            #y6_avg_extras = avg_extras[c2]
         c2 = c2 + 1
         
-    w_balls = 8*y1_balls + 5*y2_balls + 4*y3_balls + 3*y4_balls
-    w_runs = 8*y1_runs + 5*y2_runs + 4*y3_runs +3*y4_runs
-    w_dots = 8*y1_dots + 5*y2_dots + 4*y3_dots +3*y4_dots
-    w_ones = 8*y1_ones + 5*y2_ones + 4*y3_ones +3*y4_ones
-    w_twos = 8*y1_twos + 5*y2_twos + 4*y3_twos +3*y4_twos
-    w_threes = 8*y1_threes + 5*y2_threes + 4*y3_threes +3*y4_threes
-    w_fours = 8*y1_fours + 5*y2_fours + 4*y3_fours +3*y4_fours
-    w_sixes = 8*y1_sixes + 5*y2_sixes + 4*y3_sixes +3*y4_sixes
-    w_wickets = 8*y1_wickets + 5*y2_wickets + 4*y3_wickets +3*y4_wickets
-    w_extras = 8*y1_extras + 5*y2_extras + 4*y3_extras +3*y4_extras
-    w_PP_usage = 8*y1_PP_usage + 5*y2_PP_usage + 4*y3_PP_usage +3*y4_PP_usage
-    w_mid_usage = 8*y1_mid_usage + 5*y2_mid_usage + 4*y3_mid_usage +3*y4_mid_usage
-    w_setup_usage = 8*y1_setup_usage + 5*y2_setup_usage + 4*y3_setup_usage +3*y4_setup_usage
-    w_death_usage = 8*y1_death_usage + 5*y2_death_usage + 4*y3_death_usage +3*y4_death_usage
-    w_usage = 8*y1_usage + 5*y2_usage + 4*y3_usage +3*y4_usage
-    w_xruns = 8*y1_xRuns + 5*y2_xRuns + 4*y3_xRuns +3*y4_xRuns
-    w_xwickets = 8*y1_xWickets + 5*y2_xWickets + 4*y3_xWickets +3*y4_xWickets
+    w_balls = 8*y1_balls + 5*y2_balls + 4*y3_balls + 3*y4_balls + 2*y5_balls + y6_balls
+    w_runs = 8*y1_runs + 5*y2_runs + 4*y3_runs +3*y4_runs + 2*y5_runs + y6_runs
+    w_dots = 8*y1_dots + 5*y2_dots + 4*y3_dots +3*y4_dots + 2*y5_dots + y6_dots
+    w_ones = 8*y1_ones + 5*y2_ones + 4*y3_ones +3*y4_ones + 2*y5_ones + y6_ones
+    w_twos = 8*y1_twos + 5*y2_twos + 4*y3_twos +3*y4_twos + 2*y5_twos + y6_twos
+    w_threes = 8*y1_threes + 5*y2_threes + 4*y3_threes +3*y4_threes + 2*y5_threes + y6_threes
+    w_fours = 8*y1_fours + 5*y2_fours + 4*y3_fours +3*y4_fours + 2*y5_fours + y6_fours
+    w_sixes = 8*y1_sixes + 5*y2_sixes + 4*y3_sixes +3*y4_sixes + 2*y5_sixes + y6_sixes
+    w_wickets = 8*y1_wickets + 5*y2_wickets + 4*y3_wickets +3*y4_wickets + 2*y5_wickets + y6_wickets
+    #w_extras = 8*y1_extras + 5*y2_extras + 4*y3_extras +3*y4_extras + 2*y5_extras + y6_extras
+    w_PP_usage = 8*y1_PP_usage + 5*y2_PP_usage + 4*y3_PP_usage +3*y4_PP_usage + 2*y5_PP_usage + y6_PP_usage
+    w_mid_usage = 8*y1_mid_usage + 5*y2_mid_usage + 4*y3_mid_usage +3*y4_mid_usage + 2*y5_mid_usage + y6_mid_usage
+    w_setup_usage = 8*y1_setup_usage + 5*y2_setup_usage + 4*y3_setup_usage +3*y4_setup_usage + 2*y5_setup_usage + y6_setup_usage
+    w_death_usage = 8*y1_death_usage + 5*y2_death_usage + 4*y3_death_usage +3*y4_death_usage + 2*y5_death_usage + y6_death_usage
+    w_usage = 8*y1_usage + 5*y2_usage + 4*y3_usage +3*y4_usage + 2*y5_usage + y6_usage
+    w_xruns = 8*y1_xRuns + 5*y2_xRuns + 4*y3_xRuns +3*y4_xRuns +2*y5_xRuns +y6_xRuns
+    w_xwickets = 8*y1_xWickets + 5*y2_xWickets + 4*y3_xWickets +3*y4_xWickets + 2*y5_xWickets +y6_xWickets
     #print(w_wickets)
-    mr_runs = (800/w_balls)*(8*y1_balls*y1_avg_runs + 5*y2_balls*y2_avg_runs + 4*y3_balls*y3_avg_runs + 3*y4_balls*y4_avg_runs)    
-    mr_dots = (800/w_balls)*(8*y1_balls*y1_avg_dots + 5*y2_balls*y2_avg_dots + 4*y3_balls*y3_avg_dots + 3*y4_balls*y4_avg_dots)
-    mr_ones = (800/w_balls)*(8*y1_balls*y1_avg_ones + 5*y2_balls*y2_avg_ones + 4*y3_balls*y3_avg_ones + 3*y4_balls*y4_avg_ones)
-    mr_twos = (800/w_balls)*(8*y1_balls*y1_avg_twos + 5*y2_balls*y2_avg_twos + 4*y3_balls*y3_avg_twos + 3*y4_balls*y4_avg_twos)
-    mr_threes = (800/w_balls)*(8*y1_balls*y1_avg_threes + 5*y2_balls*y2_avg_threes + 4*y3_balls*y3_avg_threes + 3*y4_balls*y4_avg_threes)
-    mr_fours = (800/w_balls)*(8*y1_balls*y1_avg_fours + 5*y2_balls*y2_avg_fours + 4*y3_balls*y3_avg_fours + 3*y4_balls*y4_avg_fours)
-    mr_sixes = (800/w_balls)*(8*y1_balls*y1_avg_sixes + 5*y2_balls*y2_avg_sixes + 4*y3_balls*y3_avg_sixes + 3*y4_balls*y4_avg_sixes)
-    mr_wickets = (800/w_balls)*(8*y1_balls*y1_avg_wickets + 5*y2_balls*y2_avg_wickets + 4*y3_balls*y3_avg_wickets + 3*y4_balls*y4_avg_wickets)
-    #mr_extras = (800/w_balls)*(8*y1_balls*y1_avg_extras + 5*y2_balls*y2_avg_extras + 4*y3_balls*y3_avg_extras + 3*y4_balls*y4_avg_extras)
+    mr_runs = (800/w_balls)*(8*y1_balls*y1_avg_runs + 5*y2_balls*y2_avg_runs + 4*y3_balls*y3_avg_runs + 3*y4_balls*y4_avg_runs + 2*y5_balls*y5_avg_runs + y6_balls*y6_avg_runs)    
+    mr_dots = (800/w_balls)*(8*y1_balls*y1_avg_dots + 5*y2_balls*y2_avg_dots + 4*y3_balls*y3_avg_dots + 3*y4_balls*y4_avg_dots + 2*y5_balls*y5_avg_dots + y6_balls*y6_avg_dots)
+    mr_ones = (800/w_balls)*(8*y1_balls*y1_avg_ones + 5*y2_balls*y2_avg_ones + 4*y3_balls*y3_avg_ones + 3*y4_balls*y4_avg_ones + 2*y5_balls*y5_avg_ones + y6_balls*y6_avg_ones)
+    mr_twos = (800/w_balls)*(8*y1_balls*y1_avg_twos + 5*y2_balls*y2_avg_twos + 4*y3_balls*y3_avg_twos + 3*y4_balls*y4_avg_twos + 2*y5_balls*y5_avg_twos + y6_balls*y6_avg_twos)
+    mr_threes = (800/w_balls)*(8*y1_balls*y1_avg_threes + 5*y2_balls*y2_avg_threes + 4*y3_balls*y3_avg_threes + 3*y4_balls*y4_avg_threes + 2*y5_balls*y5_avg_threes + y6_balls*y6_avg_threes)
+    mr_fours = (800/w_balls)*(8*y1_balls*y1_avg_fours + 5*y2_balls*y2_avg_fours + 4*y3_balls*y3_avg_fours + 3*y4_balls*y4_avg_fours + 2*y5_balls*y5_avg_fours + y6_balls*y6_avg_fours)
+    mr_sixes = (800/w_balls)*(8*y1_balls*y1_avg_sixes + 5*y2_balls*y2_avg_sixes + 4*y3_balls*y3_avg_sixes + 3*y4_balls*y4_avg_sixes + 2*y5_balls*y5_avg_sixes + y6_balls*y6_avg_sixes)
+    mr_wickets = (800/w_balls)*(8*y1_balls*y1_avg_wickets + 5*y2_balls*y2_avg_wickets + 4*y3_balls*y3_avg_wickets + 3*y4_balls*y4_avg_wickets + 2*y5_balls*y5_avg_wickets + y6_balls*y6_avg_wickets)
+    #mr_extras = (800/w_balls)*(8*y1_balls*y1_avg_extras + 5*y2_balls*y2_avg_extras + 4*y3_balls*y3_avg_extras + 3*y4_balls*y4_avg_extras + 2*y5_balls*y5_avg_extras + y6_balls*y6_avg_extras)
     #print(mr_wickets)
     if(y1_usage==0.000001): y1_usage = 0
     if(y2_usage==0.000001): y2_usage = 0
     if(y3_usage==0.000001): y3_usage = 0
     if(y4_usage==0.000001): y4_usage = 0
+    if(y5_usage==0.000001): y5_usage = 0
+    if(y6_usage==0.000001): y6_usage = 0
     #print(p_xAVG,p_xSR,w_balls)
-    if(y1_usage==0 and y2_usage==0 and y3_usage==0 and y4_usage==0):
+    if(y1_usage==0 and y2_usage==0 and y3_usage==0 and y4_usage==0 and y5_usage==0 and y6_usage==0):
         p_usage = 0 
     else:
-        p_usage = w_usage/(8*math.ceil(y1_usage) + 5*math.ceil(y2_usage) + 4*math.ceil(y3_usage) + 3*math.ceil(y4_usage))
+        p_usage = w_usage/(8*math.ceil(y1_usage) + 5*math.ceil(y2_usage) + 4*math.ceil(y3_usage) + 3*math.ceil(y4_usage) + 2*math.ceil(y5_usage) + math.ceil(y6_usage))
     
-    p_balls = 120*14*p_usage
+    #p_balls = 120*14*p_usage
     p_runs = (w_runs+mr_runs)/(800+w_balls)
     p_dots = (w_dots+mr_dots)/(800+w_balls)
     p_ones = (w_ones+mr_ones)/(800+w_balls)
@@ -1008,13 +1137,13 @@ def batting_projection(df,df2,player,year):
 def logs(x,y):
     #print(bowling_projection(file,file2,x,y))
     #print(batting_projection(file3,file4,x,y))
-    #bowling_projection_comps(file,file2,x,y,1)
-    batting_projection_comps(file3,file4,x,y,1)
+    bowling_projection_comps(file,file2,x,y,1)
+    #batting_projection_comps(file3,file4,x,y,1)
     #comps_dump(x,y)
     #comps_dump_bat(x,y)
     #mdist(file,bowling_projection(file,file2,x,y),unique_names)
     #mdist_bat(file3,batting_projection(file3,file4,x,y),unique_names2)
-    print("logs dumped")  
+    print("logs dumped")
 
-#logs("LS Livingstone",2023)
+#logs("C Green",2024)
 proj_dump()
