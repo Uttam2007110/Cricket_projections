@@ -47,7 +47,8 @@ def usage_corrected(bowler,file_name,values):
             #print(x,k,factor)
         if(bowler == 0 and x != "Free Agent"):
             if(game_sim == 1):
-                sublist = sublist.sort_values(by=5*['pp usage']+3*['mid usage']+['setup usage'],ascending=False)
+                sublist = sublist.sort_values(by=12*['pp usage']+5*['mid usage']+3*['setup usage']+['death usage'],ascending=False)
+                #sublist = sublist.sort_values(by=3*['pp usage']+9*['mid usage']+15*['setup usage']+18*['death usage'],ascending=True)
                 #print(sublist)
             k = sublist.count()[0]
         
@@ -57,7 +58,7 @@ def usage_corrected(bowler,file_name,values):
             
         for y in sublist.index:
             if(x != "Free Agent" and bowler == 1 and k>5):
-                if(c<len(values)):file_name['usage'][y] = min(values[c]*file_name['wickets/ball'][y],0.2)
+                if(c<len(values)):file_name['usage'][y] = values[c]*file_name['wickets/ball'][y]
                 else : file_name['usage'][y] = 0
                 dummy = dummy + file_name['usage'][y]
                 c = c + 1
@@ -66,7 +67,7 @@ def usage_corrected(bowler,file_name,values):
                 dummy = dummy + file_name['usage'][y]
                 c = c + 1
             if(x != "Free Agent" and bowler == 0):
-                if(c<len(values)):file_name['usage'][y] = min((1+c/k)*values[c]*file_name['balls/wkt'][y],file_name['balls/wkt'][y]/120)
+                if(c<len(values)):file_name['usage'][y] = values[c]*file_name['balls/wkt'][y]
                 else : file_name['usage'][y] = 0
                 dummy = dummy + file_name['usage'][y]
                 c = c + 1  
@@ -89,6 +90,59 @@ def analyse(u,w):
         c = c + 1
     return coeffs
 
+def analyse_bat_game(u,w):
+    input_file = 'C:/Users/Subramanya.Ganti/Downloads/cricket/t20i.csv'
+    file0 = pd.read_csv(input_file,sep=',',low_memory=False)
+    file0 = file0.fillna(0)
+    c = 0; coeffs = []
+    striker = 0
+    non_striker = 1
+    balls_faced = [0,0,0,0,0,0,0,0,0,0,0,0]
+    outs = [0,0,0,0,0,0,0,0,0,0,0,0]
+    s_name = ""
+    ns_name = ""
+    wickets = 0
+    p=1
+
+    for x in file0.values:
+        
+        if(x[18]!=0):
+            wickets = wickets + 1
+            if(s_name == x[19]): outs[striker] = outs[striker] + 1
+            if(ns_name == x[19]): outs[non_striker] = outs[non_striker] + 1
+        
+        if(x[5]==0.1):
+            striker = 0
+            non_striker = 1
+            s_name = x[8]
+            ns_name = x[9]
+            balls_faced[striker] = balls_faced[striker] + 1
+            #print(striker,non_striker,s_name,ns_name,x[5])
+        
+        if(x[5]>0.1 and x[8]==s_name):
+            balls_faced[striker] = balls_faced[striker] + 1
+            
+        if(x[5]>0.1 and x[8]==ns_name):
+            balls_faced[non_striker] = balls_faced[non_striker] + 1
+            
+        if(x[8]!=s_name and x[8]!=ns_name):
+            if(x[9]==ns_name):
+                s_name = x[8]
+                striker = 1 + max(striker,non_striker,0)
+                balls_faced[striker] = balls_faced[striker] + 1        
+                
+            if(x[9]==s_name):
+                ns_name = x[8]
+                non_striker = 1 + max(striker,non_striker,0)
+                balls_faced[non_striker] = balls_faced[non_striker] + 1                                   
+        c = c + 1
+
+    for x in balls_faced:
+        #print("batter",p,"usage",x/c,"balls/wkt",x/(outs[p-1]+0.000001))
+        coeffs.append(outs[p-1]/c)
+        p = p + 1
+    return coeffs
+
 def bowls(file_bowl_input,file_bowl,concat):
     (usage_bowl,wkts_bowl) = avg(1,file_bowl_input,concat)
     #averages_bowl = usage_bowl.mean(axis=0)
@@ -98,23 +152,26 @@ def bowls(file_bowl_input,file_bowl,concat):
 
 def bats(file_bat_input,file_bat,concat):
     (usage_bat,wkts_bat) = avg(0,file_bat_input,concat)
-    coeffs_bat = analyse(usage_bat,wkts_bat)
+    if(game_sim == 1):
+        coeffs_bat = analyse_bat_game(usage_bat,wkts_bat)
+    else:
+        coeffs_bat = analyse(usage_bat,wkts_bat)
     #print(coeffs_bat)
     return usage_corrected(0,file_bat,coeffs_bat)
 
-def calc_agg(f_bat,f_bowl):
+def calc_agg(f_bat,f_bowl,factor):
     summary = [["Team","runs bat","runs bowl","NRR","Wins"]]
-    extras= (f_bowl['usage']*f_bowl['extras/ball']*120).sum()/f_bowl['usage'].sum()
+    extras= (f_bowl['usage']*f_bowl['extras/ball']*120*factor).sum()/f_bowl['usage'].sum()
     team_names = np.unique(f_bowl['team'].values)
     
     for x in team_names:
-        runs_bat = ((f_bat.loc[(f_bat['team']==x),'usage']*f_bat.loc[(f_bat['team']==x),'runs/ball']).sum()*120)/(f_bat.loc[(f_bat['team']==x),'usage'].sum()) 
-        lg_runs_bat = ((f_bat.loc[(f_bat['team']==x),'usage']*f_bat.loc[(f_bat['team']==x),'xSR']).sum()*1.2)/(f_bat.loc[(f_bat['team']==x),'usage'].sum())
-        runs_bowl = ((f_bowl.loc[(f_bowl['team']==x),'usage']*f_bowl.loc[(f_bowl['team']==x),'runs/ball']).sum()*120)/(f_bowl.loc[(f_bowl['team']==x),'usage'].sum())
-        lg_runs_bowl = ((f_bowl.loc[(f_bowl['team']==x),'usage']*f_bowl.loc[(f_bowl['team']==x),'xECON']).sum()*20)/(f_bowl.loc[(f_bowl['team']==x),'usage'].sum())
+        runs_bat = ((f_bat.loc[(f_bat['team']==x),'usage']*f_bat.loc[(f_bat['team']==x),'runs/ball']).sum()*120*factor)/(f_bat.loc[(f_bat['team']==x),'usage'].sum()) 
+        lg_runs_bat = ((f_bat.loc[(f_bat['team']==x),'usage']*f_bat.loc[(f_bat['team']==x),'xSR']).sum()*1.2*factor)/(f_bat.loc[(f_bat['team']==x),'usage'].sum())
+        runs_bowl = ((f_bowl.loc[(f_bowl['team']==x),'usage']*f_bowl.loc[(f_bowl['team']==x),'runs/ball']).sum()*120*factor)/(f_bowl.loc[(f_bowl['team']==x),'usage'].sum())
+        lg_runs_bowl = ((f_bowl.loc[(f_bowl['team']==x),'usage']*f_bowl.loc[(f_bowl['team']==x),'xECON']).sum()*20*factor)/(f_bowl.loc[(f_bowl['team']==x),'usage'].sum())
         adj_runs = runs_bat + extras
         wins = (adj_runs**15.5)/((adj_runs**15.5)+(runs_bowl**15.5))
-        summary.append([x,adj_runs,runs_bowl,(adj_runs-runs_bowl)/20,wins])
+        summary.append([x,adj_runs,runs_bowl,(adj_runs-runs_bowl)/(20*factor),wins])
         
     summary = pd.DataFrame(summary)
     summary.columns = summary.iloc[0];summary = summary.drop(0)
@@ -126,6 +183,8 @@ def balance(file_batting,file_bowling,display,fac):
     
     file_bt = file_batting[file_batting.team != "Free Agent"]
     file_bwl = file_bowling[file_bowling.team != "Free Agent"]
+    #print(file_batting)
+    #print(file_bt)
     runs_bat = (file_bt['usage']*file_bt['runs/ball']).sum()/file_bt['usage'].sum()
     dots_bat = (file_bt['usage']*file_bt['dots/ball']).sum()/file_bt['usage'].sum()
     ones_bat = (file_bt['usage']*file_bt['1s/ball']).sum()/file_bt['usage'].sum()
@@ -224,13 +283,26 @@ def balance(file_batting,file_bowling,display,fac):
         
     return (file_batting,file_bowling)
 
-def h2h_alt(i_file,i_file2,flag):
+def h2h_alt(i_file,i_file2,flag,factor):
     global game_sim
     game_sim = flag
     file_bowl_input = pd.read_excel(i_file,'bowling seasons')
     file_bat_input = pd.read_excel(i_file,'batting seasons')
     f_bowl = pd.read_excel(i_file2,'MDist bowl')
     f_bat = pd.read_excel(i_file2,'MDist bat')
+    teams = pd.read_excel(i_file2,'Team')
+    
+    for x in f_bat.values:
+        if(game_sim == 1):
+            f_bat.loc[(f_bat['batsman']==x[0]),'team'] = teams.loc[(teams['player']==x[0]),'team'].values[0]
+        if(game_sim == 0):
+            f_bat.loc[(f_bat['batsman']==x[0]),'team'] = teams.loc[(teams['player']==x[0]),'squad'].values[0]
+    
+    for y in f_bowl.values:
+        if(game_sim == 1):
+            f_bowl.loc[(f_bowl['bowler']==y[0]),'team'] = teams.loc[(teams['player']==y[0]),'team'].values[0]
+        if(game_sim == 0):
+            f_bowl.loc[(f_bowl['bowler']==y[0]),'team'] = teams.loc[(teams['player']==y[0]),'squad'].values[0]     
     
     concat = [];
     for (x,y) in zip(file_bowl_input['bowling_team'].values,file_bowl_input['season'].values):
@@ -240,17 +312,31 @@ def h2h_alt(i_file,i_file2,flag):
     f_bowl_adj = bowls(file_bowl_input,f_bowl,concat)
     f_bat_adj = bats(file_bat_input,f_bat,concat)
     (f_bat_adj,f_bowl_adj) = balance(f_bat_adj,f_bowl_adj,0,1)
-    #print(calc_agg(f_bat_adj,f_bowl_adj))
-    return (calc_agg(f_bat_adj,f_bowl_adj),f_bat_adj,f_bowl_adj)
+    #print(calc_agg(f_bat_adj,f_bowl_adj,factor))
+    return (calc_agg(f_bat_adj,f_bowl_adj,factor),f_bat_adj,f_bowl_adj)
 
 def team_projections():
-    input_file = "C:/Users/Subramanya.Ganti/Downloads/cricket/ipl_summary.xlsx"
+    factor = 1
+    input_file = "C:/Users/Subramanya.Ganti/Downloads/cricket/hundred_summary.xlsx"
     file_bowl_input = pd.read_excel(input_file,'bowling seasons')
     file_bat_input = pd.read_excel(input_file,'batting seasons')
 
-    input_file2 = "C:/Users/Subramanya.Ganti/Downloads/cricket/ipl_projections.xlsx"
+    input_file2 = "C:/Users/Subramanya.Ganti/Downloads/cricket/hundred_projections.xlsx"
     f_bowl = pd.read_excel(input_file2,'MDist bowl')
     f_bat = pd.read_excel(input_file2,'MDist bat')
+    teams = pd.read_excel(input_file2,'Team')
+    
+    for x in f_bat.values:
+        if(game_sim == 1):
+            f_bat.loc[(f_bat['batsman']==x[0]),'team'] = teams.loc[(teams['player']==x[0]),'team'].values[0]
+        if(game_sim == 0):
+            f_bat.loc[(f_bat['batsman']==x[0]),'team'] = teams.loc[(teams['player']==x[0]),'squad'].values[0]
+    
+    for y in f_bowl.values:
+        if(game_sim == 1):
+            f_bowl.loc[(f_bowl['bowler']==y[0]),'team'] = teams.loc[(teams['player']==y[0]),'team'].values[0]
+        if(game_sim == 0):
+            f_bowl.loc[(f_bowl['bowler']==y[0]),'team'] = teams.loc[(teams['player']==y[0]),'squad'].values[0]     
     
     concat = [];
     for (x,y) in zip(file_bowl_input['bowling_team'].values,file_bowl_input['season'].values):
@@ -260,7 +346,7 @@ def team_projections():
     f_bowl_adj = bowls(file_bowl_input,f_bowl,concat)
     f_bat_adj = bats(file_bat_input,f_bat,concat)
     (f_bat_adj,f_bowl_adj) = balance(f_bat_adj,f_bowl_adj,0,1)
-    table = calc_agg(f_bat_adj,f_bowl_adj)
+    table = calc_agg(f_bat_adj,f_bowl_adj,factor)
     #print(table)
     table = table.apply(pd.to_numeric, errors='ignore')
     return (f_bat_adj,f_bowl_adj,table)
