@@ -15,8 +15,10 @@ dumps_file = "C:/Users/Subramanya.Ganti/Downloads/cricket/comps.xlsx"
 output_file = "C:/Users/Subramanya.Ganti/Downloads/cricket/blast_projections.xlsx"
 proj_year = 2024
 
-factor = 1; #t20
-#factor = 2.5; #odi
+#factor = (5/6);     #hundred
+factor = 1;        #t20
+#factor = 2.5;      #odi
+#factor = 11.25;    #tests
 
 def unique(list1):
     # initialize a null list
@@ -48,12 +50,6 @@ name0 = file['bowler'].values
 unique_names = unique(name0)
 name00 = file3['batsman'].values
 unique_names2 = unique(name00)
-
-lolcow = [["bowler","season","team","RCAA","WTAA","usage","ECON","SR","wickets/ball","pp usage","mid usage","setup usage","death usage","runs/ball","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","xECON","xSR"]]
-lolcow2 = [["bowler","season","team","RCAA","WTAA","usage","ECON","SR","wickets/ball","pp usage","mid usage","setup usage","death usage","runs/ball","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","xECON","xSR"]]
-lolcow4 = [["batsman","season","team","RSAA","OAA","usage","balls/wkt","SR","runs/ball","wickets/ball","pp usage","mid usage","setup usage","death usage","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","xballs/wkt","xSR"]]
-lolcow5 = [["batsman","season","team","RSAA","OAA","usage","balls/wkt","SR","runs/ball","wickets/ball","pp usage","mid usage","setup usage","death usage","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","xballs/wkt","xSR"]]
-lolcow3 = [["bowler","season","team","RCAA","WTAA","usage","ECON","SR","wickets/ball","pp usage","mid usage","setup usage","death usage"]]
 
 def mdist(df,v,p):
     proxy1 = 18+math.sqrt(df.loc[(df['bowler']==v[0])&(df['season']<v[1]),'balls_bowler'].sum())/5
@@ -436,6 +432,11 @@ def bowling_projection(df,df2,player,year):
     return projection 
 
 def proj_dump():
+    lolcow = [["bowler","season","team","RCAA","WTAA","usage","ECON","SR","wickets/ball","pp usage","mid usage","setup usage","death usage","runs/ball","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","xECON","xSR"]]
+    lolcow2 = [["bowler","season","team","RCAA","WTAA","usage","ECON","SR","wickets/ball","pp usage","mid usage","setup usage","death usage","runs/ball","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","xECON","xSR"]]
+    lolcow4 = [["batsman","season","team","RSAA","OAA","usage","balls/wkt","SR","runs/ball","wickets/ball","pp usage","mid usage","setup usage","death usage","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","xballs/wkt","xSR"]]
+    lolcow5 = [["batsman","season","team","RSAA","OAA","usage","balls/wkt","SR","runs/ball","wickets/ball","pp usage","mid usage","setup usage","death usage","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","xballs/wkt","xSR"]]
+    lolcow3 = [["bowler","season","team","RCAA","WTAA","usage","ECON","SR","wickets/ball","pp usage","mid usage","setup usage","death usage"]]
     
     for x in unique_names:
         #now = datetime.datetime.now()
@@ -508,24 +509,44 @@ def proj_dump():
     concat = np.unique(concat)
         
     lol = bowls(file,lol,concat)     #for usage adjustment
+    #print(lol)
     lol4 = bats(file3,lol4,concat)   #for usage adjustment
     (lol4,lol) = balance(lol4,lol,0,factor)
     print("Marcel based table")
-    marcel_table = calc_agg(lol4,lol)
+    marcel_table = calc_agg(lol4,lol,factor)
     
     lol2 = bowls(file,lol2,concat)     #for usage adjustment
     lol5 = bats(file3,lol5,concat)   #for usage adjustment
     (lol5,lol2) = balance(lol5,lol2,0,factor)
     print("MDist based table")
-    mdist_table = calc_agg(lol5,lol2)
+    mdist_table = calc_agg(lol5,lol2,factor)
+    
+    p_bat = ""; p_bowl = "";
+    final = [["player","team","squad"]]
+    names = np.unique(np.concatenate([lol5['batsman'].values,lol2['bowler'].values]))
+    
+    for x in names:
+        try : p_bat = lol5.loc[(lol5['batsman']==x),'team'].values[0]  
+        except IndexError: p_bat = "Free Agent"
+        try : p_bowl = lol2.loc[(lol2['bowler']==x),'team'].values[0]
+        except IndexError: p_bowl = "Free Agent"
+        if(p_bat == "Free Agent"): p_team = p_bowl
+        else : p_team = p_bat
+                
+        final.append([x,p_team,p_team])
+        
+    final = pd.DataFrame(final)
+    final.columns = final.iloc[0];final = final.drop(0)
+    final = final.fillna(0) 
     
     with pd.ExcelWriter(output_file) as writer:        
         mdist_table.to_excel(writer, sheet_name="MDist Table", index=False)
         lol2.to_excel(writer, sheet_name="MDist bowl", index=False)
         lol5.to_excel(writer, sheet_name="MDist bat", index=False)
+        final.to_excel(writer, sheet_name="Team", index=False)
         marcel_table.to_excel(writer, sheet_name="Marcel Table", index=False)
         lol.to_excel(writer, sheet_name="Marcel bowl", index=False)       
-        lol4.to_excel(writer, sheet_name="Marcel bat", index=False)
+        lol4.to_excel(writer, sheet_name="Marcel bat", index=False)        
             
     print("batting projections dumped")
     now = datetime.datetime.now()
