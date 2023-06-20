@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue May 16 01:54:48 2023
-
+Generating fantasy xPts for the cricket draft based on projections
 @author: Subramanya.Ganti
 """
 
@@ -10,7 +10,7 @@ import numpy as np
 from scipy.stats import poisson
 from usage import *
 
-gw = 2
+gw = 6
 input_file = "C:/Users/Subramanya.Ganti/Downloads/cricket/blast_projections.xlsx"
 input_file1 = "C:/Users/Subramanya.Ganti/Downloads/cricket/blast_summary.xlsx"
 output_dump = f'C:/Users/Subramanya.Ganti/Downloads/blast_gw{gw}.xlsx'
@@ -19,6 +19,7 @@ fixtures = pd.read_excel(fixtures,'schedule')
 
 home = []
 opps = []
+f = 1
 
 for x in fixtures.values:
     if(x[2] == gw):
@@ -43,11 +44,12 @@ def adj(x,f,bat):
     x[12] = 1 - (x[14]+x[15]+x[16]+x[17]+x[13])
     return x
 
-def gw_projection(a,b,input_file1,input_file):
+print("")
+def gw_projection(a,b,input_file1,input_file,factor):
     t1 = a
     t2 = b
     print(t1,"vs",t2)
-    (summary,bat,bowl) = h2h_alt(input_file1,input_file,1)
+    (summary,bat,bowl) = h2h_alt(input_file1,input_file,1,factor)
     #summary = pd.read_excel(input_file,'MDist Table')
     summary = summary.apply(pd.to_numeric, errors='ignore')
     league_avg = (summary.loc[(summary['Team']!="Free Agent"),'runs bat'].mean() + summary.loc[(summary['Team']!="Free Agent"),'runs bowl'].mean())/2
@@ -72,8 +74,11 @@ def gw_projection(a,b,input_file1,input_file):
     bat_game = [["batsman","season","team","usage","balls/wkt","SR","runs/ball","wickets/ball","pp usage","mid usage","setup usage","death usage","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","xPts","full xPts"]]
     bowl_game = [["bowler","season","team","usage","ECON","SR","wickets/ball","pp usage","mid usage","setup usage","death usage","runs/ball","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","xPts","full xPts"]]
 
-    w_avg = bat.loc[(bat['team']!="Free Agent"),'usage']*bat.loc[(bat['team']!="Free Agent"),'wickets/ball']
-    w_avg = w_avg.sum()*120/(summary.shape[0]-1)
+    w_avg_bat = bat.loc[(bat['team']!="Free Agent"),'usage']*bat.loc[(bat['team']!="Free Agent"),'wickets/ball']
+    w_avg_bowl = bowl.loc[(bowl['team']!="Free Agent"),'usage']*bowl.loc[(bowl['team']!="Free Agent"),'wickets/ball']
+    w_avg_bat = w_avg_bat.sum()*120/(summary.shape[0]-1)
+    w_avg_bowl = w_avg_bowl.sum()*120/(summary.shape[0]-1)
+    w_avg = (w_avg_bat + w_avg_bowl)/2
 
     for x in bat.values:
         if(x[2] == t1):
@@ -102,12 +107,12 @@ def gw_projection(a,b,input_file1,input_file):
     bat_game = bat_game.apply(pd.to_numeric, errors='ignore')
     bowl_game = bowl_game.apply(pd.to_numeric, errors='ignore')
 
-    bat_game.loc[bat_game['team'] == t1, 'wickets/ball'] = bat_game['wickets/ball']*w2_bowl/w_avg
-    bat_game.loc[bat_game['team'] == t2, 'wickets/ball'] = bat_game['wickets/ball']*w1_bowl/w_avg
+    bat_game.loc[bat_game['team'] == t1, 'wickets/ball'] = bat_game['wickets/ball']*(w2_bowl+0.35)/w_avg
+    bat_game.loc[bat_game['team'] == t2, 'wickets/ball'] = bat_game['wickets/ball']*(w1_bowl+0.35)/w_avg
     bat_game['balls/wkt'] = 1/bat_game['wickets/ball']
-    bowl_game.loc[bowl_game['team'] == t1, 'wickets/ball'] = bowl_game['wickets/ball']*w2/w_avg
-    bowl_game.loc[bowl_game['team'] == t2, 'wickets/ball'] = bowl_game['wickets/ball']*w1/w_avg
-
+    bowl_game.loc[bowl_game['team'] == t1, 'wickets/ball'] = bowl_game['wickets/ball']*(w2-0.35)/(w_avg-0.35)
+    bowl_game.loc[bowl_game['team'] == t2, 'wickets/ball'] = bowl_game['wickets/ball']*(w1-0.35)/(w_avg-0.35)
+    
     bat_game['xPts'] = 120*bat_game['usage']*(bat_game['runs/ball']+3*bat_game['6s/ball'])
     bat_game['full xPts'] = bat_game['balls/wkt']*(bat_game['runs/ball']+3*bat_game['6s/ball'])
 
@@ -185,7 +190,12 @@ def gw_projection(a,b,input_file1,input_file):
         x[16] = x[16] + 70*(poisson.cdf(k=4.5,mu=x[4])-poisson.cdf(k=3.5,mu=x[4]))
         x[16] = x[16] + 100*poisson.cdf(k=3.5,mu=x[4])
 
-    return (bat_game,bowl_game)
+    print("bowling usage",bowl_game['usage'].sum())
+    print("batting usage",bat_game['usage'].sum())
+    print(t1,s1*c2*league_avg)
+    print(t2,s2*c1*league_avg)
+    print(" ")
+    return (bat_game,bowl_game,summary)
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
 c = 0;
@@ -193,9 +203,9 @@ for x in home:
     a = home[c]
     b = opps[c]
     if (c==0): 
-        (bat_game,bowl_game) = gw_projection(a,b,input_file1,input_file)
+        (bat_game,bowl_game,table) = gw_projection(a,b,input_file1,input_file,f)
     else : 
-        (bat,bowl) = gw_projection(a,b,input_file1,input_file)
+        (bat,bowl,table) = gw_projection(a,b,input_file1,input_file,f)
         bat_game = pd.concat([bat_game,bat])
         bowl_game = pd.concat([bowl_game,bowl])
     c = c + 1
@@ -203,7 +213,7 @@ for x in home:
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
 
 names = np.unique(np.concatenate([bat_game['batsman'].values,bowl_game['bowler'].values]))
-final = [["player","team","bat","bowl","total","bat usage","bowl usage","bat max","bowl max","max"]]
+final = [["player","team","bat","bowl","total","bat usage","bowl usage"]]
 
 for x in names:
     try : p_bat = bat_game.loc[(bat_game['batsman']==x),'team'].values[0]  
@@ -216,13 +226,13 @@ for x in names:
     bat_game = bat_game.groupby(['batsman','season','team'], as_index=False).sum()
     bowl_game = bowl_game.groupby(['bowler','season','team'], as_index=False).sum()
     
-    final.append([x,p_team,bat_game.loc[(bat_game['batsman']==x),'xPts'].mean(),bowl_game.loc[(bowl_game['bowler']==x),'xPts'].mean(),0,bat_game.loc[(bat_game['batsman']==x),'usage'].mean(),bowl_game.loc[(bowl_game['bowler']==x),'usage'].mean(),bat_game.loc[(bat_game['batsman']==x),'full xPts'].mean(),bowl_game.loc[(bowl_game['bowler']==x),'full xPts'].mean(),0])
+    final.append([x,p_team,bat_game.loc[(bat_game['batsman']==x),'xPts'].mean(),bowl_game.loc[(bowl_game['bowler']==x),'xPts'].mean(),0,bat_game.loc[(bat_game['batsman']==x),'usage'].mean(),bowl_game.loc[(bowl_game['bowler']==x),'usage'].mean()])
     
 final = pd.DataFrame(final)
 final.columns = final.iloc[0];final = final.drop(0)
 final = final.fillna(0)
 final['total'] = final['bat'] + final['bowl']
-final['max'] = final['bat max'] + final['bowl max']
+#final['max'] = final['bat max'] + final['bowl max']
 
 with pd.ExcelWriter(output_dump) as writer:        
     final.to_excel(writer, sheet_name="Points", index=False)
