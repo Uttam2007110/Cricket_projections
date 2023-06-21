@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jun 21 18:19:46 2023
-
-@author: Subramanya.Ganti
+Created on Thu Jun 22 01:55:40 2023
+NBA projections courtesy numberFire
+@author: GF63
 """
 # %%  specify the teams playing
 import pandas as pd
 import numpy as np
 
-date = '6/13/23'   #month/day/year
-squads = ["Denver-Nuggets","Miami-Heat"]
+date = '6/12/23'   #month/day/year
+squads = ["Miami-Heat","Denver-Nuggets"]
 
 teams = ["Milwaukee-Bucks","Boston-Celtics","Philadelphia-76ers","Cleveland-Cavaliers","New-York-Knicks",
 "Brooklyn-Nets","Miami-Heat","Atlanta-Hawks","Toronto-Raptors","Chicago-Bulls","Indiana-Pacers",
-"Washington-Wizards","Orlando-Magic","Charlotte-Hornets","Detroit-Pistons","Denver-Nuggets","Memphis-Grizzlies",
-"Sacramento-Kings","Phoenix-Suns","Los-Angeles-Clippers","Golden-State-Warriors",
+"Washington-Wizards","Orlando-Magic","Charlotte-Hornets","Detroit-Pistons","Denver-Nuggets",
+"Memphis-Grizzlies","Sacramento-Kings","Phoenix-Suns","Los-Angeles-Clippers","Golden-State-Warriors",
 "Los-Angeles-Lakers","Minnesota-Timberwolves","New-Orleans-Pelicans","Oklahoma-City-Thunder",
 "Dallas-Mavericks","Utah-Jazz","Portland-Trail-Blazers","Houston-Rockets","San-Antonio-Spurs"]
 
@@ -38,10 +38,16 @@ def extract_players(teams):
             string = string.replace("Jr.", "Jr")
             string = string.replace(".", "-")
             string = string.replace("Ish-Smith", "Ishmael-Smith")   #feed his ass to the white whale
+            string = string.replace("Patrick-Baldwin", "Patrick-Baldwin-Jr")
+            string = string.replace("Dennis-Smith-Jr","Dennis-Smith-Jr.")
+            string = string.replace("Desmond-Bane","Desmond-Bane-1")
+            string = string.replace("Troy-Brown-Jr","Troy-Brown")
+            string = string.replace("Willy-Hernangomez","Guillermo-Hernangomez")
+            string = string.replace("Devonte--Graham","Devonte-Graham")
             player.append([string,lol])
             j = j + 1
         j = 0
-        print(teams[i],"done")
+        print(teams[i],i+1)
         i = i + 1
     player = pd.DataFrame(player)
     player = pd.DataFrame(player)
@@ -58,7 +64,6 @@ def xPts(player):
         name = player.loc[i+1][0]
         p_team = player.loc[i+1][1]
         if p_team in squads:
-            print(name)
             table2 = pd.read_html(f'https://www.numberfire.com/nba/players/projections/{name}')
             if(len(table2) == 3): n = 0
             else: n = 1
@@ -68,6 +73,7 @@ def xPts(player):
             else: val = val[0]
             proj = table2[n+1]
             if(val>-1):
+                print(name)
                 p = proj.loc[[val]]
                 p['Name'] = name
                 p['Team'] = p_team
@@ -82,7 +88,8 @@ def xPts(player):
     projections['Name'] = projections['Name'].str.replace("-", " ")
     projections['Team'] = projections['Team'].str.replace("-", " ")
     projections['FP'] = projections['PTS']+1.2*projections['REB']+1.5*projections['AST']+3*(projections['STL']+projections['BLK'])-projections['TOV']
+    projections = projections[projections['FP'] != 0]
+    projections = projections.sort_values(by=['FP'],ascending=False)
     return projections
 
-projections = xPts(player)
- 
+f_points = xPts(player)
