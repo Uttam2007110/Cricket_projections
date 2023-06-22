@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jun 22 01:55:40 2023
+Created on Thu Jun 22 14:56:42 2023
 NBA projections courtesy numberFire
-@author: GF63
+@author: Subramanya.Ganti
 """
 # %%  specify the teams playing
 import pandas as pd
 import numpy as np
 
-date = '6/12/23'   #month/day/year
+date = '6/4/23'   #month/day/year
 squads = ["Miami-Heat","Denver-Nuggets"]
 
 teams = ["Milwaukee-Bucks","Boston-Celtics","Philadelphia-76ers","Cleveland-Cavaliers","New-York-Knicks",
@@ -90,6 +90,11 @@ def xPts(player):
     projections['FP'] = projections['PTS']+1.2*projections['REB']+1.5*projections['AST']+3*(projections['STL']+projections['BLK'])-projections['TOV']
     projections = projections[projections['FP'] != 0]
     projections = projections.sort_values(by=['FP'],ascending=False)
+    projections['Credits'] = 1.0
+    projections['Eff'] = projections['FP']/projections['Credits']
     return projections
 
 f_points = xPts(player)
+
+# %%  efficiency after inputing prices
+f_points['Eff'] = f_points['FP']/f_points['Credits']
