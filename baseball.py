@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jun  7 12:41:19 2023
+Created on Wed Jun 7 12:41:19 2023
 fangraphs projections to d11 xPts
 @author: Subramanya.Ganti
 """
@@ -10,10 +10,10 @@ pd.options.mode.chained_assignment = None  # default='warn'
 import numpy as np
 import math
 
-home = ["OAK"]
-opps = ["TBR"]
-
-df_lol = pd.read_html('https://www.fangraphs.com/liveboxscore.aspx?date=2023-06-15&team=Athletics&dh=0&season=2023#home_standard')
+home = ["xxx"]
+opps = ["xxx"]
+display = 'x'    #Blue%20Jays
+date = '2023-xx-xx'     #yyyy-mm-dd  
 
 # %%  pull projections from fangraphs
 def generate():
@@ -232,8 +232,13 @@ while c < len(home):
         pit = pd.concat([pit, pit_new])
     c += 1
 (a_projection,bat,pit) = results(bat,pit)
+a_projection = a_projection.sort_values(by=['xPts'],ascending=False)
+a_projection = a_projection.head(20)
 
 # %% live pts for the game in question
+
+df_lol = pd.read_html(f'https://www.fangraphs.com/liveboxscore.aspx?date={date}&team={display}&dh=0&season=2023#home_standard')
+#df_lol = pd.read_html('https://www.fangraphs.com/liveboxscore.aspx?date=2023-07-01&team=Blue%20Jays&dh=0&season=2023#home_standard')
 def real_time(df_list):
     a = 18
     if(len(df_list[8])<5): a = 20
@@ -247,14 +252,16 @@ def real_time(df_list):
     pit_home.drop(pit_home.tail(1).index,inplace=True)
     pit_away.drop(pit_away.tail(1).index,inplace=True)
     
+    print("current inning",divmod(pit_home['IP'],1)[0].sum())
     pit_home['IP'] = divmod(pit_home['IP'],1)[0] + (10/3)*divmod(pit_home['IP'],1)[1]
-    pit_away['IP'] = divmod(pit_away['IP'],1)[0] + (10/3)*divmod(pit_away['IP'],1)[1]
+    pit_away['IP'] = divmod(pit_away['IP'],1)[0] + (10/3)*divmod(pit_away['IP'],1)[1] 
 
     bat_home['Pts'] = 4*(bat_home['BB']+bat_home['H']-bat_home['2B']-bat_home['3B']-bat_home['HR'])+6*bat_home['2B']+10*bat_home['3B']+12*bat_home['HR']+8*bat_home['SB']+3*(bat_home['R']+bat_home['RBI'])
     pit_home['Pts'] = 3*pit_home['IP']+2*pit_home['SO']-3*pit_home['ER']-pit_home['H']-pit_home['BB']
     bat_away['Pts'] = 4*(bat_away['BB']+bat_away['H']-bat_away['2B']-bat_away['3B']-bat_away['HR'])+6*bat_away['2B']+10*bat_away['3B']+12*bat_away['HR']+8*bat_away['SB']+3*(bat_away['R']+bat_away['RBI'])
     pit_away['Pts'] = 3*pit_away['IP']+2*pit_away['SO']-3*pit_away['ER']-pit_away['H']-pit_away['BB']
-
+    
+    print("score",bat_home['R'].sum(),"-",bat_away['R'].sum())
     bat_home = bat_home[['Name','Pts']]
     bat_away = bat_away[['Name','Pts']]
     pit_home = pit_home[['Name','Pts']]
