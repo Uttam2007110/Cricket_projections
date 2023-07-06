@@ -9,16 +9,23 @@ import pandas as pd
 import math
 import datetime
 from usage import *
+pd.options.mode.chained_assignment = None  # default='warn'
 
-input_file = 'C:/Users/Subramanya.Ganti/Downloads/cricket/blast_summary.xlsx' # the output of generate.py
-dumps_file = "C:/Users/Subramanya.Ganti/Downloads/cricket/comps.xlsx"
-output_file = "C:/Users/Subramanya.Ganti/Downloads/cricket/blast_projections.xlsx"
-proj_year = 2024
+comp = 'odiw'
+path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
-#factor = (5/6);     #hundred
-factor = 1;        #t20
-#factor = 2.5;      #odi
-#factor = 11.25;    #tests
+if(comp=='hundred' or comp=='hundredw'):
+    factor = (5/6); #hundred
+elif(comp=='odi' or comp=='odiw' or comp=='odiq'):
+    factor = 2.5;   #odi
+elif(comp=='tests'):
+    factor = 11.25; #test
+else:
+    factor = 1;     #assume its a t20 by default
+
+input_file = f'{path}/{comp}_summary.xlsx' # the output of generate.py
+dumps_file = f"{path}/{comp}_comps.xlsx"
+output_file = f"{path}/{comp}_projections.xlsx"
 
 def unique(list1):
     # initialize a null list
@@ -510,13 +517,13 @@ def proj_dump():
         
     lol = bowls(file,lol,concat)     #for usage adjustment
     #print(lol)
-    lol4 = bats(file3,lol4,concat)   #for usage adjustment
+    lol4 = bats(file3,lol4,concat,factor)   #for usage adjustment
     (lol4,lol) = balance(lol4,lol,0,factor)
     print("Marcel based table")
     marcel_table = calc_agg(lol4,lol,factor)
     
     lol2 = bowls(file,lol2,concat)     #for usage adjustment
-    lol5 = bats(file3,lol5,concat)   #for usage adjustment
+    lol5 = bats(file3,lol5,concat,factor)   #for usage adjustment
     (lol5,lol2) = balance(lol5,lol2,0,factor)
     print("MDist based table")
     mdist_table = calc_agg(lol5,lol2,factor)
