@@ -11,6 +11,7 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 
 game_sim = 0
+path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
 def avg(bowler,file_name,item):
     total = []; total2 = []
@@ -45,11 +46,13 @@ def usage_corrected(bowler,file_name,values):
             k = sublist.count()[0]
             factor = 1/sum(values[0:k])
             #print(x,k,factor)
-        if(bowler == 0 and x != "Free Agent"):
+        if(bowler == 0): #and x != "Free Agent"):
             if(game_sim == 1):
-                sublist = sublist.sort_values(by=12*['pp usage']+5*['mid usage']+3*['setup usage']+['death usage'],ascending=False)
-                #sublist = sublist.sort_values(by=3*['pp usage']+9*['mid usage']+15*['setup usage']+18*['death usage'],ascending=True)
+                #sublist['factor'] = 100*sublist['pp usage']+50*sublist['mid usage']+10*sublist['setup usage']+sublist['death usage']
+                sublist['factor'] = 3*sublist['pp usage']+9*sublist['mid usage']+15*sublist['setup usage']+19*sublist['death usage']
+                sublist = sublist.sort_values(by=['factor'],ascending=True)
                 #print(sublist)
+                sublist.drop(['factor'], axis=1)
             k = sublist.count()[0]
         
         #if(bowler == 1):
@@ -90,8 +93,9 @@ def analyse(u,w):
         c = c + 1
     return coeffs
 
-def analyse_bat_game(u,w):
-    input_file = 'C:/Users/Subramanya.Ganti/Downloads/cricket/t20i.csv'
+def analyse_bat_game(u,w,factor):
+    if(factor <= 1): input_file = f'{path}/t20i.csv'
+    if(factor == 2.5): input_file = f'{path}/odi.csv'
     file0 = pd.read_csv(input_file,sep=',',low_memory=False)
     file0 = file0.fillna(0)
     c = 0; coeffs = []
@@ -150,10 +154,10 @@ def bowls(file_bowl_input,file_bowl,concat):
     #return usage_corrected(1,file_bowl,averages_bowl)
     return usage_corrected(1,file_bowl,coeffs_bowl)    
 
-def bats(file_bat_input,file_bat,concat):
+def bats(file_bat_input,file_bat,concat,factor):
     (usage_bat,wkts_bat) = avg(0,file_bat_input,concat)
     if(game_sim == 1):
-        coeffs_bat = analyse_bat_game(usage_bat,wkts_bat)
+        coeffs_bat = analyse_bat_game(usage_bat,wkts_bat,factor)
     else:
         coeffs_bat = analyse(usage_bat,wkts_bat)
     #print(coeffs_bat)
@@ -310,18 +314,18 @@ def h2h_alt(i_file,i_file2,flag,factor):
     concat = np.unique(concat)
         
     f_bowl_adj = bowls(file_bowl_input,f_bowl,concat)
-    f_bat_adj = bats(file_bat_input,f_bat,concat)
+    f_bat_adj = bats(file_bat_input,f_bat,concat,factor)
     (f_bat_adj,f_bowl_adj) = balance(f_bat_adj,f_bowl_adj,0,1)
     #print(calc_agg(f_bat_adj,f_bowl_adj,factor))
     return (calc_agg(f_bat_adj,f_bowl_adj,factor),f_bat_adj,f_bowl_adj)
 
 def team_projections():
     factor = 1
-    input_file = "C:/Users/Subramanya.Ganti/Downloads/cricket/hundred_summary.xlsx"
+    input_file = f"{path}/hundred_summary.xlsx"
     file_bowl_input = pd.read_excel(input_file,'bowling seasons')
     file_bat_input = pd.read_excel(input_file,'batting seasons')
 
-    input_file2 = "C:/Users/Subramanya.Ganti/Downloads/cricket/hundred_projections.xlsx"
+    input_file2 = f"{path}/hundred_projections.xlsx"
     f_bowl = pd.read_excel(input_file2,'MDist bowl')
     f_bat = pd.read_excel(input_file2,'MDist bat')
     teams = pd.read_excel(input_file2,'Team')
