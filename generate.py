@@ -7,12 +7,22 @@ converting cricsheet data into league summary tables
 import pandas as pd
 from sys import getsizeof
 import datetime
+pd.options.mode.chained_assignment = None  # default='warn'
 
-input_file = 'C:/Users/Subramanya.Ganti/Downloads/cricket/blast.csv'
-output_file = "C:/Users/Subramanya.Ganti/Downloads/cricket/blast_summary.xlsx"
+comp = 'odiw'
+path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
-p1 = 6; p2 = 12; p3 = 17; factor = 1; #t20
-#p1 = 10; p2 = 26; p3 = 40; factor = 2.5; #odi
+if(comp=='hundred' or comp=='hundredw'):
+    p1 = 6; p2 = 12; p3 = 17; factor = (5/6);  #hundred
+elif(comp=='odi' or comp=='odiw' or comp=='odiq'):
+    p1 = 10; p2 = 26; p3 = 40; factor = 2.5;   #odi
+elif(comp=='tests'):
+    p1 = 30; p2 = 55; p3 = 80; factor = 11.25; #test
+else:
+    p1 = 6; p2 = 12; p3 = 17; factor = 1;      #assume its a t20 by default
+
+input_file = f'{path}/{comp}.csv'
+output_file = f"{path}/{comp}_summary.xlsx"
 
 def unique(list1):
     # initialize a null list
