@@ -9,13 +9,18 @@ import pandas as pd
 import numpy as np
 from scipy.stats import poisson
 from usage import *
+pd.options.mode.chained_assignment = None  # default='warn'
 
-gw = 6
-input_file = "C:/Users/Subramanya.Ganti/Downloads/cricket/blast_projections.xlsx"
-input_file1 = "C:/Users/Subramanya.Ganti/Downloads/cricket/blast_summary.xlsx"
-output_dump = f'C:/Users/Subramanya.Ganti/Downloads/blast_gw{gw}.xlsx'
-fixtures = "C:/Users/Subramanya.Ganti/Downloads/cricket/blast_schedule.xlsx"
-fixtures = pd.read_excel(fixtures,'schedule')
+comp = 'blast'
+year = '23'
+path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
+gw = 8
+
+input_file = f"{path}/{comp}_projections.xlsx"
+input_file1 = f"{path}/{comp}_summary.xlsx"
+output_dump = f'{path}/{comp}_gw{gw}.xlsx'
+fixtures = f"{path}/schedule.xlsx"
+fixtures = pd.read_excel(fixtures,f'{comp} {year}')
 
 home = []
 opps = []
@@ -213,7 +218,7 @@ for x in home:
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
 
 names = np.unique(np.concatenate([bat_game['batsman'].values,bowl_game['bowler'].values]))
-final = [["player","team","bat","bowl","total","bat usage","bowl usage"]]
+final = [["player","team","total","bat","bowl","bat usage","bowl usage"]]
 
 for x in names:
     try : p_bat = bat_game.loc[(bat_game['batsman']==x),'team'].values[0]  
@@ -226,13 +231,14 @@ for x in names:
     bat_game = bat_game.groupby(['batsman','season','team'], as_index=False).sum()
     bowl_game = bowl_game.groupby(['bowler','season','team'], as_index=False).sum()
     
-    final.append([x,p_team,bat_game.loc[(bat_game['batsman']==x),'xPts'].mean(),bowl_game.loc[(bowl_game['bowler']==x),'xPts'].mean(),0,bat_game.loc[(bat_game['batsman']==x),'usage'].mean(),bowl_game.loc[(bowl_game['bowler']==x),'usage'].mean()])
+    final.append([x,p_team,0,bat_game.loc[(bat_game['batsman']==x),'xPts'].mean(),bowl_game.loc[(bowl_game['bowler']==x),'xPts'].mean(),bat_game.loc[(bat_game['batsman']==x),'usage'].mean(),bowl_game.loc[(bowl_game['bowler']==x),'usage'].mean()])
     
 final = pd.DataFrame(final)
 final.columns = final.iloc[0];final = final.drop(0)
 final = final.fillna(0)
 final['total'] = final['bat'] + final['bowl']
 #final['max'] = final['bat max'] + final['bowl max']
+final = final.sort_values(['total'], ascending=[False])
 
 with pd.ExcelWriter(output_dump) as writer:        
     final.to_excel(writer, sheet_name="Points", index=False)
