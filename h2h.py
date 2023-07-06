@@ -4,26 +4,38 @@ Created on Tue Apr 18 16:46:51 2023
 Generating fantasy xPts for dream 11 based on projections
 @author: Subramanya.Ganti
 """
-
+#%% choose the teams which are playing
 import pandas as pd
 import numpy as np
 from scipy.stats import poisson
 from usage import *
 import datetime as dt
+pd.options.mode.chained_assignment = None  # default='warn'
 
-input_file = "C:/Users/Subramanya.Ganti/Downloads/cricket/blast_projections.xlsx"
-input_file1 = "C:/Users/Subramanya.Ganti/Downloads/cricket/blast_summary.xlsx"
-output_dump = "C:/Users/Subramanya.Ganti/Downloads/game.xlsx"
+comp = 'blast'
+year = '23'
+path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
-def fixtures_file(now):    
-    fixtures = "C:/Users/Subramanya.Ganti/Downloads/cricket/blast_schedule.xlsx"
-    fixtures = pd.read_excel(fixtures,'schedule')
+input_file = f"{path}/{comp}_projections.xlsx"
+input_file1 = f"{path}/{comp}_summary.xlsx"
+output_dump = f"{path}/game.xlsx"
+
+if(comp=='hundred' or comp=='hundredw'):
+    f = (5/6); #hundred
+elif(comp=='odi' or comp=='odiw' or comp=='odiq'):
+    f = 2.5;   #odi
+elif(comp=='tests'):
+    f = 11.25; #test
+else:
+    f = 1;     #assume its a t20 by default
+
+def fixtures_file(now,comp):
+    fixtures = f"{path}/schedule.xlsx"
+    fixtures = pd.read_excel(fixtures,f'{comp} {year}')
     temp = dt.datetime(1899, 12, 30)    # Note, not 31st Dec but 30th!
     delta = now - temp
     now = float(delta.days)
-    
-    home = []
-    opps = []
+    home = []; opps = []
 
     for x in fixtures.values:
         if(x[1] == now):
@@ -33,13 +45,12 @@ def fixtures_file(now):
     return (home,opps)
 
 now = dt.datetime.now()
-#now = dt.datetime(2023,6,18)
-(home,opps) = fixtures_file(now)
+#now = dt.datetime(2023,7,7)
+(home,opps) = fixtures_file(now,comp)
+#home = ["India"]
+#opps = ["Bangladesh"]
 
-#home = ["Essex"]
-#opps = ["Glamorgan"]
-f = 1
-
+#%% find projections
 def adj(x,f,bat):
     if(bat == 1):
         #print(x)
@@ -89,29 +100,29 @@ def gw_projection(a,b,input_file1,input_file,factor):
 
     w_avg_bat = bat.loc[(bat['team']!="Free Agent"),'usage']*bat.loc[(bat['team']!="Free Agent"),'wickets/ball']
     w_avg_bowl = bowl.loc[(bowl['team']!="Free Agent"),'usage']*bowl.loc[(bowl['team']!="Free Agent"),'wickets/ball']
-    w_avg_bat = w_avg_bat.sum()*120/(summary.shape[0]-1)
-    w_avg_bowl = w_avg_bowl.sum()*120/(summary.shape[0]-1)
+    w_avg_bat = w_avg_bat.sum()*120*factor/(summary.shape[0]-1)
+    w_avg_bowl = w_avg_bowl.sum()*120*factor/(summary.shape[0]-1)
     w_avg = (w_avg_bat + w_avg_bowl)/2
 
     for x in bat.values:
         if(x[2] == t1):
             x = adj(x,s1,1)
             bat_game.append(x.tolist())
-            w1 = w1 + x[3]*x[7]*120
+            w1 = w1 + x[3]*x[7]*120*factor
         if(x[2] == t2):
             x = adj(x,s2,1)
             bat_game.append(x.tolist())
-            w2 = w2 + x[3]*x[7]*120
+            w2 = w2 + x[3]*x[7]*120*factor
 
     for x in bowl.values:
         if(x[2] == t1):
             x = adj(x,c1,0)
             bowl_game.append(x.tolist())
-            w1_bowl = w1_bowl + x[3]*x[6]*120
+            w1_bowl = w1_bowl + x[3]*x[6]*120*factor
         if(x[2] == t2):
             x = adj(x,c2,0)
             bowl_game.append(x.tolist())
-            w2_bowl = w2_bowl + x[3]*x[6]*120
+            w2_bowl = w2_bowl + x[3]*x[6]*120*factor
 
     bat_game = pd.DataFrame(bat_game)
     bat_game.columns = bat_game.iloc[0];bat_game = bat_game.drop(0)
@@ -127,7 +138,7 @@ def gw_projection(a,b,input_file1,input_file,factor):
     bowl_game.loc[bowl_game['team'] == t2, 'wickets/ball'] = bowl_game['wickets/ball']*(w1-0.35)/w_avg
 
     #bat_game['usage'] = np.minimum(bat_game['usage'],(1.65*np.exp(-1.0*np.minimum(bat_game['death usage'],0.7))-0.45)*bat_game['balls/wkt']/120)
-    bat_game['xPts'] = 120*bat_game['usage']*(bat_game['runs/ball']+bat_game['4s/ball']+2*bat_game['6s/ball'])
+    bat_game['xPts'] = 120*factor*bat_game['usage']*(bat_game['runs/ball']+bat_game['4s/ball']+2*bat_game['6s/ball'])
     #bat_game['full xPts'] = (1.65*np.exp(-1.0*np.minimum(bat_game['death usage'],0.8))-0.45)*bat_game['balls/wkt']*bat_game['xPts']/(120*bat_game['usage'])
     bat_game['full xPts'] = bat_game['balls/wkt']*(bat_game['runs/ball']+bat_game['4s/ball']+2*bat_game['6s/ball'])
     bat_game['xPts'] = bat_game['xPts'] - 2*bat_game['wickets/ball']
@@ -138,33 +149,36 @@ def gw_projection(a,b,input_file1,input_file,factor):
     bat_game = bat_game.drop(['setup usage'],axis=1)
     bat_game = bat_game.drop(['death usage'],axis=1)
 
+    if(factor == 1): f1u=0; f1d=0; f2u=0; f2d=0; p=4; q=8; r=16 
+    if(factor == 2.5): f1u=30; f1d=20; f2u=3; f2d=2.5; p=0; q=4; r=8
+
     for x in bat_game.values:
-        lol = x[6]*x[3]*120; lol2 = x[6]*x[4]
+        lol = x[6]*x[3]*factor*120; lol2 = x[6]*x[4]
         
-        x[14] = x[14] + 4*(poisson.cdf(k=50,mu=lol)-poisson.cdf(k=30,mu=lol))
-        x[14] = x[14] + 8*(poisson.cdf(k=100,mu=lol)-poisson.cdf(k=50,mu=lol))
-        x[14] = x[14] + 16*(1-poisson.cdf(k=100,mu=lol))
-        x[14] = x[14] + 6*(1-poisson.cdf(k=170,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]))
-        x[14] = x[14] + 4*(poisson.cdf(k=170,mu=x[5])-poisson.cdf(k=150,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]))
-        x[14] = x[14] + 2*(poisson.cdf(k=150,mu=x[5])-poisson.cdf(k=130,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]))
-        x[14] = x[14] - 2*(poisson.cdf(k=70,mu=x[5])-poisson.cdf(k=60,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]))
-        x[14] = x[14] - 4*(poisson.cdf(k=60,mu=x[5])-poisson.cdf(k=50,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]))
-        x[14] = x[14] - 6*poisson.cdf(k=50,mu=x[5])*(1-poisson.cdf(k=10,mu=120*x[3]))
+        x[14] = x[14] + p*(poisson.cdf(k=50,mu=lol)-poisson.cdf(k=30,mu=lol))
+        x[14] = x[14] + q*(poisson.cdf(k=100,mu=lol)-poisson.cdf(k=50,mu=lol))
+        x[14] = x[14] + r*(1-poisson.cdf(k=100,mu=lol))
+        x[14] = x[14] + 6*(1-poisson.cdf(k=170-f1u,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]*factor))
+        x[14] = x[14] + 4*(poisson.cdf(k=170-f1u,mu=x[5])-poisson.cdf(k=150-f1u,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]*factor))
+        x[14] = x[14] + 2*(poisson.cdf(k=150-f1u,mu=x[5])-poisson.cdf(k=130-f1u,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]*factor))
+        x[14] = x[14] - 2*(poisson.cdf(k=70-f1d,mu=x[5])-poisson.cdf(k=60-f1d,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]*factor))
+        x[14] = x[14] - 4*(poisson.cdf(k=60-f1d,mu=x[5])-poisson.cdf(k=50-f1d,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]*factor))
+        x[14] = x[14] - 6*poisson.cdf(k=50-f1d,mu=x[5])*(1-poisson.cdf(k=10,mu=120*x[3]*factor))
         
-        x[15] = x[15] + 4*(poisson.cdf(k=50,mu=lol2)-poisson.cdf(k=30,mu=lol2))
-        x[15] = x[15] + 8*(poisson.cdf(k=100,mu=lol2)-poisson.cdf(k=50,mu=lol2))
-        x[15] = x[15] + 16*(1-poisson.cdf(k=100,mu=lol2))
-        x[15] = x[15] + 6*(1-poisson.cdf(k=170,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]))
-        x[15] = x[15] + 4*(poisson.cdf(k=170,mu=x[5])-poisson.cdf(k=150,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]))
-        x[15] = x[15] + 2*(poisson.cdf(k=150,mu=x[5])-poisson.cdf(k=130,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]))
-        x[15] = x[15] - 2*(poisson.cdf(k=70,mu=x[5])-poisson.cdf(k=60,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]))
-        x[15] = x[15] - 4*(poisson.cdf(k=60,mu=x[5])-poisson.cdf(k=50,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]))
-        x[15] = x[15] - 6*poisson.cdf(k=50,mu=x[5])*(1-poisson.cdf(k=10,mu=120*x[3]))
+        x[15] = x[15] + p*(poisson.cdf(k=50,mu=lol2)-poisson.cdf(k=30,mu=lol2))
+        x[15] = x[15] + q*(poisson.cdf(k=100,mu=lol2)-poisson.cdf(k=50,mu=lol2))
+        x[15] = x[15] + r*(1-poisson.cdf(k=100,mu=lol2))
+        x[15] = x[15] + 6*(1-poisson.cdf(k=170-f1u,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]*factor))
+        x[15] = x[15] + 4*(poisson.cdf(k=170-f1u,mu=x[5])-poisson.cdf(k=150-f1u,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]*factor))
+        x[15] = x[15] + 2*(poisson.cdf(k=150-f1u,mu=x[5])-poisson.cdf(k=130-f1u,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]*factor))
+        x[15] = x[15] - 2*(poisson.cdf(k=70-f1d,mu=x[5])-poisson.cdf(k=60-f1d,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]*factor))
+        x[15] = x[15] - 4*(poisson.cdf(k=60-f1d,mu=x[5])-poisson.cdf(k=50-f1d,mu=x[5]))*(1-poisson.cdf(k=10,mu=120*x[3]*factor))
+        x[15] = x[15] - 6*poisson.cdf(k=50-f1d,mu=x[5])*(1-poisson.cdf(k=10,mu=120*x[3]*factor))
 
     bowl_game['usage'] = np.minimum(bowl_game['usage'],0.2)
     bowl_game['usage'] = bowl_game['usage']+(2-bowl_game['usage'].sum())/bowl_game['usage'].shape[0]
     bowl_game['usage'] = np.minimum(bowl_game['usage'],0.2)
-    bowl_game['xPts'] = 120*bowl_game['usage']*bowl_game['wickets/ball']*28
+    bowl_game['xPts'] = 120*factor*bowl_game['usage']*bowl_game['wickets/ball']*28
     bowl_game['full xPts'] = 0.2*bowl_game['xPts']/bowl_game['usage']
 
     bowl_game = bowl_game.drop(['pp usage'],axis=1)
@@ -174,27 +188,27 @@ def gw_projection(a,b,input_file1,input_file,factor):
 
     for x in bowl_game.values:
         #pmf equal to a value, cdf less than a value
-        x[15] = x[15] + 4*poisson.pmf(k=3,mu=x[6]*x[3]*120)
-        x[15] = x[15] + 8*poisson.pmf(k=4,mu=x[6]*x[3]*120)
-        x[15] = x[15] + 16*poisson.pmf(k=5,mu=x[6]*x[3]*120)
-        x[15] = x[15] + 12*np.power(x[8],6)*20*x[3]
-        x[15] = x[15] - 6*(1-poisson.cdf(k=12,mu=x[4]))
-        x[15] = x[15] - 4*(poisson.cdf(k=12,mu=x[4])-poisson.cdf(k=11,mu=x[4]))
-        x[15] = x[15] - 2*(poisson.cdf(k=11,mu=x[4])-poisson.cdf(k=10,mu=x[4]))
-        x[15] = x[15] + 2*(poisson.cdf(k=7,mu=x[4])-poisson.cdf(k=6,mu=x[4]))
-        x[15] = x[15] + 4*(poisson.cdf(k=6,mu=x[4])-poisson.cdf(k=5,mu=x[4]))
-        x[15] = x[15] + 6*poisson.cdf(k=5,mu=x[4])
+        x[15] = x[15] + p*poisson.pmf(k=3,mu=x[6]*x[3]*120*factor)
+        x[15] = x[15] + q*poisson.pmf(k=4,mu=x[6]*x[3]*120*factor)
+        x[15] = x[15] + r*poisson.pmf(k=5,mu=x[6]*x[3]*120*factor)
+        x[15] = x[15] + 12*np.power(x[8],6)*20*x[3]*factor
+        x[15] = x[15] - 6*(1-poisson.cdf(k=12-f1d,mu=x[4]))
+        x[15] = x[15] - 4*(poisson.cdf(k=12-f1d,mu=x[4])-poisson.cdf(k=11-f1d,mu=x[4]))
+        x[15] = x[15] - 2*(poisson.cdf(k=11-f1d,mu=x[4])-poisson.cdf(k=10-f1d,mu=x[4]))
+        x[15] = x[15] + 2*(poisson.cdf(k=7-f2d,mu=x[4])-poisson.cdf(k=6-f2d,mu=x[4]))
+        x[15] = x[15] + 4*(poisson.cdf(k=6-f2d,mu=x[4])-poisson.cdf(k=5-f2d,mu=x[4]))
+        x[15] = x[15] + 6*poisson.cdf(k=5-f2d,mu=x[4])
         #print(x[0],np.power(x[8],6)*6*x[3])
-        x[16] = x[16] + 4*poisson.pmf(k=3,mu=x[6]*0.2*120)
-        x[16] = x[16] + 8*poisson.pmf(k=4,mu=x[6]*0.2*120)
-        x[16] = x[16] + 16*poisson.pmf(k=5,mu=x[6]*0.2*120)
-        x[16] = x[16] + 12*np.power(x[8],6)*20*0.2
-        x[16] = x[16] - 6*(1-poisson.cdf(k=12,mu=x[4]))
-        x[16] = x[16] - 4*(poisson.cdf(k=12,mu=x[4])-poisson.cdf(k=11,mu=x[4]))
-        x[16] = x[16] - 2*(poisson.cdf(k=11,mu=x[4])-poisson.cdf(k=10,mu=x[4]))
-        x[16] = x[16] + 2*(poisson.cdf(k=7,mu=x[4])-poisson.cdf(k=6,mu=x[4]))
-        x[16] = x[16] + 4*(poisson.cdf(k=6,mu=x[4])-poisson.cdf(k=5,mu=x[4]))
-        x[16] = x[16] + 6*poisson.cdf(k=5,mu=x[4])
+        x[16] = x[16] + p*poisson.pmf(k=3,mu=x[6]*0.2*120*factor)
+        x[16] = x[16] + q*poisson.pmf(k=4,mu=x[6]*0.2*120*factor)
+        x[16] = x[16] + r*poisson.pmf(k=5,mu=x[6]*0.2*120*factor)
+        x[16] = x[16] + 12*np.power(x[8],6)*20*0.2*factor
+        x[16] = x[16] - 6*(1-poisson.cdf(k=12-f1d,mu=x[4]))
+        x[16] = x[16] - 4*(poisson.cdf(k=12-f1d,mu=x[4])-poisson.cdf(k=11-f1d,mu=x[4]))
+        x[16] = x[16] - 2*(poisson.cdf(k=11-f1d,mu=x[4])-poisson.cdf(k=10-f1d,mu=x[4]))
+        x[16] = x[16] + 2*(poisson.cdf(k=7-f2d,mu=x[4])-poisson.cdf(k=6-f2d,mu=x[4]))
+        x[16] = x[16] + 4*(poisson.cdf(k=6-f2d,mu=x[4])-poisson.cdf(k=5-f2d,mu=x[4]))
+        x[16] = x[16] + 6*poisson.cdf(k=5-f2d,mu=x[4])
 
     print("bowling usage",bowl_game['usage'].sum())
     print("batting usage",bat_game['usage'].sum())
@@ -216,7 +230,7 @@ for x in home:
     c = c + 1
 
 names = np.unique(np.concatenate([bat_game['batsman'].values,bowl_game['bowler'].values]))
-final = [["player","team","bat","bowl","total","bat usage","bowl usage"]]
+final = [["player","team","total","bat","bowl","bat usage","bowl usage"]]
 
 for x in names:
     try : p_bat = bat_game.loc[(bat_game['batsman']==x),'team'].values[0]  
@@ -229,13 +243,15 @@ for x in names:
     bat_game = bat_game.groupby(['batsman','season','team'], as_index=False).sum()
     bowl_game = bowl_game.groupby(['bowler','season','team'], as_index=False).sum()
     
-    final.append([x,p_team,bat_game.loc[(bat_game['batsman']==x),'xPts'].mean(),bowl_game.loc[(bowl_game['bowler']==x),'xPts'].mean(),0,bat_game.loc[(bat_game['batsman']==x),'usage'].mean(),bowl_game.loc[(bowl_game['bowler']==x),'usage'].mean()])
+    final.append([x,p_team,0,bat_game.loc[(bat_game['batsman']==x),'xPts'].mean(),bowl_game.loc[(bowl_game['bowler']==x),'xPts'].mean(),bat_game.loc[(bat_game['batsman']==x),'usage'].mean(),bowl_game.loc[(bowl_game['bowler']==x),'usage'].mean()])
     
 final = pd.DataFrame(final)
 final.columns = final.iloc[0];final = final.drop(0)
 final = final.fillna(0)
 final['total'] = final['bat'] + final['bowl'] + 4
 #final['max'] = final['bat max'] + final['bowl max'] + 4
+final = final.sort_values(['total'], ascending=[False])
 
+#%% dump projections to the desired file
 with pd.ExcelWriter(output_dump) as writer:        
-    final.to_excel(writer, sheet_name="Points", index=False)   
+    final.to_excel(writer, sheet_name="Points", index=False)
