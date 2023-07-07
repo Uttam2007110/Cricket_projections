@@ -12,6 +12,7 @@ from usage import *
 pd.options.mode.chained_assignment = None  # default='warn'
 
 comp = 'odiw'
+proj_year = 2024
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
 if(comp=='hundred' or comp=='hundredw'):
