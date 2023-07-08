@@ -8,12 +8,11 @@ fangraphs projections to d11 xPts
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 import numpy as np
-import math
 
-home = ["xxx"]
-opps = ["xxx"]
-display = 'x'    #Blue%20Jays
-date = '2023-xx-xx'     #yyyy-mm-dd  
+home = ["HOU"]
+opps = ["SEA"]
+display = 'Athletics'    #Blue%20Jays
+date = '2023-07-08'     #yyyy-mm-dd  
 
 # %%  pull projections from fangraphs
 def generate():
@@ -234,12 +233,52 @@ while c < len(home):
 (a_projection,bat,pit) = results(bat,pit)
 a_projection = a_projection.sort_values(by=['xPts'],ascending=False)
 a_projection = a_projection.head(20)
+a_projection['Pos'] = 'b'
+
+# %% generate 11 unique combos 
+def randomizer(a_projection,home,opps):
+    team = [["P","C","3","4","5","6","7","8","9"]]; i=0; j=0
+    pitchers = a_projection.loc[a_projection['Pos'] == 'p']
+    p = pitchers['xPts'].tolist()
+    pitchers = pitchers['Player'].tolist()
+    sum_p = sum(p)
+    p = [x/sum_p for x in p]   
+    catchers = a_projection.loc[a_projection['Pos'] == 'c']
+    c = catchers['xPts'].tolist()
+    catchers = catchers['Player'].tolist()
+    sum_c = sum(c)
+    c = [x/sum_c for x in c]
+    bats = a_projection.loc[a_projection['Pos'] == 'b']
+    b = bats['xPts'].tolist()
+    bats = bats['Player'].tolist()
+    sum_b = sum(b)
+    b = [x/sum_b for x in b]
+    
+    while i<11:
+        h=0; o=0;
+        x = np.random.choice(pitchers, 1, p=p, replace=False)
+        y = np.random.choice(catchers, 1, p=c, replace=False)
+        z = np.random.choice(bats, 7, p=b, replace=False)
+        x = x.tolist(); y = y.tolist(); z = z.tolist();
+        combo = x + y + z
+        while j<9:
+            t = a_projection.loc[a_projection['Player'] == combo[j], 'Team'].values[0]
+            if(t==home): h+=1
+            if(t==opps): o+=1
+            j+=1
+        if(h>6 or o>6): i=i-1
+        else: team.append(combo)
+        i +=1; j=0
+        
+    team = pd.DataFrame(team)
+    team.columns = team.iloc[0];team = team.drop(0)
+    return team
+        
+a_combinations = randomizer(a_projection,home[0],opps[0])
 
 # %% live pts for the game in question
-
-df_lol = pd.read_html(f'https://www.fangraphs.com/liveboxscore.aspx?date={date}&team={display}&dh=0&season=2023#home_standard')
-#df_lol = pd.read_html('https://www.fangraphs.com/liveboxscore.aspx?date=2023-07-01&team=Blue%20Jays&dh=0&season=2023#home_standard')
-def real_time(df_list):
+def real_time(display,date):
+    df_list = pd.read_html(f'https://www.fangraphs.com/liveboxscore.aspx?date={date}&team={display}&dh=0&season=2023#home_standard')
     a = 18
     if(len(df_list[8])<5): a = 20
     bat_home = df_list[a]
@@ -270,4 +309,4 @@ def real_time(df_list):
     final = final.sort_values(by=['Pts'],ascending=False)
     return final
 
-a_live = real_time(df_lol)
+a_live = real_time(display,date)
