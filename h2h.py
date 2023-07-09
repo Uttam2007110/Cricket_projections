@@ -20,15 +20,6 @@ input_file = f"{path}/{comp}_projections.xlsx"
 input_file1 = f"{path}/{comp}_summary.xlsx"
 output_dump = f"{path}/game.xlsx"
 
-if(comp=='hundred' or comp=='hundredw'):
-    f = (5/6); #hundred
-elif(comp=='odi' or comp=='odiw' or comp=='odiq'):
-    f = 2.5;   #odi
-elif(comp=='tests'):
-    f = 11.25; #test
-else:
-    f = 1;     #assume its a t20 by default
-
 def fixtures_file(now,comp):
     fixtures = f"{path}/schedule.xlsx"
     fixtures = pd.read_excel(fixtures,f'{comp} {year}')
@@ -45,10 +36,19 @@ def fixtures_file(now,comp):
     return (home,opps)
 
 now = dt.datetime.now()
-#now = dt.datetime(2023,7,7)
-(home,opps) = fixtures_file(now,comp)
-#home = ["India"]
-#opps = ["Bangladesh"]
+#now = dt.datetime(2023,10,6)
+#(home,opps) = fixtures_file(now,comp)
+home = ["Essex","Somerset"]
+opps = ["Hampshire","Surrey"]
+
+if(comp=='hundred' or comp=='hundredw'):
+    f = (5/6); #hundred
+elif(comp=='odi' or comp=='odiw' or comp=='odiq'):
+    f = 2.5;   #odi
+elif(comp=='tests'):
+    f = 11.25; #test
+else:
+    f = 1;     #assume its a t20 by default
 
 #%% find projections
 def adj(x,f,bat):
@@ -149,7 +149,8 @@ def gw_projection(a,b,input_file1,input_file,factor):
     bat_game = bat_game.drop(['setup usage'],axis=1)
     bat_game = bat_game.drop(['death usage'],axis=1)
 
-    if(factor == 1): f1u=0; f1d=0; f2u=0; f2d=0; p=4; q=8; r=16 
+    if(factor == 5/6): f1u=0; f1d=0; f2u=0; f2d=0; p=4; q=8; r=16
+    if(factor == 1): f1u=0; f1d=0; f2u=0; f2d=0; p=4; q=8; r=16
     if(factor == 2.5): f1u=30; f1d=20; f2u=3; f2d=2.5; p=0; q=4; r=8
 
     for x in bat_game.values:
@@ -229,29 +230,71 @@ for x in home:
         bowl_game = pd.concat([bowl_game,bowl])
     c = c + 1
 
-names = np.unique(np.concatenate([bat_game['batsman'].values,bowl_game['bowler'].values]))
-final = [["player","team","total","bat","bowl","bat usage","bowl usage"]]
+def final_projections(bat_game,bowl_game):
+    names = np.unique(np.concatenate([bat_game['batsman'].values,bowl_game['bowler'].values]))
+    final = [["player","team","total","bat","bowl","bat usage","bowl usage"]]
 
-for x in names:
-    try : p_bat = bat_game.loc[(bat_game['batsman']==x),'team'].values[0]  
-    except IndexError: p_bat = "Free Agent"
-    try : p_bowl = bowl_game.loc[(bowl_game['bowler']==x),'team'].values[0]
-    except IndexError: p_bowl = "Free Agent"
-    if(p_bat == "Free Agent"): p_team = p_bowl
-    else : p_team = p_bat
-    
-    bat_game = bat_game.groupby(['batsman','season','team'], as_index=False).sum()
-    bowl_game = bowl_game.groupby(['bowler','season','team'], as_index=False).sum()
-    
-    final.append([x,p_team,0,bat_game.loc[(bat_game['batsman']==x),'xPts'].mean(),bowl_game.loc[(bowl_game['bowler']==x),'xPts'].mean(),bat_game.loc[(bat_game['batsman']==x),'usage'].mean(),bowl_game.loc[(bowl_game['bowler']==x),'usage'].mean()])
-    
-final = pd.DataFrame(final)
-final.columns = final.iloc[0];final = final.drop(0)
-final = final.fillna(0)
-final['total'] = final['bat'] + final['bowl'] + 4
-#final['max'] = final['bat max'] + final['bowl max'] + 4
-final = final.sort_values(['total'], ascending=[False])
+    for x in names:
+        try : p_bat = bat_game.loc[(bat_game['batsman']==x),'team'].values[0]  
+        except IndexError: p_bat = "Free Agent"
+        try : p_bowl = bowl_game.loc[(bowl_game['bowler']==x),'team'].values[0]
+        except IndexError: p_bowl = "Free Agent"
+        if(p_bat == "Free Agent"): p_team = p_bowl
+        else : p_team = p_bat
+        
+        bat_game = bat_game.groupby(['batsman','season','team'], as_index=False).sum()
+        bowl_game = bowl_game.groupby(['bowler','season','team'], as_index=False).sum()
+        
+        final.append([x,p_team,0,bat_game.loc[(bat_game['batsman']==x),'xPts'].mean(),bowl_game.loc[(bowl_game['bowler']==x),'xPts'].mean(),bat_game.loc[(bat_game['batsman']==x),'usage'].mean(),bowl_game.loc[(bowl_game['bowler']==x),'usage'].mean()])
+        
+    final = pd.DataFrame(final)
+    final.columns = final.iloc[0];final = final.drop(0)
+    final = final.fillna(0)
+    final['total'] = final['bat'] + final['bowl'] + 4
+    #final['max'] = final['bat max'] + final['bowl max'] + 4
+    final = final.sort_values(['total'], ascending=[False])
+    return final
 
+a_final = final_projections(bat_game,bowl_game)
+
+# %% generate 11 unique combos 
+def randomizer(a_projection,home,opps):
+    team = [["1","2","3","4","5","6","7","8","9","10","11"]]; i=0; j=0
+    players = a_projection.loc[(a_projection['team'] == home) | (a_projection['team'] == opps)]
+    p = pow(players['total'], 3).tolist()
+    players = players['player'].tolist()
+    sum_p = sum(p)
+    p = [x/sum_p for x in p]
+    
+    while i<20:
+        h=0; o=0;
+        x = np.random.choice(players, 11, p=p, replace=False)
+        x = x.tolist()
+        combo = x
+        combo = sorted(combo)
+        while j<11:
+            t = a_projection.loc[a_projection['player'] == combo[j], 'team'].values[0]
+            if(t==home): h+=1
+            if(t==opps): o+=1
+            j+=1
+        if(h>10 or o>10): i=i-1
+        else: team.append(combo)
+        i +=1; j=0
+        
+    team = pd.DataFrame(team)
+    team.columns = team.iloc[0];team = team.drop(0)
+    team = team.T
+    return team
+
+c=0;a_combinations=[]
+while c<len(home):
+    a_combinations.append(randomizer(a_final,home[c],opps[c]))
+    c+=1
+    
 #%% dump projections to the desired file
+c=0
 with pd.ExcelWriter(output_dump) as writer:        
-    final.to_excel(writer, sheet_name="Points", index=False)
+    a_final.to_excel(writer, sheet_name="Points", index=False)
+    while(c<len(a_combinations)):
+        a_combinations[c].to_excel(writer, sheet_name=f"{home[c]}_{opps[c]}", index=False)
+        c+=1
