@@ -239,17 +239,17 @@ a_projection['Pos'] = 'b'
 def randomizer(a_projection,home,opps):
     team = [["P","C","3","4","5","6","7","8","9"]]; i=0; j=0
     pitchers = a_projection.loc[a_projection['Pos'] == 'p']
-    p = pitchers['xPts'].tolist()
+    p = pow(pitchers['xPts'], 3).tolist()
     pitchers = pitchers['Player'].tolist()
     sum_p = sum(p)
     p = [x/sum_p for x in p]   
     catchers = a_projection.loc[a_projection['Pos'] == 'c']
-    c = catchers['xPts'].tolist()
+    c = pow(catchers['xPts'], 3).tolist()
     catchers = catchers['Player'].tolist()
     sum_c = sum(c)
     c = [x/sum_c for x in c]
     bats = a_projection.loc[a_projection['Pos'] == 'b']
-    b = bats['xPts'].tolist()
+    b = pow(bats['xPts'], 3).tolist()
     bats = bats['Player'].tolist()
     sum_b = sum(b)
     b = [x/sum_b for x in b]
