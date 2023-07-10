@@ -9,10 +9,10 @@ import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 import numpy as np
 
-home = ["HOU"]
-opps = ["SEA"]
-display = 'Athletics'    #Blue%20Jays
-date = '2023-07-08'     #yyyy-mm-dd  
+home = ["LAA"]
+opps = ["BAL"]
+display = 'Pirates'    #Blue%20Jays
+date = '2023-07-09'     #yyyy-mm-dd  
 
 # %%  pull projections from fangraphs
 def generate():
@@ -235,9 +235,9 @@ a_projection = a_projection.sort_values(by=['xPts'],ascending=False)
 a_projection = a_projection.head(20)
 a_projection['Pos'] = 'b'
 
-# %% generate 11 unique combos 
+# %% generate 11 unique combos
 def randomizer(a_projection,home,opps):
-    team = [["P","C","3","4","5","6","7","8","9"]]; i=0; j=0
+    team = [["P","C","3","4","5","6","7","8","9"]]; i=0; j=0; diffs=[]
     pitchers = a_projection.loc[a_projection['Pos'] == 'p']
     p = pow(pitchers['xPts'], 3).tolist()
     pitchers = pitchers['Player'].tolist()
@@ -254,7 +254,7 @@ def randomizer(a_projection,home,opps):
     sum_b = sum(b)
     b = [x/sum_b for x in b]
     
-    while i<11:
+    while i<10:
         h=0; o=0;
         x = np.random.choice(pitchers, 1, p=p, replace=False)
         y = np.random.choice(catchers, 1, p=c, replace=False)
@@ -267,14 +267,20 @@ def randomizer(a_projection,home,opps):
             if(t==opps): o+=1
             j+=1
         if(h>6 or o>6): i=i-1
-        else: team.append(combo)
+        else:
+            if(i>0):
+                dn1 = set(combo)-set(team[1])
+                d1n = set(team[1])-set(combo)
+                diffs.append([d1n,dn1])
+            team.append(combo)
         i +=1; j=0
         
     team = pd.DataFrame(team)
     team.columns = team.iloc[0];team = team.drop(0)
-    return team
+    team = team.T
+    return (team,diffs)
         
-a_combinations = randomizer(a_projection,home[0],opps[0])
+(a_combinations,a_diffs) = randomizer(a_projection,home[0],opps[0])
 
 # %% live pts for the game in question
 def real_time(display,date):
