@@ -8,7 +8,6 @@ Generating fantasy xPts for dream 11 based on projections
 import pandas as pd
 import numpy as np
 from scipy.stats import poisson
-from usage import *
 import datetime as dt
 pd.options.mode.chained_assignment = None  # default='warn'
 
@@ -36,10 +35,10 @@ def fixtures_file(now,comp):
     return (home,opps)
 
 now = dt.datetime.now()
-#now = dt.datetime(2023,10,6)
+#now = dt.datetime(2023,7,15) #year,month,date
 #(home,opps) = fixtures_file(now,comp)
-home = ["Essex","Somerset"]
-opps = ["Hampshire","Surrey"]
+home = ["Surrey","Hampshire"]
+opps = ["Somerset","Essex"]
 
 if(comp=='hundred' or comp=='hundredw'):
     f = (5/6); #hundred
@@ -50,7 +49,8 @@ elif(comp=='tests'):
 else:
     f = 1;     #assume its a t20 by default
 
-#%% find projections
+#%% find projections for the games in question
+from usage import *
 def adj(x,f,bat):
     if(bat == 1):
         #print(x)
@@ -259,18 +259,17 @@ a_final = final_projections(bat_game,bowl_game)
 
 # %% generate 11 unique combos 
 def randomizer(a_projection,home,opps):
-    team = [["1","2","3","4","5","6","7","8","9","10","11"]]; i=0; j=0
+    team = [["1","2","3","4","5","6","7","8","9","10","11","C","VC"]]; i=0; j=0; diffs=[]
     players = a_projection.loc[(a_projection['team'] == home) | (a_projection['team'] == opps)]
-    p = pow(players['total'], 3).tolist()
+    p = pow(players['total'],2).tolist()
     players = players['player'].tolist()
     sum_p = sum(p)
     p = [x/sum_p for x in p]
     
     while i<20:
         h=0; o=0;
-        x = np.random.choice(players, 11, p=p, replace=False)
-        x = x.tolist()
-        combo = x
+        combo = np.random.choice(players, 11, p=p, replace=False)
+        combo = combo.tolist()
         combo = sorted(combo)
         while j<11:
             t = a_projection.loc[a_projection['player'] == combo[j], 'team'].values[0]
@@ -278,17 +277,35 @@ def randomizer(a_projection,home,opps):
             if(t==opps): o+=1
             j+=1
         if(h>10 or o>10): i=i-1
-        else: team.append(combo)
+        else:
+            if(i>0):
+                dn1 = set(combo)-set(team[1])
+                d1n = set(team[1])-set(combo)
+                diffs.append([d1n,dn1])
+            
+            cap = a_projection[a_projection.player.isin(combo)]
+            p2 = pow(cap['total'],3).tolist()
+            cap = cap['player'].tolist()
+            sum_p2 = sum(p2)
+            p2 = [x/sum_p2 for x in p2]
+            y = np.random.choice(cap, 2, p=p2, replace=False)
+            y = y.tolist()
+            combo += y
+            
+            team.append(combo)
         i +=1; j=0
         
     team = pd.DataFrame(team)
     team.columns = team.iloc[0];team = team.drop(0)
     team = team.T
-    return team
+    return team,diffs
 
-c=0;a_combinations=[]
+
+c=0;a_combinations=[]; a_diffs=[]
 while c<len(home):
-    a_combinations.append(randomizer(a_final,home[c],opps[c]))
+    (co,dif) = randomizer(a_final,home[c],opps[c])
+    a_combinations.append(co)
+    a_diffs.append(dif)
     c+=1
     
 #%% dump projections to the desired file
