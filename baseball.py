@@ -2,17 +2,17 @@
 """
 Created on Wed Jun 7 12:41:19 2023
 fangraphs projections to d11 xPts
-@author: Subramanya.Ganti
+@author: Subramanya Uttam Ganti
 """
 # %%  specify the teams playing
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 import numpy as np
 
-home = ["LAA"]
-opps = ["BAL"]
-display = 'Pirates'    #Blue%20Jays
-date = '2023-07-09'     #yyyy-mm-dd  
+home = ["NYM"]
+opps = ["LAD"]
+display = 'Blue%20Jays'    #Blue%20Jays
+date = '2023-07-15'     #yyyy-mm-dd  
 
 # %%  pull projections from fangraphs
 def generate():
@@ -237,7 +237,7 @@ a_projection['Pos'] = 'b'
 
 # %% generate 11 unique combos
 def randomizer(a_projection,home,opps):
-    team = [["P","C","3","4","5","6","7","8","9"]]; i=0; j=0; diffs=[]
+    team = [["Pit","Cat","3","4","5","6","7","8","9","C","VC"]]; i=0; j=0; diffs=[]
     pitchers = a_projection.loc[a_projection['Pos'] == 'p']
     p = pow(pitchers['xPts'], 3).tolist()
     pitchers = pitchers['Player'].tolist()
@@ -272,15 +272,24 @@ def randomizer(a_projection,home,opps):
                 dn1 = set(combo)-set(team[1])
                 d1n = set(team[1])-set(combo)
                 diffs.append([d1n,dn1])
+                
+            cap = a_projection[a_projection.Player.isin(combo)]
+            p2 = pow(cap['xPts'],4).tolist()
+            cap = cap['Player'].tolist()
+            sum_p2 = sum(p2)
+            p2 = [x/sum_p2 for x in p2]
+            y2 = np.random.choice(cap, 2, p=p2, replace=False)
+            y2 = y2.tolist()
+            combo += y2
             team.append(combo)
         i +=1; j=0
         
     team = pd.DataFrame(team)
     team.columns = team.iloc[0];team = team.drop(0)
     team = team.T
-    return (team,diffs)
+    return team #,diffs)
         
-(a_combinations,a_diffs) = randomizer(a_projection,home[0],opps[0])
+a_combinations = randomizer(a_projection,home[0],opps[0])
 
 # %% live pts for the game in question
 def real_time(display,date):
