@@ -233,6 +233,7 @@ while c < len(home):
 (a_projection,bat,pit) = results(bat,pit)
 a_projection = a_projection.sort_values(by=['xPts'],ascending=False)
 a_projection = a_projection.head(20)
+a_projection['Cost'] = 0.5
 a_projection['Pos'] = 'b'
 
 # %% generate 11 unique combos
@@ -255,7 +256,7 @@ def randomizer(a_projection,home,opps):
     b = [x/sum_b for x in b]
     
     while i<10:
-        h=0; o=0;
+        h=0; o=0; cost=0
         x = np.random.choice(pitchers, 1, p=p, replace=False)
         y = np.random.choice(catchers, 1, p=c, replace=False)
         z = np.random.choice(bats, 7, p=b, replace=False)
@@ -263,10 +264,11 @@ def randomizer(a_projection,home,opps):
         combo = x + y + z
         while j<9:
             t = a_projection.loc[a_projection['Player'] == combo[j], 'Team'].values[0]
+            cost += a_projection.loc[a_projection['Player'] == combo[j], 'Cost'].values[0]
             if(t==home): h+=1
             if(t==opps): o+=1
             j+=1
-        if(h>6 or o>6): i=i-1
+        if(h>6 or o>6 or cost>100): i=i-1
         else:
             if(i>0):
                 dn1 = set(combo)-set(team[1])
