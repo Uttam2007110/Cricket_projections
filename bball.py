@@ -12,12 +12,14 @@ date = '6/12/23'   #month/day/year
 squads = ["Miami-Heat","Denver-Nuggets"]
 
 file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
-teams = ["Milwaukee-Bucks","Boston-Celtics","Philadelphia-76ers","Cleveland-Cavaliers","New-York-Knicks",
-"Brooklyn-Nets","Miami-Heat","Atlanta-Hawks","Toronto-Raptors","Chicago-Bulls","Indiana-Pacers",
-"Washington-Wizards","Orlando-Magic","Charlotte-Hornets","Detroit-Pistons","Denver-Nuggets",
-"Memphis-Grizzlies","Sacramento-Kings","Phoenix-Suns","Los-Angeles-Clippers","Golden-State-Warriors",
-"Los-Angeles-Lakers","Minnesota-Timberwolves","New-Orleans-Pelicans","Oklahoma-City-Thunder",
-"Dallas-Mavericks","Utah-Jazz","Portland-Trail-Blazers","Houston-Rockets","San-Antonio-Spurs"]
+teams = ['Atlanta-Hawks', 'Boston-Celtics', 'Brooklyn-Nets', 'Charlotte-Hornets',
+ 'Chicago-Bulls', 'Cleveland-Cavaliers', 'Dallas-Mavericks', 'Denver-Nuggets',
+ 'Detroit-Pistons', 'Golden-State-Warriors', 'Houston-Rockets', 'Indiana-Pacers',
+ 'Los-Angeles-Clippers', 'Los-Angeles-Lakers', 'Memphis-Grizzlies', 'Miami-Heat',
+ 'Milwaukee-Bucks', 'Minnesota-Timberwolves', 'New-Orleans-Pelicans', 'New-York-Knicks',
+ 'Oklahoma-City-Thunder', 'Orlando-Magic', 'Philadelphia-76ers', 'Phoenix-Suns',
+ 'Portland-Trail-Blazers', 'Sacramento-Kings', 'San-Antonio-Spurs', 'Toronto-Raptors',
+ 'Utah-Jazz', 'Washington-Wizards']
 
 # %%  extract all the avaliable players
 def extract_players(teams):
@@ -88,23 +90,25 @@ def xPts(player):
     projections.insert(0, 'Name', first_column)
     second_column = projections.pop('Team')
     projections.insert(1, 'Team', second_column)
-    #projections['Name'] = projections['Name'].str.replace("-", " ")
-    #projections['Team'] = projections['Team'].str.replace("-", " ")
     projections['FP'] = projections['PTS']+1.2*projections['REB']+1.5*projections['AST']+3*(projections['STL']+projections['BLK'])-projections['TOV']
     projections = projections[projections['FP'] != 0]
     projections = projections.sort_values(by=['FP'],ascending=False)
     return projections
 
 f_points = xPts(player)
-data = pd.read_excel(file,'Sheet1')
-data = data.fillna(100)
-f_points = f_points.merge(data, on='Name', how='left')
-f_points = f_points.fillna(100)
-f_points = f_points.drop(['Squad'],axis=1)
+try:
+    data = pd.read_excel(file,'Sheet1')
+    data = data.fillna(100)
+    f_points = f_points.merge(data, on='Name', how='left')
+    f_points = f_points.fillna(100)
+    f_points = f_points.drop(['Squad'],axis=1)
+except FileNotFoundError:
+    f_points['Pos'] = 1
+    f_points['Cost'] = 0.5
 
 # %%  generate 11 unique lineup combinations
 def randomizer(f_points,home,opps):
-    team = [["C","PF","SF","SG","PG","6","7","8"]]; i=0; j=0; diffs=[]
+    team = [["PG","SG","SF","PF","C","6","7","8","Star","Pro"]]; i=0; j=0; diffs=[]; it=0
     centers = f_points.loc[f_points['Pos'] == 5]
     c = pow(centers['FP'],3).tolist()
     centers = centers['Name'].tolist()
@@ -139,7 +143,7 @@ def randomizer(f_points,home,opps):
         p4 = np.random.choice(shooting, 1, p=sg, replace=False)
         p5 = np.random.choice(point, 1, p=pg, replace=False)
         p1 = p1.tolist(); p2 = p2.tolist();p3 = p3.tolist();p4 = p4.tolist(); p5 = p5.tolist();
-        combo = p1+p2+p3+p4+p5
+        combo = p5+p4+p3+p2+p1
         rest = f_points[~f_points.Name.isin(combo)]
         r = pow(rest['FP'],3).tolist()
         rest = rest['Name'].tolist()
@@ -156,12 +160,24 @@ def randomizer(f_points,home,opps):
             if(t==opps): o+=1
             j+=1
         if(h>5 or o>5 or cost>100): i=i-1
-        else: team.append(combo); print("valid combo",i+1,"found"); print(combo)
-        i +=1; j=0
+        else: 
+            team.append(combo); print("valid combo",i+1,"iteration",it+1)
+            cap = f_points[f_points.Name.isin(combo)]
+            p2 = pow(cap['FP'],5).tolist()
+            cap = cap['Name'].tolist()
+            sum_p2 = sum(p2)
+            p2 = [x/sum_p2 for x in p2]
+            y = np.random.choice(cap, 2, p=p2, replace=False)
+            y = y.tolist()
+            combo += y
+            
+        i +=1; j=0; it+=1
         
     team = pd.DataFrame(team)
     team.columns = team.iloc[0];team = team.drop(0)
-    team = team.T
+    #team = team.T
     return team
-    
+
+f_points['Name'] = f_points['Name'].str.replace("-", " ")
+f_points['Team'] = f_points['Team'].str.replace("-", " ")
 a_team = randomizer(f_points,squads[0],squads[1])
