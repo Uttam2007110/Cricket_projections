@@ -9,10 +9,10 @@ import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 import numpy as np
 
-home = ["NYM"]
-opps = ["LAD"]
-display = 'Blue%20Jays'    #Blue%20Jays
-date = '2023-07-15'     #yyyy-mm-dd  
+home = ["TOR"]      #PIT,TEX,OAK,TOR,SEA
+opps = ["SDP"]      #CLE,TBR,BOS,SDP,MIN
+display = 'Rangers'    #Blue%20Jays
+date = '2023-07-19'     #yyyy-mm-dd  
 
 # %%  pull projections from fangraphs
 def generate():
@@ -296,8 +296,9 @@ a_combinations = randomizer(a_projection,home[0],opps[0])
 # %% live pts for the game in question
 def real_time(display,date):
     df_list = pd.read_html(f'https://www.fangraphs.com/liveboxscore.aspx?date={date}&team={display}&dh=0&season=2023#home_standard')
-    a = 18
+    a = 18; score = df_list[7]
     if(len(df_list[8])<5): a = 20
+    if(len(df_list)==57): a = 25; score = df_list[7+5]
     bat_home = df_list[a]
     bat_away = df_list[a+2]
     pit_home = df_list[a+1]
@@ -307,8 +308,7 @@ def real_time(display,date):
     bat_away.drop(bat_away.tail(1).index,inplace=True)
     pit_home.drop(pit_home.tail(1).index,inplace=True)
     pit_away.drop(pit_away.tail(1).index,inplace=True)
-    
-    print("current inning",divmod(pit_home['IP'],1)[0].sum())
+       
     pit_home['IP'] = divmod(pit_home['IP'],1)[0] + (10/3)*divmod(pit_home['IP'],1)[1]
     pit_away['IP'] = divmod(pit_away['IP'],1)[0] + (10/3)*divmod(pit_away['IP'],1)[1] 
 
@@ -317,7 +317,12 @@ def real_time(display,date):
     bat_away['Pts'] = 4*(bat_away['BB']+bat_away['H']-bat_away['2B']-bat_away['3B']-bat_away['HR'])+6*bat_away['2B']+10*bat_away['3B']+12*bat_away['HR']+8*bat_away['SB']+3*(bat_away['R']+bat_away['RBI'])
     pit_away['Pts'] = 3*pit_away['IP']+2*pit_away['SO']-3*pit_away['ER']-pit_away['H']-pit_away['BB']
     
-    print("score",bat_home['R'].sum(),"-",bat_away['R'].sum())
+    
+    score.columns = score.iloc[0]
+    score = score.drop(0)
+    print(score['Team'].values[0],score['R'].values[0],"-",score['R'].values[1],score['Team'].values[1])
+    print("inning",len(score.columns)-2)
+    
     bat_home = bat_home[['Name','Pts']]
     bat_away = bat_away[['Name','Pts']]
     pit_home = pit_home[['Name','Pts']]
