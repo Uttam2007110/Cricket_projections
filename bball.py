@@ -8,8 +8,8 @@ NBA projections courtesy numberFire
 import pandas as pd
 import numpy as np
 
-date = '6/12/23'   #month/day/year
-squads = ["Miami-Heat","Denver-Nuggets"]
+date = '4/7/23'   #month/day/year
+squads = ["Golden-State-Warriors","Sacramento-Kings"]
 
 file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
 teams = ['Atlanta-Hawks', 'Boston-Celtics', 'Brooklyn-Nets', 'Charlotte-Hornets',
@@ -108,7 +108,7 @@ except FileNotFoundError:
 
 # %%  generate 11 unique lineup combinations
 def randomizer(f_points,home,opps):
-    team = [["PG","SG","SF","PF","C","6","7","8","Star","Pro"]]; i=0; j=0; diffs=[]; it=0
+    team = [["PG","SG","SF","PF","C","6","7","8","Star","Pro","xPts"]]; i=0; j=0; diffs=[]; it=0
     centers = f_points.loc[f_points['Pos'] == 5]
     c = pow(centers['FP'],3).tolist()
     centers = centers['Name'].tolist()
@@ -163,19 +163,21 @@ def randomizer(f_points,home,opps):
         else: 
             team.append(combo); print("valid combo",i+1,"iteration",it+1)
             cap = f_points[f_points.Name.isin(combo)]
-            p2 = pow(cap['FP'],5).tolist()
+            pts = sum(cap['FP'])
+            p2 = pow(cap['FP'],10).tolist()
             cap = cap['Name'].tolist()
             sum_p2 = sum(p2)
             p2 = [x/sum_p2 for x in p2]
             y = np.random.choice(cap, 2, p=p2, replace=False)
+            pts += f_points.loc[(f_points['Name']==y[0]),'FP'].sum() + (f_points.loc[(f_points['Name']==y[1]),'FP'].sum()/2)
             y = y.tolist()
-            combo += y
+            combo += y + [pts]
             
         i +=1; j=0; it+=1
         
     team = pd.DataFrame(team)
     team.columns = team.iloc[0];team = team.drop(0)
-    #team = team.T
+    team = team.T
     return team
 
 f_points['Name'] = f_points['Name'].str.replace("-", " ")
