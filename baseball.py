@@ -9,10 +9,10 @@ import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 import numpy as np
 
-home = ["TOR"]      #PIT,TEX,OAK,TOR,SEA
-opps = ["SDP"]      #CLE,TBR,BOS,SDP,MIN
-display = 'Rangers'    #Blue%20Jays
-date = '2023-07-19'     #yyyy-mm-dd  
+home = ["SEA"]      #ATL,KCR
+opps = ["MIN"]      #ARI,DET
+display = 'Royals'    #Blue%20Jays
+date = '2023-07-20'     #yyyy-mm-dd  
 
 # %%  pull projections from fangraphs
 def generate():
@@ -238,7 +238,7 @@ a_projection['Pos'] = 'b'
 
 # %% generate 11 unique combos
 def randomizer(a_projection,home,opps):
-    team = [["Pit","Cat","3","4","5","6","7","8","9","C","VC"]]; i=0; j=0; diffs=[]
+    team = [["Pit","Cat","3","4","5","6","7","8","9","C","VC","xPts"]]; i=0; j=0;
     pitchers = a_projection.loc[a_projection['Pos'] == 'p']
     p = pow(pitchers['xPts'], 3).tolist()
     pitchers = pitchers['Player'].tolist()
@@ -269,27 +269,24 @@ def randomizer(a_projection,home,opps):
             if(t==opps): o+=1
             j+=1
         if(h>6 or o>6 or cost>100): i=i-1
-        else:
-            if(i>0):
-                dn1 = set(combo)-set(team[1])
-                d1n = set(team[1])-set(combo)
-                diffs.append([d1n,dn1])
-                
+        else:                        
             cap = a_projection[a_projection.Player.isin(combo)]
+            pts = sum(cap['xPts'])
             p2 = pow(cap['xPts'],4).tolist()
             cap = cap['Player'].tolist()
             sum_p2 = sum(p2)
             p2 = [x/sum_p2 for x in p2]
             y2 = np.random.choice(cap, 2, p=p2, replace=False)
             y2 = y2.tolist()
-            combo += y2
+            pts += a_projection.loc[(a_projection['Player']==y2[0]),'xPts'].sum() + (a_projection.loc[(a_projection['Player']==y2[1]),'xPts'].sum()/2)
+            combo += y2 + [pts]
             team.append(combo)
         i +=1; j=0
         
     team = pd.DataFrame(team)
     team.columns = team.iloc[0];team = team.drop(0)
     team = team.T
-    return team #,diffs)
+    return team
         
 a_combinations = randomizer(a_projection,home[0],opps[0])
 
