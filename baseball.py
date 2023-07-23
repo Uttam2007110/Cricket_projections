@@ -9,10 +9,11 @@ import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 import numpy as np
 
-home = ["SEA"]      #ATL,KCR
-opps = ["MIN"]      #ARI,DET
-display = 'Royals'    #Blue%20Jays
-date = '2023-07-20'     #yyyy-mm-dd  
+home = ["LAA"]
+opps = ["PIT"]
+display = 'Tigers'    #Blue%20Jays
+date = '2023-07-23'     #yyyy-mm-dd
+iters = 2
 
 # %%  pull projections from fangraphs
 def generate():
@@ -236,8 +237,8 @@ a_projection = a_projection.head(20)
 a_projection['Cost'] = 0.5
 a_projection['Pos'] = 'b'
 
-# %% generate 11 unique combos
-def randomizer(a_projection,home,opps):
+# %% generate 'iters' unique combos
+def randomizer(a_projection,home,opps,iters):
     team = [["Pit","Cat","3","4","5","6","7","8","9","C","VC","xPts"]]; i=0; j=0;
     pitchers = a_projection.loc[a_projection['Pos'] == 'p']
     p = pow(pitchers['xPts'], 3).tolist()
@@ -255,7 +256,7 @@ def randomizer(a_projection,home,opps):
     sum_b = sum(b)
     b = [x/sum_b for x in b]
     
-    while i<10:
+    while i<iters:
         h=0; o=0; cost=0
         x = np.random.choice(pitchers, 1, p=p, replace=False)
         y = np.random.choice(catchers, 1, p=c, replace=False)
@@ -288,7 +289,7 @@ def randomizer(a_projection,home,opps):
     team = team.T
     return team
         
-a_combinations = randomizer(a_projection,home[0],opps[0])
+a_combinations = randomizer(a_projection,home[0],opps[0],iters)
 
 # %% live pts for the game in question
 def real_time(display,date):
