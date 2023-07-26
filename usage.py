@@ -6,9 +6,10 @@ estimating team strengths based on individual projections
 """
 
 import pandas as pd
-pd.options.mode.chained_assignment = None  # default='warn'
 import numpy as np
+from itertools import zip_longest
 from sklearn.linear_model import LinearRegression
+pd.options.mode.chained_assignment = None  # default='warn'
 
 game_sim = 0
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
@@ -42,16 +43,17 @@ def usage_corrected(bowler,file_name,values):
         sublist = file_name[(file_name['team'] == x)]
         sublist = sublist.sort_values(by=['usage'],ascending=False)
 
-        if(bowler == 1): 
+        if(bowler == 1):
+            if(game_sim>=1):
+                sublist = sublist.sort_values(by=['bb_GP'],ascending=False)
             k = sublist.count()[0]
             factor = 1/sum(values[0:k])
             #print(x,k,factor)
         if(bowler == 0): #and x != "Free Agent"):
-            if(game_sim == 1):
-                #sublist['factor'] = 100*sublist['pp usage']+50*sublist['mid usage']+10*sublist['setup usage']+sublist['death usage']
+            if(game_sim >= 1):
+                sublist = sublist.sort_values(by=['bf_GP'],ascending=False)
                 sublist['factor'] = 3*sublist['pp usage']+9*sublist['mid usage']+15*sublist['setup usage']+19*sublist['death usage']
-                sublist = sublist.sort_values(by=['factor'],ascending=True)
-                #print(sublist)
+                #sublist = sublist.sort_values(by=['factor'],ascending=True)
                 sublist.drop(['factor'], axis=1)
             k = sublist.count()[0]
         
@@ -76,7 +78,7 @@ def usage_corrected(bowler,file_name,values):
                 c = c + 1  
         
         for y in sublist.index:
-            if(x != "Free Agent"): file_name['usage'][y] = file_name['usage'][y]/dummy
+            if(x != "Free Agent" and game_sim != 2): file_name['usage'][y] = file_name['usage'][y]/dummy
         #print(x,dummy,bowler)  
         
     return file_name
@@ -93,9 +95,89 @@ def analyse(u,w):
         c = c + 1
     return coeffs
 
+def analyse_bowl_game(u,w,factor):
+    if(factor <= 1): input_file = f'{path}/t20i.csv'
+    if(factor == 2.5): input_file = f'{path}/odi.csv'
+    if(factor == 11.25): input_file = f'{path}/tests.csv'
+    #input_file = 'C:/Users/Subramanya.Ganti/Downloads/cricket/t20i.csv'
+    file0 = pd.read_csv(input_file,sep=',',low_memory=False)
+    file0 = file0.fillna(0)
+    c = 0; coeffs = []
+    bowler = 0
+    names = []
+    balls_faced = []
+    outs = []
+    rc = []
+    b_name = ""
+    wickets = 0
+    balls_bowled = [0,0,0,0,0,0,0,0,0,0,0]
+    wickets_taken = [0,0,0,0,0,0,0,0,0,0,0]
+    runs_conceded = [0,0,0,0,0,0,0,0,0,0,0]
+    p=1
+
+    for x in file0.values:
+        
+        if(x[5] == 0.1):
+            #new innings
+            sort_index = np.argsort(balls_faced)[::-1]
+            while c<len(sort_index):
+                #print(names[sort_index[c]],balls_faced[sort_index[c]],outs[sort_index[c]])
+                balls_bowled[c] += balls_faced[sort_index[c]]
+                wickets_taken[c] += outs[sort_index[c]]
+                c += 1
+            names = []
+            balls_faced = []
+            outs = []
+            bowler = 0
+            c = 0
+        
+        if((x[5]*10) % 10 == 1):
+            #new over
+            b_name = x[10]
+            try:
+                bowler = names.index(b_name)
+            except ValueError:
+                names.append(b_name)
+                bowler = names.index(b_name)
+                if(len(balls_faced) <= bowler):
+                    balls_faced.append(0)
+                    outs.append(0)
+                
+        if(x[18] in ['caught','bowled','lbw','stumped','caught and bowled','hit wicket']):
+            outs[bowler] = outs[bowler] + 1
+        
+        if(x[12] == 0 or x[15] == 1 or x[16] == 1):
+            balls_faced[bowler] += 1
+            
+        if(p == len(file0)):
+            #last ball in the file
+            sort_index = np.argsort(balls_faced)[::-1]
+            while c<len(sort_index):
+                #print(names[sort_index[c]],balls_faced[sort_index[c]],outs[sort_index[c]])
+                balls_bowled[c] += balls_faced[sort_index[c]]
+                wickets_taken[c] += outs[sort_index[c]]
+                c += 1          
+        p += 1
+        
+    p = 0; c = sum(balls_bowled)
+    for x in balls_bowled:
+        a = x/sum(balls_bowled)
+        try:
+            b = wickets_taken[p]/x
+        except ZeroDivisionError:
+            a = 0; b = 1
+        #print("bowler",p+1,"usage",a,"wkt/ball",b)
+        try:
+            coeffs.append(a/b)
+        except ZeroDivisionError:
+            coeffs.append(0)
+        p = p + 1
+    return coeffs
+    
 def analyse_bat_game(u,w,factor):
     if(factor <= 1): input_file = f'{path}/t20i.csv'
     if(factor == 2.5): input_file = f'{path}/odi.csv'
+    if(factor == 11.25): input_file = f'{path}/tests.csv'
     file0 = pd.read_csv(input_file,sep=',',low_memory=False)
     file0 = file0.fillna(0)
     c = 0; coeffs = []
@@ -147,11 +229,12 @@ def analyse_bat_game(u,w,factor):
         p = p + 1
     return coeffs
 
-def bowls(file_bowl_input,file_bowl,concat):
+def bowls(file_bowl_input,file_bowl,concat,factor):
     (usage_bowl,wkts_bowl) = avg(1,file_bowl_input,concat)
-    #averages_bowl = usage_bowl.mean(axis=0)
-    coeffs_bowl = analyse(usage_bowl,wkts_bowl)
-    #return usage_corrected(1,file_bowl,averages_bowl)
+    if(game_sim == 1):
+        coeffs_bowl = analyse_bowl_game(usage_bowl,wkts_bowl,factor)
+    else:
+        coeffs_bowl = analyse(usage_bowl,wkts_bowl)    
     return usage_corrected(1,file_bowl,coeffs_bowl)    
 
 def bats(file_bat_input,file_bat,concat,factor):
@@ -297,13 +380,13 @@ def h2h_alt(i_file,i_file2,flag,factor):
     teams = pd.read_excel(i_file2,'Team')
     
     for x in f_bat.values:
-        if(game_sim == 1):
+        if(game_sim >= 1):
             f_bat.loc[(f_bat['batsman']==x[0]),'team'] = teams.loc[(teams['player']==x[0]),'team'].values[0]
         if(game_sim == 0):
             f_bat.loc[(f_bat['batsman']==x[0]),'team'] = teams.loc[(teams['player']==x[0]),'squad'].values[0]
     
     for y in f_bowl.values:
-        if(game_sim == 1):
+        if(game_sim >= 1):
             f_bowl.loc[(f_bowl['bowler']==y[0]),'team'] = teams.loc[(teams['player']==y[0]),'team'].values[0]
         if(game_sim == 0):
             f_bowl.loc[(f_bowl['bowler']==y[0]),'team'] = teams.loc[(teams['player']==y[0]),'squad'].values[0]     
@@ -313,46 +396,10 @@ def h2h_alt(i_file,i_file2,flag,factor):
         concat.append(x+";"+str(y))
     concat = np.unique(concat)
         
-    f_bowl_adj = bowls(file_bowl_input,f_bowl,concat)
+    f_bowl_adj = bowls(file_bowl_input,f_bowl,concat,factor)
     f_bat_adj = bats(file_bat_input,f_bat,concat,factor)
     (f_bat_adj,f_bowl_adj) = balance(f_bat_adj,f_bowl_adj,0,1)
     #print(calc_agg(f_bat_adj,f_bowl_adj,factor))
     return (calc_agg(f_bat_adj,f_bowl_adj,factor),f_bat_adj,f_bowl_adj)
-
-def team_projections():
-    factor = 1
-    input_file = f"{path}/hundred_summary.xlsx"
-    file_bowl_input = pd.read_excel(input_file,'bowling seasons')
-    file_bat_input = pd.read_excel(input_file,'batting seasons')
-
-    input_file2 = f"{path}/hundred_projections.xlsx"
-    f_bowl = pd.read_excel(input_file2,'MDist bowl')
-    f_bat = pd.read_excel(input_file2,'MDist bat')
-    teams = pd.read_excel(input_file2,'Team')
     
-    for x in f_bat.values:
-        if(game_sim == 1):
-            f_bat.loc[(f_bat['batsman']==x[0]),'team'] = teams.loc[(teams['player']==x[0]),'team'].values[0]
-        if(game_sim == 0):
-            f_bat.loc[(f_bat['batsman']==x[0]),'team'] = teams.loc[(teams['player']==x[0]),'squad'].values[0]
-    
-    for y in f_bowl.values:
-        if(game_sim == 1):
-            f_bowl.loc[(f_bowl['bowler']==y[0]),'team'] = teams.loc[(teams['player']==y[0]),'team'].values[0]
-        if(game_sim == 0):
-            f_bowl.loc[(f_bowl['bowler']==y[0]),'team'] = teams.loc[(teams['player']==y[0]),'squad'].values[0]     
-    
-    concat = [];
-    for (x,y) in zip(file_bowl_input['bowling_team'].values,file_bowl_input['season'].values):
-        concat.append(x+";"+str(y))
-    concat = np.unique(concat)
-        
-    f_bowl_adj = bowls(file_bowl_input,f_bowl,concat)
-    f_bat_adj = bats(file_bat_input,f_bat,concat)
-    (f_bat_adj,f_bowl_adj) = balance(f_bat_adj,f_bowl_adj,0,1)
-    table = calc_agg(f_bat_adj,f_bowl_adj,factor)
-    #print(table)
-    table = table.apply(pd.to_numeric, errors='ignore')
-    return (f_bat_adj,f_bowl_adj,table)
-    
-#(bat,bowl,table) = team_projections()
+#coeffs = analyse_bowl_game(0,0,11.25)
