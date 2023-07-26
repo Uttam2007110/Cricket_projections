@@ -11,13 +11,13 @@ import datetime
 from usage import *
 pd.options.mode.chained_assignment = None  # default='warn'
 
-comp = 'odiw'
+comp = 'odi'
 proj_year = 2024
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
 if(comp=='hundred' or comp=='hundredw'):
     factor = (5/6); #hundred
-elif(comp=='odi' or comp=='odiw' or comp=='odiq'):
+elif(comp=='odi' or comp=='odiw' or comp=='odiq' or comp=='rlc'):
     factor = 2.5;   #odi
 elif(comp=='tests'):
     factor = 11.25; #test
@@ -167,6 +167,7 @@ def bowling_projection(df,df2,player,year):
     extras = df['extras'].values
     xRuns = df['xruns'].values
     xWickets = df['xwickets'].values
+    bb_GP = df['bb_GP'].values
     avg_season = df2['Season'].values
     avg_runs = df2['runs/ball'].values
     avg_wickets = df2['wickets/ball'].values
@@ -187,6 +188,7 @@ def bowling_projection(df,df2,player,year):
     y6_usage = 0.000001; y6_wickets = 0.000001; y6_PP_usage = 0.000001; y6_mid_usage = 0.000001; y6_setup_usage = 0.000001; y6_death_usage = 0.000001; y6_balls = 0.000001;    y6_runs = 0.000001; y6_dots = 0.000001; y6_ones = 0.000001; y6_twos = 0.000001; y6_threes = 0.000001; y6_fours = 0.000001; y6_sixes = 0.000001; y6_extras = 0.000001; 
     p_xECON = 0; p_xSR = 0; y1_xRuns = 0; y2_xRuns = 0;y3_xRuns = 0;y4_xRuns = 0;y5_xRuns = 0;y6_xRuns = 0
     y1_xWickets = 0; y2_xWickets = 0;y3_xWickets = 0;y4_xWickets = 0;y5_xWickets = 0;y6_xWickets = 0
+    y1_bb_gp =0; y2_bb_gp =0; y3_bb_gp =0; y4_bb_gp =0; y5_bb_gp =0; y6_bb_gp =0;
     y1_avg_runs = 0; y1_avg_wickets = 0; y1_avg_dots = 0; y1_avg_ones = 0; y1_avg_twos = 0; y1_avg_threes = 0; y1_avg_fours = 0; y1_avg_sixes = 0
     y2_avg_runs = 0; y2_avg_wickets = 0; y2_avg_dots = 0; y2_avg_ones = 0; y2_avg_twos = 0; y2_avg_threes = 0; y2_avg_fours = 0; y2_avg_sixes = 0
     y3_avg_runs = 0; y3_avg_wickets = 0; y3_avg_dots = 0; y3_avg_ones = 0; y3_avg_twos = 0; y3_avg_threes = 0; y3_avg_fours = 0; y3_avg_sixes = 0
@@ -214,6 +216,7 @@ def bowling_projection(df,df2,player,year):
             y1_extras = extras[c]
             y1_xWickets = xWickets[c]
             y1_xRuns = xRuns[c]
+            y1_bb_gp = bb_GP[c]
             curr_team = team[c]
         if(names[c]==player and season[c]==year-2):
             y2_usage = usage[c]
@@ -232,6 +235,7 @@ def bowling_projection(df,df2,player,year):
             y2_sixes = sixes[c]
             y2_extras = extras[c]
             y2_xWickets = xWickets[c]
+            y2_bb_gp = bb_GP[c]
             y2_xRuns = xRuns[c]
         if(names[c]==player and season[c]==year-3):
             y3_usage = usage[c]
@@ -250,6 +254,7 @@ def bowling_projection(df,df2,player,year):
             y3_sixes = sixes[c]
             y3_extras = extras[c]
             y3_xWickets = xWickets[c]
+            y3_bb_gp = bb_GP[c]
             y3_xRuns = xRuns[c]
         if(names[c]==player and season[c]==year-4):
             y4_usage = usage[c]
@@ -268,6 +273,7 @@ def bowling_projection(df,df2,player,year):
             y4_sixes = sixes[c]
             y4_xWickets = xWickets[c]
             y4_xRuns = xRuns[c]
+            y4_bb_gp = bb_GP[c]
             y4_extras = extras[c]
         if(names[c]==player and season[c]==year-5):
             y5_usage = usage[c]
@@ -286,6 +292,7 @@ def bowling_projection(df,df2,player,year):
             y5_sixes = sixes[c]
             y5_xWickets = xWickets[c]
             y5_xRuns = xRuns[c]
+            y5_bb_gp = bb_GP[c]
             y5_extras = extras[c]
         if(names[c]==player and season[c]==year-6):
             y6_usage = usage[c]
@@ -304,6 +311,7 @@ def bowling_projection(df,df2,player,year):
             y6_sixes = sixes[c]
             y6_xWickets = xWickets[c]
             y6_xRuns = xRuns[c]
+            y6_bb_gp = bb_GP[c]
             y6_extras = extras[c]
         c = c + 1
     
@@ -397,6 +405,7 @@ def bowling_projection(df,df2,player,year):
     mr_sixes = (800/w_balls)*(8*y1_balls*y1_avg_sixes + 5*y2_balls*y2_avg_sixes + 4*y3_balls*y3_avg_sixes + 3*y4_balls*y4_avg_sixes + 2*y5_balls*y5_avg_sixes + y6_balls*y6_avg_sixes)
     mr_wickets = (800/w_balls)*(8*y1_balls*y1_avg_wickets + 5*y2_balls*y2_avg_wickets + 4*y3_balls*y3_avg_wickets + 3*y4_balls*y4_avg_wickets + 2*y5_balls*y5_avg_wickets + y6_balls*y6_avg_wickets)
     mr_extras = (800/w_balls)*(8*y1_balls*y1_avg_extras + 5*y2_balls*y2_avg_extras + 4*y3_balls*y3_avg_extras + 3*y4_balls*y4_avg_extras + 2*y5_balls*y5_avg_extras + y6_balls*y6_avg_extras)
+    w_bb_gp = (8*y1_bb_gp + 5*y2_bb_gp + 4*y3_bb_gp + 3*y4_bb_gp + 2*y5_bb_gp + y6_bb_gp)
     #print(mr_wickets)
     if(y1_usage==0.000001): y1_usage = 0
     if(y2_usage==0.000001): y2_usage = 0
@@ -406,11 +415,12 @@ def bowling_projection(df,df2,player,year):
     if(y6_usage==0.000001): y6_usage = 0
     #print(p_xECON,p_xSR,w_balls)
     if(y1_usage==0 and y2_usage==0 and y3_usage==0 and y4_usage==0 and y5_usage==0 and y6_usage==0):
-        p_usage = 0; p_xECON = 999; p_xSR = 999 
+        p_usage = 0; p_xECON = 999; p_xSR = 999; p_bb_gp = 0
     else:
         p_usage = w_usage/(8*math.ceil(y1_usage) + 5*math.ceil(y2_usage) + 4*math.ceil(y3_usage) + 3*math.ceil(y4_usage) + 2*math.ceil(y5_usage) + math.ceil(y6_usage))
         p_xECON = 6*p_xECON/w_balls
         p_xSR = w_balls/p_xSR
+        p_bb_gp = w_bb_gp/(8*math.ceil(y1_usage) + 5*math.ceil(y2_usage) + 4*math.ceil(y3_usage) + 3*math.ceil(y4_usage) + 2*math.ceil(y5_usage) + math.ceil(y6_usage))
     
     #p_balls = 120*14*p_usage
     p_runs = (w_runs+mr_runs)/(800+w_balls)
@@ -435,15 +445,15 @@ def bowling_projection(df,df2,player,year):
     else:
         ECON = 6*p_runs
         SR = 1.0/p_wickets
-    projection = [player,year,curr_team,p_usage,ECON,SR,p_wickets,p_PP_usage,p_mid_usage,p_setup_usage,p_death_usage,p_runs,p_dots,p_ones,p_twos,p_threes,p_fours,p_sixes,p_extras,p_xECON,p_xSR]
+    projection = [player,year,curr_team,p_usage,ECON,SR,p_wickets,p_PP_usage,p_mid_usage,p_setup_usage,p_death_usage,p_runs,p_dots,p_ones,p_twos,p_threes,p_fours,p_sixes,p_extras,p_xECON,p_xSR,p_bb_gp]
     #print(p_wickets)
     return projection 
 
 def proj_dump():
-    lolcow = [["bowler","season","team","RCAA","WTAA","usage","ECON","SR","wickets/ball","pp usage","mid usage","setup usage","death usage","runs/ball","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","xECON","xSR"]]
-    lolcow2 = [["bowler","season","team","RCAA","WTAA","usage","ECON","SR","wickets/ball","pp usage","mid usage","setup usage","death usage","runs/ball","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","xECON","xSR"]]
-    lolcow4 = [["batsman","season","team","RSAA","OAA","usage","balls/wkt","SR","runs/ball","wickets/ball","pp usage","mid usage","setup usage","death usage","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","xballs/wkt","xSR"]]
-    lolcow5 = [["batsman","season","team","RSAA","OAA","usage","balls/wkt","SR","runs/ball","wickets/ball","pp usage","mid usage","setup usage","death usage","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","xballs/wkt","xSR"]]
+    lolcow = [["bowler","season","team","RCAA","WTAA","usage","ECON","SR","wickets/ball","pp usage","mid usage","setup usage","death usage","runs/ball","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","xECON","xSR","bb_GP"]]
+    lolcow2 = [["bowler","season","team","RCAA","WTAA","usage","ECON","SR","wickets/ball","pp usage","mid usage","setup usage","death usage","runs/ball","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","xECON","xSR","bb_GP"]]
+    lolcow4 = [["batsman","season","team","RSAA","OAA","usage","balls/wkt","SR","runs/ball","wickets/ball","pp usage","mid usage","setup usage","death usage","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","xballs/wkt","xSR","bf_GP"]]
+    lolcow5 = [["batsman","season","team","RSAA","OAA","usage","balls/wkt","SR","runs/ball","wickets/ball","pp usage","mid usage","setup usage","death usage","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","xballs/wkt","xSR","bf_GP"]]
     lolcow3 = [["bowler","season","team","RCAA","WTAA","usage","ECON","SR","wickets/ball","pp usage","mid usage","setup usage","death usage"]]
     
     for x in unique_names:
@@ -516,14 +526,14 @@ def proj_dump():
         concat.append(x+";"+str(y))
     concat = np.unique(concat)
         
-    lol = bowls(file,lol,concat)     #for usage adjustment
+    lol = bowls(file,lol,concat,factor)     #for usage adjustment
     #print(lol)
     lol4 = bats(file3,lol4,concat,factor)   #for usage adjustment
     (lol4,lol) = balance(lol4,lol,0,factor)
     print("Marcel based table")
     marcel_table = calc_agg(lol4,lol,factor)
     
-    lol2 = bowls(file,lol2,concat)     #for usage adjustment
+    lol2 = bowls(file,lol2,concat,factor)     #for usage adjustment
     lol5 = bats(file3,lol5,concat,factor)   #for usage adjustment
     (lol5,lol2) = balance(lol5,lol2,0,factor)
     print("MDist based table")
@@ -673,11 +683,11 @@ def bowling_projection_comps(file,file2,player,year,logs):
         if(c<3): delta.append(comps_expected_weighted[c])
         elif(comps_expected_weighted[c]==0): delta.append(1)
         else: delta.append(projection[c]/comps_expected_weighted[c])
-        c = c + 1   
-    
+        c = c + 1
+        
     c = 0; projection_new = []
     for x in base_proj:
-        if(c<3): projection_new.append(base_proj[c])
+        if(c<3 or c==21): projection_new.append(base_proj[c])
         else: projection_new.append(delta[c]*base_proj[c])
         c = c + 1
         
@@ -841,7 +851,7 @@ def batting_projection_comps(file,file2,player,year,logs):
     
     c = 0; projection_new = []
     for x in base_proj:
-        if(c<3): projection_new.append(base_proj[c])
+        if(c<3 or c==20): projection_new.append(base_proj[c])
         else: projection_new.append(delta[c]*base_proj[c])
         c = c + 1
     
@@ -891,6 +901,7 @@ def batting_projection(df,df2,player,year):
     sixes = df['6s'].values
     xRuns = df['xruns'].values
     xWickets = df['xwickets'].values
+    bf_GP = df['bf_GP'].values
     avg_season = df2['Season'].values
     avg_runs = df2['runs/ball'].values
     avg_wickets = df2['wickets/ball'].values
@@ -911,6 +922,7 @@ def batting_projection(df,df2,player,year):
     y6_usage = 0.000001; y6_wickets = 0.000001; y6_PP_usage = 0.000001; y6_mid_usage = 0.000001; y6_setup_usage = 0.000001; y6_death_usage = 0.000001; y6_balls = 0.000001;    y6_runs = 0.000001; y6_dots = 0.000001; y6_ones = 0.000001; y6_twos = 0.000001; y6_threes = 0.000001; y6_fours = 0.000001; y6_sixes = 0.000001 
     p_xAVG = 0; p_xSR = 0; y1_xRuns = 0; y2_xRuns = 0;y3_xRuns = 0;y4_xRuns = 0;y5_xRuns = 0;y6_xRuns = 0
     y1_xWickets = 0; y2_xWickets = 0;y3_xWickets = 0;y4_xWickets = 0;y5_xWickets = 0;y6_xWickets = 0
+    y1_bf_gp =0; y2_bf_gp =0; y3_bf_gp =0; y4_bf_gp =0; y5_bf_gp =0; y6_bf_gp =0;
     y1_avg_runs = 0; y1_avg_wickets = 0; y1_avg_dots = 0; y1_avg_ones = 0; y1_avg_twos = 0; y1_avg_threes = 0; y1_avg_fours = 0; y1_avg_sixes = 0
     y2_avg_runs = 0; y2_avg_wickets = 0; y2_avg_dots = 0; y2_avg_ones = 0; y2_avg_twos = 0; y2_avg_threes = 0; y2_avg_fours = 0; y2_avg_sixes = 0
     y3_avg_runs = 0; y3_avg_wickets = 0; y3_avg_dots = 0; y3_avg_ones = 0; y3_avg_twos = 0; y3_avg_threes = 0; y3_avg_fours = 0; y3_avg_sixes = 0
@@ -937,6 +949,7 @@ def batting_projection(df,df2,player,year):
             #y1_extras = extras[c]
             y1_xWickets = xWickets[c]
             y1_xRuns = xRuns[c]
+            y1_bf_gp = bf_GP[c]
             curr_team = team[c]
         if(names[c]==player and season[c]==year-2):
             y2_usage = usage[c]
@@ -955,6 +968,7 @@ def batting_projection(df,df2,player,year):
             y2_sixes = sixes[c]
             #y2_extras = extras[c]
             y2_xWickets = xWickets[c]
+            y2_bf_gp = bf_GP[c]
             y2_xRuns = xRuns[c]
         if(names[c]==player and season[c]==year-3):
             y3_usage = usage[c]
@@ -973,6 +987,7 @@ def batting_projection(df,df2,player,year):
             y3_sixes = sixes[c]
             #y3_extras = extras[c]
             y3_xWickets = xWickets[c]
+            y3_bf_gp = bf_GP[c]
             y3_xRuns = xRuns[c]
         if(names[c]==player and season[c]==year-4):
             y4_usage = usage[c]
@@ -990,6 +1005,7 @@ def batting_projection(df,df2,player,year):
             y4_fours = fours[c]
             y4_sixes = sixes[c]
             y4_xWickets = xWickets[c]
+            y4_bf_gp = bf_GP[c]
             y4_xRuns = xRuns[c]
             #y4_extras = extras[c]
         if(names[c]==player and season[c]==year-5):
@@ -1009,6 +1025,7 @@ def batting_projection(df,df2,player,year):
             y5_sixes = sixes[c]
             y5_xWickets = xWickets[c]
             y5_xRuns = xRuns[c]
+            y5_bf_gp = bf_GP[c]
             #y5_extras = extras[c]
         if(names[c]==player and season[c]==year-6):
             y6_usage = usage[c]
@@ -1027,6 +1044,7 @@ def batting_projection(df,df2,player,year):
             y6_sixes = sixes[c]
             y6_xWickets = xWickets[c]
             y6_xRuns = xRuns[c]
+            y6_bf_gp = bf_GP[c]
             #y6_extras = extras[c]
         c = c + 1
     
@@ -1110,6 +1128,7 @@ def batting_projection(df,df2,player,year):
     w_usage = 8*y1_usage + 5*y2_usage + 4*y3_usage +3*y4_usage + 2*y5_usage + y6_usage
     w_xruns = 8*y1_xRuns + 5*y2_xRuns + 4*y3_xRuns +3*y4_xRuns +2*y5_xRuns +y6_xRuns
     w_xwickets = 8*y1_xWickets + 5*y2_xWickets + 4*y3_xWickets +3*y4_xWickets + 2*y5_xWickets +y6_xWickets
+    w_bf_gp = (8*y1_bf_gp + 5*y2_bf_gp + 4*y3_bf_gp + 3*y4_bf_gp + 2*y5_bf_gp + y6_bf_gp)
     #print(w_wickets)
     mr_runs = (800/w_balls)*(8*y1_balls*y1_avg_runs + 5*y2_balls*y2_avg_runs + 4*y3_balls*y3_avg_runs + 3*y4_balls*y4_avg_runs + 2*y5_balls*y5_avg_runs + y6_balls*y6_avg_runs)    
     mr_dots = (800/w_balls)*(8*y1_balls*y1_avg_dots + 5*y2_balls*y2_avg_dots + 4*y3_balls*y3_avg_dots + 3*y4_balls*y4_avg_dots + 2*y5_balls*y5_avg_dots + y6_balls*y6_avg_dots)
@@ -1129,9 +1148,10 @@ def batting_projection(df,df2,player,year):
     if(y6_usage==0.000001): y6_usage = 0
     #print(p_xAVG,p_xSR,w_balls)
     if(y1_usage==0 and y2_usage==0 and y3_usage==0 and y4_usage==0 and y5_usage==0 and y6_usage==0):
-        p_usage = 0 
+        p_usage = 0; p_bf_gp = 0
     else:
         p_usage = w_usage/(8*math.ceil(y1_usage) + 5*math.ceil(y2_usage) + 4*math.ceil(y3_usage) + 3*math.ceil(y4_usage) + 2*math.ceil(y5_usage) + math.ceil(y6_usage))
+        p_bf_gp = w_bf_gp/(8*math.ceil(y1_usage) + 5*math.ceil(y2_usage) + 4*math.ceil(y3_usage) + 3*math.ceil(y4_usage) + 2*math.ceil(y5_usage) + math.ceil(y6_usage))
     
     #p_balls = 120*14*p_usage
     p_runs = (w_runs+mr_runs)/(800+w_balls)
@@ -1159,7 +1179,7 @@ def batting_projection(df,df2,player,year):
     else:
         AVG = 1/p_wickets
         SR = p_runs*100
-    projection = [player,year,curr_team,p_usage,AVG,SR,p_runs,p_wickets,p_PP_usage,p_mid_usage,p_setup_usage,p_death_usage,p_dots,p_ones,p_twos,p_threes,p_fours,p_sixes,p_xAVG,p_xSR]
+    projection = [player,year,curr_team,p_usage,AVG,SR,p_runs,p_wickets,p_PP_usage,p_mid_usage,p_setup_usage,p_death_usage,p_dots,p_ones,p_twos,p_threes,p_fours,p_sixes,p_xAVG,p_xSR,p_bf_gp]
     #print(p_wickets)
     return projection 
 
