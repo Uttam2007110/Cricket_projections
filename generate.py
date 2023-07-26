@@ -7,14 +7,15 @@ converting cricsheet data into league summary tables
 import pandas as pd
 from sys import getsizeof
 import datetime
+import os
 pd.options.mode.chained_assignment = None  # default='warn'
 
-comp = 'odiw'
+comp = 'odi'
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
 if(comp=='hundred' or comp=='hundredw'):
     p1 = 6; p2 = 12; p3 = 17; factor = (5/6);  #hundred
-elif(comp=='odi' or comp=='odiw' or comp=='odiq'):
+elif(comp=='odi' or comp=='odiw' or comp=='odiq' or comp=='rlc'):
     p1 = 10; p2 = 26; p3 = 40; factor = 2.5;   #odi
 elif(comp=='tests'):
     p1 = 30; p2 = 55; p3 = 80; factor = 11.25; #test
@@ -22,6 +23,7 @@ else:
     p1 = 6; p2 = 12; p3 = 17; factor = 1;      #assume its a t20 by default
 
 input_file = f'{path}/{comp}.csv'
+input_file2 = f'{path}/{comp}_GP.csv'
 output_file = f"{path}/{comp}_summary.xlsx"
 
 def unique(list1):
@@ -36,6 +38,7 @@ def unique(list1):
     return unique_list
 
 file0 = pd.read_csv(input_file,sep=',',low_memory=False)
+file00 = pd.read_csv(input_file2,sep=',',low_memory=False)
 file0 = file0.fillna(0)
 now = datetime.datetime.now()
 print(now.time())
@@ -280,8 +283,8 @@ print("venue average and phases data dumped")
 now = datetime.datetime.now()
 print(now.time())
 
-player_bat = [["batsman","season","batting_team","RSAA","usage","balls_batsman","runs_off_bat","0s","1s","2s","3s","4s","6s","outs_batsman","powerplay","middle","setup","death","runs/ball","0s/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","wickets/ball","PP usage","mid usage","setup usage","death usage","AVG","SR","xAVG","xSR","xruns","xwickets"]]
-player_bowl = [["bowler","season","bowling_team","RCAA","usage","balls_bowler","runs_off_bat","0s","1s","2s","3s","4s","6s","extras","outs_bowler","powerplay","middle","setup","death","runs/ball","0s/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","wickets/ball","ECON","SR","PP usage","mid usage","setup usage","death usage","xECON","xSR","xruns","xwickets"]]
+player_bat = [["batsman","season","batting_team","RSAA","usage","balls_batsman","runs_off_bat","0s","1s","2s","3s","4s","6s","outs_batsman","powerplay","middle","setup","death","runs/ball","0s/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","wickets/ball","PP usage","mid usage","setup usage","death usage","AVG","SR","xAVG","xSR","xruns","xwickets","bf_GP"]]
+player_bowl = [["bowler","season","bowling_team","RCAA","usage","balls_bowler","runs_off_bat","0s","1s","2s","3s","4s","6s","extras","outs_bowler","powerplay","middle","setup","death","runs/ball","0s/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","wickets/ball","ECON","SR","PP usage","mid usage","setup usage","death usage","xECON","xSR","xruns","xwickets","bb_GP"]]
 
 def league_stats(sssss,pp,mid,setup,death,bowl_sr,bowl_econ,bat_sr,bat_avg):
     c8 = 0; v = 0
@@ -303,6 +306,7 @@ for x in player_season:
     a = x.split(";")[0]
     b = int(x.split(";")[1])
     
+    year_gp = file00.loc[(file00['season']==b)&(file00['player']==a),'GP'].sum()
     year_balls_bowl = file0.loc[(file0['season']==b)&(file0['bowler']==a),'balls_bowler'].sum() + 0.00000000001
     year_runs_bowl = file0.loc[(file0['season']==b)&(file0['bowler']==a),'runs_off_bat'].sum() + file0.loc[(file0['season']==b)&(file0['bowler']==a),'extras'].sum()
     year_zeros_bowl = file0.loc[(file0['season']==b)&(file0['bowler']==a),'dots'].sum()
@@ -359,8 +363,8 @@ for x in player_season:
     xwickets = year_balls_bat/xAVG
     RSAA = 1.2*(SR-xSR)*usage*factor
     
-    if(year_balls_bowl >= 1): player_bowl.append([a,b,team0,RCAA,usage_bowl,year_balls_bowl,year_runs_bowl,year_zeros_bowl,year_ones_bowl,year_twos_bowl,year_threes_bowl,year_fours_bowl,year_sixes_bowl,year_extras_bowl,year_wickets_bowl,year_pp_bowl,year_mid_bowl,year_setup_bowl,year_death_bowl,year_runs_bowl/year_balls_bowl,year_zeros_bowl/year_balls_bowl,year_ones_bowl/year_balls_bowl,year_twos_bowl/year_balls_bowl,year_threes_bowl/year_balls_bowl,year_fours_bowl/year_balls_bowl,year_sixes_bowl/year_balls_bowl,year_extras_bowl/year_balls_bowl,year_wickets_bowl/year_balls_bowl,ECON,SR_bowl,year_pp_bowl/year_balls_bowl,year_mid_bowl/year_balls_bowl,year_setup_bowl/year_balls_bowl,year_death_bowl/year_balls_bowl,xECON,xSR_bowl,xruns_bowl,xwickets_bowl])
-    if(year_balls_bat >= 1): player_bat.append([a,b,team1,RSAA,usage,year_balls_bat,year_runs_bat,year_zeros_bat,year_ones_bat,year_twos_bat,year_threes_bat,year_fours_bat,year_sixes_bat,year_wickets_bat,year_pp_bat,year_mid_bat,year_setup_bat,year_death_bat,year_runs_bat/year_balls_bat,year_zeros_bat/year_balls_bat,year_ones_bat/year_balls_bat,year_twos_bat/year_balls_bat,year_threes_bat/year_balls_bat,year_fours_bat/year_balls_bat,year_sixes_bat/year_balls_bat,year_wickets_bat/year_balls_bat,year_pp_bat/year_balls_bat,year_mid_bat/year_balls_bat,year_setup_bat/year_balls_bat,year_death_bat/year_balls_bat,AVG,SR,xAVG,xSR,xruns,xwickets])
+    if(year_balls_bowl >= 1): player_bowl.append([a,b,team0,RCAA,usage_bowl,year_balls_bowl,year_runs_bowl,year_zeros_bowl,year_ones_bowl,year_twos_bowl,year_threes_bowl,year_fours_bowl,year_sixes_bowl,year_extras_bowl,year_wickets_bowl,year_pp_bowl,year_mid_bowl,year_setup_bowl,year_death_bowl,year_runs_bowl/year_balls_bowl,year_zeros_bowl/year_balls_bowl,year_ones_bowl/year_balls_bowl,year_twos_bowl/year_balls_bowl,year_threes_bowl/year_balls_bowl,year_fours_bowl/year_balls_bowl,year_sixes_bowl/year_balls_bowl,year_extras_bowl/year_balls_bowl,year_wickets_bowl/year_balls_bowl,ECON,SR_bowl,year_pp_bowl/year_balls_bowl,year_mid_bowl/year_balls_bowl,year_setup_bowl/year_balls_bowl,year_death_bowl/year_balls_bowl,xECON,xSR_bowl,xruns_bowl,xwickets_bowl,year_balls_bowl/year_gp])
+    if(year_balls_bat >= 1): player_bat.append([a,b,team1,RSAA,usage,year_balls_bat,year_runs_bat,year_zeros_bat,year_ones_bat,year_twos_bat,year_threes_bat,year_fours_bat,year_sixes_bat,year_wickets_bat,year_pp_bat,year_mid_bat,year_setup_bat,year_death_bat,year_runs_bat/year_balls_bat,year_zeros_bat/year_balls_bat,year_ones_bat/year_balls_bat,year_twos_bat/year_balls_bat,year_threes_bat/year_balls_bat,year_fours_bat/year_balls_bat,year_sixes_bat/year_balls_bat,year_wickets_bat/year_balls_bat,year_pp_bat/year_balls_bat,year_mid_bat/year_balls_bat,year_setup_bat/year_balls_bat,year_death_bat/year_balls_bat,AVG,SR,xAVG,xSR,xruns,xwickets,year_balls_bat/year_gp])
     now = datetime.datetime.now()
     
     print(b,a,now.time())
@@ -399,5 +403,10 @@ def dumps():
     print("all data dumped to the desired excel file, run projections now")
         
 dumps()
+if(comp not in ['odi','t20i','tests']):
+    os.remove(input_file)
+    os.remove(input_file2)
+else:
+    os.remove(input_file2)
 now = datetime.datetime.now()
 print(now.time())
