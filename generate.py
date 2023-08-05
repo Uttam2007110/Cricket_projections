@@ -10,7 +10,7 @@ import datetime
 import os
 pd.options.mode.chained_assignment = None  # default='warn'
 
-comp = 'odi'
+comp = 't20i'
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
 if(comp=='hundred' or comp=='hundredw'):
@@ -42,8 +42,8 @@ file00 = pd.read_csv(input_file2,sep=',',low_memory=False)
 file0 = file0.fillna(0)
 now = datetime.datetime.now()
 print(now.time())
-start_size = getsizeof(file0)/(1024.0**3)
-print('Dataframe size: %2.2f GB'%start_size)
+start_size = getsizeof(file0)/(1024.0**2)
+print('Dataframe size: %2.2f MB'%start_size)
 #print(file0.columns.values)
 
 c = 0
@@ -127,6 +127,7 @@ unique_seasons = unique(file0['season'].values)
 player_season = unique(player_season)
 batting_team_season = unique(batting_team_season)
 bowling_team_season = unique(bowling_team_season)
+
 print(unique_seasons)
 now = datetime.datetime.now()
 print(now.time())
@@ -141,6 +142,7 @@ batting_team_balls_season = []; bowling_team_balls_season = []
 venue_bat_phase = [["Venue","Season","Sum of powerplay","Sum of pp_runs_batsman","Sum of pp_wickets_batsman","Sum of middle","Sum of mid_runs_batsman","Sum of mid_wickets_batsman","Sum of setup","Sum of setup_runs_batsman","Sum of setup_wickets_batsman","Sum of death","Sum of death_runs_batsman","Sum of death_wickets_batsman","pp AVG","mid AVG","setup AVG","death AVG","pp SR","mid SR","setup SR","death SR"]]
 venue_bowl_phase = [["Venue","Season","Sum of powerplay","Sum of pp_runs_bowler","Sum of pp_wickets_bowler","Sum of middle","Sum of mid_runs_bowler","Sum of mid_wickets_bowler","Sum of setup","Sum of setup_runs_bowler","Sum of setup_wickets_bowler","Sum of death","Sum of death_runs_bowler","Sum of death_wickets_bowler","pp ECON","mid ECON","setup ECON","death ECON","pp SR","mid SR","setup SR","death SR"]]
 
+
 for r in batting_team_season:
     c7 = 0; vals1 = 0; vals2 = 0
     #vals1 = file0['balls_batsman'].sum()
@@ -152,7 +154,7 @@ for r in batting_team_season:
     bowling_team_balls_season.append([a,b,vals2])
     now = datetime.datetime.now()
     #print(a,b,now.time())
-    
+
 print("team balls faced dumped")
 now = datetime.datetime.now()
 print(now.time())
@@ -325,7 +327,8 @@ for x in player_season:
     
     try : team0 = file0[(file0.season==b)&(file0.bowler==a)].iloc[0][7]
     except IndexError: team0 = "Free Agent"
-    usage_bowl = year_balls_bowl/(0.0000001+file0.loc[(file0['bowling_team']==team0)&(file0['season']==b),'balls_bowler'].sum()) 
+    usage_bowl = year_balls_bowl/(0.0000001+file0.loc[(file0['bowling_team']==team0)&(file0['season']==b),'balls_bowler'].sum())
+    usage_bowl = year_balls_bowl/(0.0000001+(file00.loc[(file00['player']==team0)&(file00['season']==b),'GP']*120*factor).sum())
     ECON = 6*year_runs_bowl/(year_balls_bowl)
     if(year_wickets_bowl >= 1):SR_bowl = year_balls_bowl/year_wickets_bowl
     else: SR_bowl = year_balls_bowl
@@ -354,6 +357,7 @@ for x in player_season:
     try : team1 = file0[(file0.season==b)&(file0.striker==a)].iloc[0][6]
     except IndexError: team1 = "Free Agent"
     usage = year_balls_bat/(0.00000001+file0.loc[(file0['batting_team']==team1)&(file0['season']==b),'balls_batsman'].sum())
+    usage = year_balls_bat/(0.00000001+(file00.loc[(file00['player']==team1)&(file00['season']==b),'GP']*120*factor).sum())
     SR = 100*year_runs_bat/(year_balls_bat)
     if(year_wickets_bat >= 1): AVG = year_balls_bat/year_wickets_bat 
     else: AVG = year_balls_bat
