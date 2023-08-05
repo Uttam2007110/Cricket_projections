@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 from itertools import zip_longest
 from sklearn.linear_model import LinearRegression
+from sklearn import linear_model
 pd.options.mode.chained_assignment = None  # default='warn'
 
 game_sim = 0
@@ -35,8 +36,12 @@ def avg(bowler,file_name,item):
     bowling_wkts = bowling_wkts.fillna(0)
     return (bowling_usage,bowling_wkts)
 
-def usage_corrected(bowler,file_name,values):
+def usage_corrected(bowler,file_name,values,f):
     team_names = np.unique(file_name['team'].values)
+    if(f == 5/6): bowl_max = 100
+    elif(f == 2.5): bowl_max = 300
+    elif(f == 11.25): bowl_max = 1350
+    else: bowl_max = 120
     
     for x in team_names:
         c = 0;dummy = 0;
@@ -44,16 +49,17 @@ def usage_corrected(bowler,file_name,values):
         sublist = sublist.sort_values(by=['usage'],ascending=False)
 
         if(bowler == 1):
-            if(game_sim>=1):
+            if(game_sim==1):
                 sublist = sublist.sort_values(by=['bb_GP'],ascending=False)
             k = sublist.count()[0]
-            factor = 1/sum(values[0:k])
+            #factor = 1/sum(values[0:k])
             #print(x,k,factor)
         if(bowler == 0): #and x != "Free Agent"):
-            if(game_sim >= 1):
+            if(game_sim == 1):
                 sublist = sublist.sort_values(by=['bf_GP'],ascending=False)
-                sublist['factor'] = 3*sublist['pp usage']+9*sublist['mid usage']+15*sublist['setup usage']+19*sublist['death usage']
-                #sublist = sublist.sort_values(by=['factor'],ascending=True)
+                sublist['factor'] = 0.2*sublist['pp usage']+0.1*sublist['mid usage']+0.05*sublist['setup usage']+0.01*sublist['death usage']
+                sublist['factor'] += (sublist['bf_GP']/(f*120))
+                sublist = sublist.sort_values(by=['factor'],ascending=False)
                 sublist.drop(['factor'], axis=1)
             k = sublist.count()[0]
         
@@ -65,7 +71,9 @@ def usage_corrected(bowler,file_name,values):
             if(x != "Free Agent" and bowler == 1 and k>5):
                 if(c<len(values)):file_name['usage'][y] = values[c]*file_name['wickets/ball'][y]
                 else : file_name['usage'][y] = 0
+                if(game_sim==1): file_name['usage'][y] = file_name['bb_GP'][y]/bowl_max
                 dummy = dummy + file_name['usage'][y]
+                #print(file_name['bowler'][y],file_name['usage'][y],sublist['bowler'][y],sublist['usage'][y])
                 c = c + 1
             if(x != "Free Agent" and bowler == 1 and k<=5):
                 file_name['usage'][y] = 0.2
@@ -75,12 +83,12 @@ def usage_corrected(bowler,file_name,values):
                 if(c<len(values)):file_name['usage'][y] = values[c]*file_name['balls/wkt'][y]
                 else : file_name['usage'][y] = 0
                 dummy = dummy + file_name['usage'][y]
-                c = c + 1  
+                c = c + 1
         
         for y in sublist.index:
-            if(x != "Free Agent" and game_sim != 2): file_name['usage'][y] = file_name['usage'][y]/dummy
-        #print(x,dummy,bowler)  
-        
+            if(f == 11.25): dummy = 1
+            if(x != "Free Agent" and dummy >= 1): file_name['usage'][y] = file_name['usage'][y]/dummy
+           
     return file_name
 
 def analyse(u,w):
@@ -160,8 +168,9 @@ def analyse_bowl_game(u,w,factor):
         p += 1
         
     p = 0; c = sum(balls_bowled)
+    c = 2*120*factor*file0['match_id'].nunique()
     for x in balls_bowled:
-        a = x/sum(balls_bowled)
+        a = x/c
         try:
             b = wickets_taken[p]/x
         except ZeroDivisionError:
@@ -188,14 +197,15 @@ def analyse_bat_game(u,w,factor):
     s_name = ""
     ns_name = ""
     wickets = 0
-    p=1
+    p=1; y=[]; X=[]; missed=0
 
     for x in file0.values:
         
         if(x[18]!=0):
             wickets = wickets + 1
             if(s_name == x[19]): outs[striker] = outs[striker] + 1
-            if(ns_name == x[19]): outs[non_striker] = outs[non_striker] + 1
+            elif(ns_name == x[19]): outs[non_striker] = outs[non_striker] + 1
+            else: missed += 1                    
         
         if(x[5]==0.1):
             striker = 0
@@ -222,11 +232,15 @@ def analyse_bat_game(u,w,factor):
                 non_striker = 1 + max(striker,non_striker,0)
                 balls_faced[non_striker] = balls_faced[non_striker] + 1                                   
         c = c + 1
-
+    
     for x in balls_faced:
-        #print("batter",p,"usage",x/c,"balls/wkt",x/(outs[p-1]+0.000001))
-        coeffs.append(outs[p-1]/c)
+        max_balls = 2*120*factor*file0['match_id'].nunique()
+        #print("batter",p,"usage",x/max_balls,"balls/wkt",x/(outs[p-1]+0.000001+(missed/11)))
+        y.append([x/max_balls])
+        X.append([p,x/(outs[p-1]+0.000001)])
+        coeffs.append((outs[p-1]+(missed/11))/max_balls)
         p = p + 1
+    #print(usage_sum,c/(6*file0['match_id'].nunique()))
     return coeffs
 
 def bowls(file_bowl_input,file_bowl,concat,factor):
@@ -235,7 +249,7 @@ def bowls(file_bowl_input,file_bowl,concat,factor):
         coeffs_bowl = analyse_bowl_game(usage_bowl,wkts_bowl,factor)
     else:
         coeffs_bowl = analyse(usage_bowl,wkts_bowl)    
-    return usage_corrected(1,file_bowl,coeffs_bowl)    
+    return usage_corrected(1,file_bowl,coeffs_bowl,factor)    
 
 def bats(file_bat_input,file_bat,concat,factor):
     (usage_bat,wkts_bat) = avg(0,file_bat_input,concat)
@@ -244,7 +258,7 @@ def bats(file_bat_input,file_bat,concat,factor):
     else:
         coeffs_bat = analyse(usage_bat,wkts_bat)
     #print(coeffs_bat)
-    return usage_corrected(0,file_bat,coeffs_bat)
+    return usage_corrected(0,file_bat,coeffs_bat,factor)
 
 def calc_agg(f_bat,f_bowl,factor):
     summary = [["Team","runs bat","runs bowl","NRR","Wins"]]
@@ -252,17 +266,20 @@ def calc_agg(f_bat,f_bowl,factor):
     team_names = np.unique(f_bowl['team'].values)
     
     for x in team_names:
-        runs_bat = ((f_bat.loc[(f_bat['team']==x),'usage']*f_bat.loc[(f_bat['team']==x),'runs/ball']).sum()*120*factor)/(f_bat.loc[(f_bat['team']==x),'usage'].sum()) 
-        lg_runs_bat = ((f_bat.loc[(f_bat['team']==x),'usage']*f_bat.loc[(f_bat['team']==x),'xSR']).sum()*1.2*factor)/(f_bat.loc[(f_bat['team']==x),'usage'].sum())
-        runs_bowl = ((f_bowl.loc[(f_bowl['team']==x),'usage']*f_bowl.loc[(f_bowl['team']==x),'runs/ball']).sum()*120*factor)/(f_bowl.loc[(f_bowl['team']==x),'usage'].sum())
-        lg_runs_bowl = ((f_bowl.loc[(f_bowl['team']==x),'usage']*f_bowl.loc[(f_bowl['team']==x),'xECON']).sum()*20*factor)/(f_bowl.loc[(f_bowl['team']==x),'usage'].sum())
-        adj_runs = runs_bat + extras
-        wins = (adj_runs**15.5)/((adj_runs**15.5)+(runs_bowl**15.5))
-        summary.append([x,adj_runs,runs_bowl,(adj_runs-runs_bowl)/(20*factor),wins])
+        try:
+            runs_bat = ((f_bat.loc[(f_bat['team']==x),'usage']*f_bat.loc[(f_bat['team']==x),'runs/ball']).sum()*120*factor)/(f_bat.loc[(f_bat['team']==x),'usage'].sum()) 
+            lg_runs_bat = ((f_bat.loc[(f_bat['team']==x),'usage']*f_bat.loc[(f_bat['team']==x),'xSR']).sum()*1.2*factor)/(f_bat.loc[(f_bat['team']==x),'usage'].sum())
+            runs_bowl = ((f_bowl.loc[(f_bowl['team']==x),'usage']*f_bowl.loc[(f_bowl['team']==x),'runs/ball']).sum()*120*factor)/(f_bowl.loc[(f_bowl['team']==x),'usage'].sum())
+            lg_runs_bowl = ((f_bowl.loc[(f_bowl['team']==x),'usage']*f_bowl.loc[(f_bowl['team']==x),'xECON']).sum()*20*factor)/(f_bowl.loc[(f_bowl['team']==x),'usage'].sum())
+            adj_runs = runs_bat + extras
+            wins = (adj_runs**15.5)/((adj_runs**15.5)+(runs_bowl**15.5))
+            summary.append([x,adj_runs,runs_bowl,(adj_runs-runs_bowl)/(20*factor),wins])
+        except ZeroDivisionError:
+            print("No data for team",x)
         
     summary = pd.DataFrame(summary)
     summary.columns = summary.iloc[0];summary = summary.drop(0)
-    print("total league wins",summary['Wins'].sum()-summary.loc[(summary['Team']=="Free Agent"),'Wins'].sum())
+    #print("total league wins",summary['Wins'].sum()-summary.loc[(summary['Team']=="Free Agent"),'Wins'].sum())
     summary = summary.sort_values(by=['Wins'],ascending=False)
     return summary
 
@@ -380,13 +397,13 @@ def h2h_alt(i_file,i_file2,flag,factor):
     teams = pd.read_excel(i_file2,'Team')
     
     for x in f_bat.values:
-        if(game_sim >= 1):
+        if(game_sim == 1):
             f_bat.loc[(f_bat['batsman']==x[0]),'team'] = teams.loc[(teams['player']==x[0]),'team'].values[0]
         if(game_sim == 0):
             f_bat.loc[(f_bat['batsman']==x[0]),'team'] = teams.loc[(teams['player']==x[0]),'squad'].values[0]
     
     for y in f_bowl.values:
-        if(game_sim >= 1):
+        if(game_sim == 1):
             f_bowl.loc[(f_bowl['bowler']==y[0]),'team'] = teams.loc[(teams['player']==y[0]),'team'].values[0]
         if(game_sim == 0):
             f_bowl.loc[(f_bowl['bowler']==y[0]),'team'] = teams.loc[(teams['player']==y[0]),'squad'].values[0]     
@@ -403,3 +420,4 @@ def h2h_alt(i_file,i_file2,flag,factor):
     return (calc_agg(f_bat_adj,f_bowl_adj,factor),f_bat_adj,f_bowl_adj)
     
 #coeffs = analyse_bowl_game(0,0,11.25)
+#coeffs = analyse_bat_game(0,0,2.5)
