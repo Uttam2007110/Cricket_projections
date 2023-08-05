@@ -9,7 +9,7 @@ import glob
 import pandas as pd
 from datetime import datetime
  
-comp = 'odi'
+comp = 't20i'
 if(comp == 'odiq'):
     path = "C:/Users/Subramanya.Ganti/Downloads/cricket/odi"
 elif(comp == 't20iq'):
@@ -54,10 +54,15 @@ for file in file_list:
     if(file[-8:] == 'info.csv'):
         df = pd.read_csv(file, names=col_names)
         date = datetime.strptime(df.loc[df['col2']=='date','team'].values[0], '%Y/%m/%d')
-        if(date.year>=db_start):
+        t1 = df.loc[(df['col2']=='team') | (df['col2']=='teams'),'team'].values[0]
+        t2 = df.loc[(df['col2']=='team') | (df['col2']=='teams'),'team'].values[1]
+        if(league == 0):check = t1 in countries and t2 in countries
+        if(date.year>=db_start and (check or league)):
             names = df.loc[(df['col2']=='player') | (df['col2']=='players'),'player']
+            names = pd.concat([names,pd.Series([t1,t2])])
             names = pd.DataFrame(names)
             names['season'] = date.year
+            names = names.rename(columns={0: 'player'})
             if(i==0): names_list=names; i=1
             else: names_list = pd.concat([names_list,names])
 
