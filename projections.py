@@ -2,7 +2,7 @@
 """
 Created on Sat Nov 19 19:25:55 2022
 author: uttam ganti
-projecting ipl performances based on past seasons
+projecting league performances based on past seasons
 """
 import numpy as np
 import pandas as pd
@@ -11,7 +11,7 @@ import datetime
 from usage import *
 pd.options.mode.chained_assignment = None  # default='warn'
 
-comp = 'odi'
+comp = 't20i'
 proj_year = 2024
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
@@ -419,7 +419,7 @@ def bowling_projection(df,df2,player,year):
     else:
         p_usage = w_usage/(8*math.ceil(y1_usage) + 5*math.ceil(y2_usage) + 4*math.ceil(y3_usage) + 3*math.ceil(y4_usage) + 2*math.ceil(y5_usage) + math.ceil(y6_usage))
         p_xECON = 6*p_xECON/w_balls
-        p_xSR = w_balls/p_xSR
+        p_xSR = w_balls/(p_xSR+0.000000001)
         p_bb_gp = w_bb_gp/(8*math.ceil(y1_usage) + 5*math.ceil(y2_usage) + 4*math.ceil(y3_usage) + 3*math.ceil(y4_usage) + 2*math.ceil(y5_usage) + math.ceil(y6_usage))
     
     #p_balls = 120*14*p_usage
@@ -527,15 +527,14 @@ def proj_dump():
     concat = np.unique(concat)
         
     lol = bowls(file,lol,concat,factor)     #for usage adjustment
-    #print(lol)
-    lol4 = bats(file3,lol4,concat,factor)   #for usage adjustment
-    (lol4,lol) = balance(lol4,lol,0,factor)
-    print("Marcel based table")
-    marcel_table = calc_agg(lol4,lol,factor)
-    
+    lol4 = bats(file3,lol4,concat,factor)   #for usage adjustment    
     lol2 = bowls(file,lol2,concat,factor)     #for usage adjustment
     lol5 = bats(file3,lol5,concat,factor)   #for usage adjustment
+    (lol4,lol) = balance(lol4,lol,0,factor)
     (lol5,lol2) = balance(lol5,lol2,0,factor)
+    
+    print("Marcel based table")
+    marcel_table = calc_agg(lol4,lol,factor)  
     print("MDist based table")
     mdist_table = calc_agg(lol5,lol2,factor)
     
@@ -569,6 +568,7 @@ def proj_dump():
     print("batting projections dumped")
     now = datetime.datetime.now()
     print(now.time())
+    return (lol2,lol5)
 
 def comps_future(df,comps):
     names = df['bowler'].values
@@ -1194,5 +1194,5 @@ def logs(x,y):
     #mdist_bat(file3,batting_projection(file3,file4,x,y),unique_names2)
     print("logs dumped")
 
-#logs("C Green",2024)
-proj_dump()
+#logs("MA Starc",2024)
+(aa_bowl,aa_bat)=proj_dump()
