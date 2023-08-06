@@ -85,13 +85,19 @@ def xPts(player):
                     else: projections = pd.concat([projections,p])
             except ValueError: print(name,"skipped as URL is wrong")
         i = i + 1
-    projections = projections.drop(['Salary','Value','FGM-A','FTM-A','3PM-A'],axis=1)
+    projections = projections.drop(['Salary','Value','FGM-A','FTM-A'],axis=1)
+    projections['3PM-A'] = projections['3PM-A'].str.split('-').str[0]
+    projections['3PM-A'] = projections['3PM-A'].astype(float)
+    projections.rename(columns = {'3PM-A':'3PM'}, inplace = True)
     first_column = projections.pop('Name')
     projections.insert(0, 'Name', first_column)
     second_column = projections.pop('Team')
     projections.insert(1, 'Team', second_column)
-    projections['FP'] = projections['PTS']+1.2*projections['REB']+1.5*projections['AST']+3*(projections['STL']+projections['BLK'])-projections['TOV']
-    projections = projections[projections['FP'] != 0]
+    #d11 scoring system
+    #projections['FP'] = projections['PTS']+1.2*projections['REB']+1.5*projections['AST']+3*(projections['STL']+projections['BLK'])-projections['TOV']
+    #m11c scoring system
+    projections['FP'] = 3*projections['PTS']+3.5*projections['REB']+5*projections['AST']+10*(projections['STL']+projections['BLK'])-2*projections['TOV']-projections['PF']+projections['3PM']
+    projections = projections[projections['MIN'] >= 1]
     projections = projections.sort_values(by=['FP'],ascending=False)
     return projections
 
