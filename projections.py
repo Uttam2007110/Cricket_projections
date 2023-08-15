@@ -11,22 +11,26 @@ import datetime
 from usage import *
 pd.options.mode.chained_assignment = None  # default='warn'
 
-comp = 't20i'
+comp = 'hundred'
 proj_year = 2024
+aggregate = 1
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
 if(comp=='hundred' or comp=='hundredw'):
     factor = (5/6); #hundred
 elif(comp=='odi' or comp=='odiw' or comp=='odiq' or comp=='rlc'):
-    factor = 2.5;   #odi
+    factor = 2.5; aggregate = 0  #odi
 elif(comp=='tests'):
-    factor = 11.25; #test
+    factor = 11.25; aggregate = 0 #test
+elif(comp=='t20iq'):
+    factor = 1; aggregate = 0 #international t20
 else:
-    factor = 1;     #assume its a t20 by default
+    factor = 1;     #assume its a t20 league by default
 
-input_file = f'{path}/{comp}_summary.xlsx' # the output of generate.py
-dumps_file = f"{path}/{comp}_comps.xlsx"
-output_file = f"{path}/{comp}_projections.xlsx"
+if(aggregate == 1): input_file = f'{path}/summary/{comp}_aggregate.xlsx' # aggregated summary
+else: input_file = f'{path}/summary/{comp}_summary.xlsx' # the output of generate.py
+dumps_file = f"{path}/projections/{comp}_comps.xlsx"
+output_file = f"{path}/projections/{comp}_projections.xlsx"
 
 def unique(list1):
     # initialize a null list
@@ -377,7 +381,70 @@ def bowling_projection(df,df2,player,year):
             y6_avg_sixes = avg_sixes[c2]
             y6_avg_extras = avg_extras[c2]
         c2 = c2 + 1
-        
+      
+    #print(y1_avg_runs,y2_avg_runs,y3_avg_runs,y4_avg_runs,y5_avg_runs,y6_avg_runs)
+    if(y1_avg_runs==0):
+        y1_avg_runs = y2_avg_runs
+        y1_avg_wickets = y2_avg_wickets
+        y1_avg_dots = y2_avg_dots
+        y1_avg_ones = y2_avg_ones
+        y1_avg_twos = y2_avg_twos
+        y1_avg_threes = y2_avg_threes
+        y1_avg_fours = y2_avg_fours
+        y1_avg_sixes = y2_avg_sixes
+        y1_avg_extras = y2_avg_extras
+    if(y2_avg_runs==0):
+        y2_avg_runs = y1_avg_runs
+        y2_avg_wickets = y1_avg_wickets
+        y2_avg_dots = y1_avg_dots
+        y2_avg_ones = y1_avg_ones
+        y2_avg_twos = y1_avg_twos
+        y2_avg_threes = y1_avg_threes
+        y2_avg_fours = y1_avg_fours
+        y2_avg_sixes = y1_avg_sixes
+        y2_avg_extras = y1_avg_extras
+    if(y3_avg_runs==0):
+        y3_avg_runs = y2_avg_runs
+        y3_avg_wickets = y2_avg_wickets
+        y3_avg_dots = y2_avg_dots
+        y3_avg_ones = y2_avg_ones
+        y3_avg_twos = y2_avg_twos
+        y3_avg_threes = y2_avg_threes
+        y3_avg_fours = y2_avg_fours
+        y3_avg_sixes = y2_avg_sixes
+        y3_avg_extras = y2_avg_extras
+    if(y4_avg_runs==0):
+        y4_avg_runs = y3_avg_runs
+        y4_avg_wickets = y3_avg_wickets
+        y4_avg_dots = y3_avg_dots
+        y4_avg_ones = y3_avg_ones
+        y4_avg_twos = y3_avg_twos
+        y4_avg_threes = y3_avg_threes
+        y4_avg_fours = y3_avg_fours
+        y4_avg_sixes = y3_avg_sixes
+        y4_avg_extras = y3_avg_extras
+    if(y5_avg_runs==0):
+        y5_avg_runs = y4_avg_runs
+        y5_avg_wickets = y4_avg_wickets
+        y5_avg_dots = y4_avg_dots
+        y5_avg_ones = y4_avg_ones
+        y5_avg_twos = y4_avg_twos
+        y5_avg_threes = y4_avg_threes
+        y5_avg_fours = y4_avg_fours
+        y5_avg_sixes = y4_avg_sixes
+        y5_avg_extras = y4_avg_extras
+    if(y6_avg_runs==0):
+        y6_avg_runs = y5_avg_runs
+        y6_avg_wickets = y5_avg_wickets
+        y6_avg_dots = y5_avg_dots
+        y6_avg_ones = y5_avg_ones
+        y6_avg_twos = y5_avg_twos
+        y6_avg_threes = y5_avg_threes
+        y6_avg_fours = y5_avg_fours
+        y6_avg_sixes = y5_avg_sixes
+        y6_avg_extras = y5_avg_extras
+    #print(y1_avg_runs,y2_avg_runs,y3_avg_runs,y4_avg_runs,y5_avg_runs,y6_avg_runs)
+    
     w_balls = 8*y1_balls + 5*y2_balls + 4*y3_balls + 3*y4_balls + 2*y5_balls + y6_balls
     w_runs = 8*y1_runs + 5*y2_runs + 4*y3_runs +3*y4_runs + 2*y5_runs + y6_runs
     w_dots = 8*y1_dots + 5*y2_dots + 4*y3_dots +3*y4_dots + 2*y5_dots + y6_dots
@@ -449,12 +516,60 @@ def bowling_projection(df,df2,player,year):
     #print(p_wickets)
     return projection 
 
+def venue_projections():    
+    venue_bat = pd.read_excel(input_file,'venue batting')
+    bat_avg = pd.read_excel(input_file,'batting phases')
+    venue_bowl = pd.read_excel(input_file,'venue bowling')
+    bowl_avg = pd.read_excel(input_file,'bowling phases')
+    teams = list(dict.fromkeys(venue_bat['Venue'].tolist()))
+    
+    proj_year_bat = pd.DataFrame(columns=venue_bat.columns)
+    proj_year_bat['Venue'] = teams
+    proj_year_bat['Season'] = proj_year
+    proj_year_bat['Weight'] = 0
+    
+    for p in teams:
+        for q in venue_bat.columns:      
+            if(q != 'Venue' and q != 'Season'):
+                #print(p,q,venue_bat.loc[(venue_bat['Venue']==p)&(venue_bat['Season']==2023),q].sum())
+                proj_year_bat.loc[proj_year_bat['Venue']==p,q] = 8*venue_bat.loc[(venue_bat['Venue']==p)&(venue_bat['Season']==proj_year-1),q].sum()+5*venue_bat.loc[(venue_bat['Venue']==p)&(venue_bat['Season']==proj_year-2),q].sum()+4*venue_bat.loc[(venue_bat['Venue']==p)&(venue_bat['Season']==proj_year-3),q].sum()+3*venue_bat.loc[(venue_bat['Venue']==p)&(venue_bat['Season']==proj_year-4),q].sum()+2*venue_bat.loc[(venue_bat['Venue']==p)&(venue_bat['Season']==proj_year-5),q].sum()+venue_bat.loc[(venue_bat['Venue']==p)&(venue_bat['Season']==proj_year-6),q].sum()           
+        
+        if(venue_bat.loc[(venue_bat['Venue']==p)&(venue_bat['Season']==proj_year-1),'Sum of powerplay'].sum()!=0): proj_year_bat.loc[proj_year_bat['Venue']==p,'Weight'] += 8
+        if(venue_bat.loc[(venue_bat['Venue']==p)&(venue_bat['Season']==proj_year-2),'Sum of powerplay'].sum()!=0): proj_year_bat.loc[proj_year_bat['Venue']==p,'Weight'] += 5
+        if(venue_bat.loc[(venue_bat['Venue']==p)&(venue_bat['Season']==proj_year-3),'Sum of powerplay'].sum()!=0): proj_year_bat.loc[proj_year_bat['Venue']==p,'Weight'] += 4
+        if(venue_bat.loc[(venue_bat['Venue']==p)&(venue_bat['Season']==proj_year-4),'Sum of powerplay'].sum()!=0): proj_year_bat.loc[proj_year_bat['Venue']==p,'Weight'] += 3
+        if(venue_bat.loc[(venue_bat['Venue']==p)&(venue_bat['Season']==proj_year-5),'Sum of powerplay'].sum()!=0): proj_year_bat.loc[proj_year_bat['Venue']==p,'Weight'] += 2
+        if(venue_bat.loc[(venue_bat['Venue']==p)&(venue_bat['Season']==proj_year-6),'Sum of powerplay'].sum()!=0): proj_year_bat.loc[proj_year_bat['Venue']==p,'Weight'] += 1
+    
+    lg_balls = bat_avg['Sum of powerplay'].sum()+bat_avg['Sum of middle'].sum()+bat_avg['Sum of setup'].sum()+bat_avg['Sum of death'].sum()
+    lg_runs = bat_avg['Sum of pp_runs_batsman'].sum()+bat_avg['Sum of mid_runs_batsman'].sum()+bat_avg['Sum of setup_runs_batsman'].sum()+bat_avg['Sum of death_runs_batsman'].sum()
+    lg_wickets = bat_avg['Sum of pp_wickets_batsman'].sum()+bat_avg['Sum of mid_wickets_batsman'].sum()+bat_avg['Sum of setup_wickets_batsman'].sum()+bat_avg['Sum of death_wickets_batsman'].sum()
+    lg_runs = lg_runs*20000/lg_balls
+    lg_wickets = lg_wickets*20000/lg_balls
+    lg_balls = 20000
+    
+    final = pd.DataFrame(columns=['Venue','Season','runs','wkts'])
+    final['Venue'] = teams
+    final['Season'] = proj_year
+    
+    for p in teams:
+        final.loc[final['Venue']==p,'runs']
+        team_balls = proj_year_bat.loc[proj_year_bat['Venue']==p,'Sum of powerplay']+proj_year_bat.loc[proj_year_bat['Venue']==p,'Sum of middle']+proj_year_bat.loc[proj_year_bat['Venue']==p,'Sum of setup']+proj_year_bat.loc[proj_year_bat['Venue']==p,'Sum of death']
+        team_runs = proj_year_bat.loc[proj_year_bat['Venue']==p,'Sum of pp_runs_batsman']+proj_year_bat.loc[proj_year_bat['Venue']==p,'Sum of mid_runs_batsman']+proj_year_bat.loc[proj_year_bat['Venue']==p,'Sum of setup_runs_batsman']+proj_year_bat.loc[proj_year_bat['Venue']==p,'Sum of death_runs_batsman']
+        team_wickets = proj_year_bat.loc[proj_year_bat['Venue']==p,'Sum of pp_wickets_batsman']+proj_year_bat.loc[proj_year_bat['Venue']==p,'Sum of mid_wickets_batsman']+proj_year_bat.loc[proj_year_bat['Venue']==p,'Sum of setup_wickets_batsman']+proj_year_bat.loc[proj_year_bat['Venue']==p,'Sum of death_wickets_batsman']
+        final.loc[final['Venue']==p,'runs'] = ((team_runs+lg_runs)/(team_balls+lg_balls))/(lg_runs/lg_balls)
+        final.loc[final['Venue']==p,'wkts'] = ((team_wickets+lg_wickets)/(team_balls+lg_balls))/(lg_wickets/lg_balls)
+    
+    final = final.apply(pd.to_numeric, errors='ignore')
+    return final
+
 def proj_dump():
+    now = datetime.datetime.now()
+    print(now.time())
     lolcow = [["bowler","season","team","RCAA","WTAA","usage","ECON","SR","wickets/ball","pp usage","mid usage","setup usage","death usage","runs/ball","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","xECON","xSR","bb_GP"]]
     lolcow2 = [["bowler","season","team","RCAA","WTAA","usage","ECON","SR","wickets/ball","pp usage","mid usage","setup usage","death usage","runs/ball","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","xECON","xSR","bb_GP"]]
     lolcow4 = [["batsman","season","team","RSAA","OAA","usage","balls/wkt","SR","runs/ball","wickets/ball","pp usage","mid usage","setup usage","death usage","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","xballs/wkt","xSR","bf_GP"]]
     lolcow5 = [["batsman","season","team","RSAA","OAA","usage","balls/wkt","SR","runs/ball","wickets/ball","pp usage","mid usage","setup usage","death usage","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","xballs/wkt","xSR","bf_GP"]]
-    lolcow3 = [["bowler","season","team","RCAA","WTAA","usage","ECON","SR","wickets/ball","pp usage","mid usage","setup usage","death usage"]]
     
     for x in unique_names:
         #now = datetime.datetime.now()
@@ -468,13 +583,14 @@ def proj_dump():
             lolcow.append(p_dummy) 
             
     lol0 = pd.DataFrame(lolcow)
-    lol0 = pd.DataFrame(lolcow)
     lol0.columns = lol0.iloc[0];lol0 = lol0.drop(0)
-    
+    """
     for x in lol0['bowler']:
         now = datetime.datetime.now()
         print(x,proj_year,now.time())
-        p_dummy = bowling_projection_comps(file,file2,x,proj_year,0)
+        base_proj = lol0.loc[lol0['bowler']==x].values.flatten().tolist()
+        del base_proj[3:5]
+        p_dummy = bowling_projection_comps(file,file2,x,proj_year,0,base_proj)
         #print(x,p_dummy)
         if(p_dummy[3] > 0):
             a = 20*(p_dummy[4]-p_dummy[19])*p_dummy[3] #100*(p_dummy[19]/p_dummy[4])
@@ -482,10 +598,8 @@ def proj_dump():
             p_dummy.insert(3,a)
             p_dummy.insert(4,b)
             lolcow2.append(p_dummy)           
-                     
+    """               
     print("bowling projections dumped")
-    now = datetime.datetime.now()
-    print(now.time())
     
     for x in unique_names2:
         p_dummy = batting_projection(file3,file4,x,proj_year)
@@ -497,9 +611,8 @@ def proj_dump():
             lolcow4.append(p_dummy)  
             
     lol3 = pd.DataFrame(lolcow4)
-    lol3 = pd.DataFrame(lolcow4)
     lol3.columns = lol3.iloc[0];lol3 = lol3.drop(0)
-     
+    """ 
     for x in lol3['batsman']:
         now = datetime.datetime.now()
         print(x,proj_year,now.time())
@@ -511,16 +624,16 @@ def proj_dump():
             p_dummy.insert(3,a)
             p_dummy.insert(4,b)
             lolcow5.append(p_dummy)           
-    
+    """
     lol = pd.DataFrame(lolcow)
     lol.columns = lol.iloc[0];lol = lol.drop(0)
-    lol2 = pd.DataFrame(lolcow2)
+    lol2 = pd.DataFrame(lolcow) #lolcow2
     lol2.columns = lol2.iloc[0];lol2 = lol2.drop(0)
     lol4 = pd.DataFrame(lolcow4)
     lol4.columns = lol4.iloc[0];lol4 = lol4.drop(0)
-    lol5 = pd.DataFrame(lolcow5)
+    lol5 = pd.DataFrame(lolcow4) #lolcow5
     lol5.columns = lol5.iloc[0];lol5 = lol5.drop(0)
-    
+    print("batting projections dumped")
     concat = [];
     for (x,y) in zip(file['bowling_team'].values,file['season'].values):
         concat.append(x+";"+str(y))
@@ -530,13 +643,30 @@ def proj_dump():
     lol4 = bats(file3,lol4,concat,factor)   #for usage adjustment    
     lol2 = bowls(file,lol2,concat,factor)     #for usage adjustment
     lol5 = bats(file3,lol5,concat,factor)   #for usage adjustment
-    (lol4,lol) = balance(lol4,lol,0,factor)
-    (lol5,lol2) = balance(lol5,lol2,0,factor)
     
-    print("Marcel based table")
-    marcel_table = calc_agg(lol4,lol,factor)  
-    print("MDist based table")
-    mdist_table = calc_agg(lol5,lol2,factor)
+    try:
+        (lol4,lol) = balance(lol4,lol,0,factor)
+        (lol5,lol2) = balance(lol5,lol2,0,factor)
+        print("Marcel based table")
+        marcel_table = calc_agg(lol4,lol,factor)  
+        print("MDist based table")
+        mdist_table = calc_agg(lol5,lol2,factor)
+    except ZeroDivisionError:
+        print(proj_year-1,"rosters not avalible using",proj_year-2,"rosters")
+        for x in lol['bowler'].tolist(): lol.loc[lol['bowler']==x,'team'] = file.loc[(file['bowler']==x)&(file['season']==proj_year-2),'bowling_team'].sum()
+        for x in lol2['bowler'].tolist(): lol2.loc[lol2['bowler']==x,'team'] = file.loc[(file['bowler']==x)&(file['season']==proj_year-2),'bowling_team'].sum()
+        for x in lol4['batsman'].tolist(): lol4.loc[lol4['batsman']==x,'team'] = file3.loc[(file3['batsman']==x)&(file3['season']==proj_year-2),'batting_team'].sum()
+        for x in lol5['batsman'].tolist(): lol5.loc[lol5['batsman']==x,'team'] = file3.loc[(file3['batsman']==x)&(file3['season']==proj_year-2),'batting_team'].sum()
+        lol['team'] = lol['team'].replace(0,'Free Agent')
+        lol2['team'] = lol2['team'].replace(0,'Free Agent')
+        lol4['team'] = lol4['team'].replace(0,'Free Agent')
+        lol5['team'] = lol5['team'].replace(0,'Free Agent')
+        (lol4,lol) = balance(lol4,lol,0,factor)
+        (lol5,lol2) = balance(lol5,lol2,0,factor)
+        print("Marcel based table")
+        marcel_table = calc_agg(lol4,lol,factor)  
+        print("MDist based table")
+        mdist_table = calc_agg(lol5,lol2,factor)
     
     p_bat = ""; p_bowl = "";
     final = [["player","team","squad"]]
@@ -554,18 +684,20 @@ def proj_dump():
         
     final = pd.DataFrame(final)
     final.columns = final.iloc[0];final = final.drop(0)
-    final = final.fillna(0) 
+    final = final.fillna(0)    
+    venues = venue_projections()
     
     with pd.ExcelWriter(output_file) as writer:        
         mdist_table.to_excel(writer, sheet_name="MDist Table", index=False)
         lol2.to_excel(writer, sheet_name="MDist bowl", index=False)
         lol5.to_excel(writer, sheet_name="MDist bat", index=False)
         final.to_excel(writer, sheet_name="Team", index=False)
+        venues.to_excel(writer, sheet_name="Venue factors", index=False)
         marcel_table.to_excel(writer, sheet_name="Marcel Table", index=False)
         lol.to_excel(writer, sheet_name="Marcel bowl", index=False)       
         lol4.to_excel(writer, sheet_name="Marcel bat", index=False)        
             
-    print("batting projections dumped")
+    print("venue factors dumped")
     now = datetime.datetime.now()
     print(now.time())
     return (lol2,lol5)
@@ -664,10 +796,14 @@ def comps_dump_bat(player,year):
         current_comp.to_excel(writer, sheet_name="current year", index=False)
         next_comp.to_excel(writer, sheet_name="next year", index=False)
         
-def bowling_projection_comps(file,file2,player,year,logs):
-    base_proj = bowling_projection(file,file2,player,year)
+def bowling_projection_comps(file,file2,player,year,logs,base_proj):
+    #base_proj = bowling_projection(file,file2,player,year)
     comps = mdist(file,base_proj,player)
-    projection = similarity_calc(comps, player, year, base_proj[2])    
+    now = datetime.datetime.now()
+    print("comps done",now.time())
+    projection = similarity_calc(comps, player, year, base_proj[2])
+    now = datetime.datetime.now()
+    print("similarity done",now.time())
     c = 0; delta = []; comps_expected = []
     
     for x in comps:
@@ -713,6 +849,8 @@ def bowling_projection_comps(file,file2,player,year,logs):
         print("RCAA,WTAA")
         print(20*(projection_new[4]-projection_new[19])*projection_new[3],120*((1/projection_new[5])-(1/projection_new[20]))*projection_new[3])
     
+    now = datetime.datetime.now()
+    print("new projection found",now.time())
     return projection_new
     
 def similarity_calc(comps,player,year,team):
@@ -1111,6 +1249,63 @@ def batting_projection(df,df2,player,year):
             #y6_avg_extras = avg_extras[c2]
         c2 = c2 + 1
         
+    #print(y1_avg_runs,y2_avg_runs,y3_avg_runs,y4_avg_runs,y5_avg_runs,y6_avg_runs)
+    if(y1_avg_runs==0):
+        y1_avg_runs = y2_avg_runs
+        y1_avg_wickets = y2_avg_wickets
+        y1_avg_dots = y2_avg_dots
+        y1_avg_ones = y2_avg_ones
+        y1_avg_twos = y2_avg_twos
+        y1_avg_threes = y2_avg_threes
+        y1_avg_fours = y2_avg_fours
+        y1_avg_sixes = y2_avg_sixes
+    if(y2_avg_runs==0):
+        y2_avg_runs = y1_avg_runs
+        y2_avg_wickets = y1_avg_wickets
+        y2_avg_dots = y1_avg_dots
+        y2_avg_ones = y1_avg_ones
+        y2_avg_twos = y1_avg_twos
+        y2_avg_threes = y1_avg_threes
+        y2_avg_fours = y1_avg_fours
+        y2_avg_sixes = y1_avg_sixes
+    if(y3_avg_runs==0):
+        y3_avg_runs = y2_avg_runs
+        y3_avg_wickets = y2_avg_wickets
+        y3_avg_dots = y2_avg_dots
+        y3_avg_ones = y2_avg_ones
+        y3_avg_twos = y2_avg_twos
+        y3_avg_threes = y2_avg_threes
+        y3_avg_fours = y2_avg_fours
+        y3_avg_sixes = y2_avg_sixes
+    if(y4_avg_runs==0):
+        y4_avg_runs = y3_avg_runs
+        y4_avg_wickets = y3_avg_wickets
+        y4_avg_dots = y3_avg_dots
+        y4_avg_ones = y3_avg_ones
+        y4_avg_twos = y3_avg_twos
+        y4_avg_threes = y3_avg_threes
+        y4_avg_fours = y3_avg_fours
+        y4_avg_sixes = y3_avg_sixes
+    if(y5_avg_runs==0):
+        y5_avg_runs = y4_avg_runs
+        y5_avg_wickets = y4_avg_wickets
+        y5_avg_dots = y4_avg_dots
+        y5_avg_ones = y4_avg_ones
+        y5_avg_twos = y4_avg_twos
+        y5_avg_threes = y4_avg_threes
+        y5_avg_fours = y4_avg_fours
+        y5_avg_sixes = y4_avg_sixes
+    if(y6_avg_runs==0):
+        y6_avg_runs = y5_avg_runs
+        y6_avg_wickets = y5_avg_wickets
+        y6_avg_dots = y5_avg_dots
+        y6_avg_ones = y5_avg_ones
+        y6_avg_twos = y5_avg_twos
+        y6_avg_threes = y5_avg_threes
+        y6_avg_fours = y5_avg_fours
+        y6_avg_sixes = y5_avg_sixes       
+    #print(y1_avg_runs,y2_avg_runs,y3_avg_runs,y4_avg_runs,y5_avg_runs,y6_avg_runs)
+    
     w_balls = 8*y1_balls + 5*y2_balls + 4*y3_balls + 3*y4_balls + 2*y5_balls + y6_balls
     w_runs = 8*y1_runs + 5*y2_runs + 4*y3_runs +3*y4_runs + 2*y5_runs + y6_runs
     w_dots = 8*y1_dots + 5*y2_dots + 4*y3_dots +3*y4_dots + 2*y5_dots + y6_dots
@@ -1130,7 +1325,7 @@ def batting_projection(df,df2,player,year):
     w_xwickets = 8*y1_xWickets + 5*y2_xWickets + 4*y3_xWickets +3*y4_xWickets + 2*y5_xWickets +y6_xWickets
     w_bf_gp = (8*y1_bf_gp + 5*y2_bf_gp + 4*y3_bf_gp + 3*y4_bf_gp + 2*y5_bf_gp + y6_bf_gp)
     #print(w_wickets)
-    mr_runs = (800/w_balls)*(8*y1_balls*y1_avg_runs + 5*y2_balls*y2_avg_runs + 4*y3_balls*y3_avg_runs + 3*y4_balls*y4_avg_runs + 2*y5_balls*y5_avg_runs + y6_balls*y6_avg_runs)    
+    mr_runs = (800/w_balls)*(8*y1_balls*y1_avg_runs + 5*y2_balls*y2_avg_runs + 4*y3_balls*y3_avg_runs + 3*y4_balls*y4_avg_runs + 2*y5_balls*y5_avg_runs + y6_balls*y6_avg_runs)
     mr_dots = (800/w_balls)*(8*y1_balls*y1_avg_dots + 5*y2_balls*y2_avg_dots + 4*y3_balls*y3_avg_dots + 3*y4_balls*y4_avg_dots + 2*y5_balls*y5_avg_dots + y6_balls*y6_avg_dots)
     mr_ones = (800/w_balls)*(8*y1_balls*y1_avg_ones + 5*y2_balls*y2_avg_ones + 4*y3_balls*y3_avg_ones + 3*y4_balls*y4_avg_ones + 2*y5_balls*y5_avg_ones + y6_balls*y6_avg_ones)
     mr_twos = (800/w_balls)*(8*y1_balls*y1_avg_twos + 5*y2_balls*y2_avg_twos + 4*y3_balls*y3_avg_twos + 3*y4_balls*y4_avg_twos + 2*y5_balls*y5_avg_twos + y6_balls*y6_avg_twos)
@@ -1181,12 +1376,12 @@ def batting_projection(df,df2,player,year):
         SR = p_runs*100
     projection = [player,year,curr_team,p_usage,AVG,SR,p_runs,p_wickets,p_PP_usage,p_mid_usage,p_setup_usage,p_death_usage,p_dots,p_ones,p_twos,p_threes,p_fours,p_sixes,p_xAVG,p_xSR,p_bf_gp]
     #print(p_wickets)
-    return projection 
+    return projection
 
 def logs(x,y):
     #print(bowling_projection(file,file2,x,y))
-    #print(batting_projection(file3,file4,x,y))
-    bowling_projection_comps(file,file2,x,y,1)
+    print(batting_projection(file3,file4,x,y))
+    #bowling_projection_comps(file,file2,x,y,1)
     #batting_projection_comps(file3,file4,x,y,1)
     #comps_dump(x,y)
     #comps_dump_bat(x,y)
@@ -1194,5 +1389,6 @@ def logs(x,y):
     #mdist_bat(file3,batting_projection(file3,file4,x,y),unique_names2)
     print("logs dumped")
 
-#logs("MA Starc",2024)
+#logs("D Ferreira",2024)
+#venue_projections = venue_projections()
 (aa_bowl,aa_bat)=proj_dump()
