@@ -7,10 +7,9 @@ converting cricsheet data into league summary tables
 import pandas as pd
 from sys import getsizeof
 import datetime
-import os
 pd.options.mode.chained_assignment = None  # default='warn'
 
-comp = 't20i'
+comp = 'hundredw'
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
 if(comp=='hundred' or comp=='hundredw'):
@@ -22,9 +21,11 @@ elif(comp=='tests'):
 else:
     p1 = 6; p2 = 12; p3 = 17; factor = 1;      #assume its a t20 by default
 
-input_file = f'{path}/{comp}.csv'
-input_file2 = f'{path}/{comp}_GP.csv'
-output_file = f"{path}/{comp}_summary.xlsx"
+input_file = f'{path}/raw/{comp}.csv'
+input_file2 = f'{path}/raw/{comp}_GP.csv'
+input_file3 = f'{path}/venues.xlsx'
+output_file = f"{path}/summary/{comp}_summary.xlsx"
+
 
 def unique(list1):
     # initialize a null list
@@ -39,6 +40,7 @@ def unique(list1):
 
 file0 = pd.read_csv(input_file,sep=',',low_memory=False)
 file00 = pd.read_csv(input_file2,sep=',',low_memory=False)
+file000 = pd.read_excel(input_file3,'Sheet1')
 file0 = file0.fillna(0)
 now = datetime.datetime.now()
 print(now.time())
@@ -221,6 +223,7 @@ print(now.time())
 for x in venues_season:
     a = x.split(";")[0]         #venue
     b = int(x.split(";")[1])    #season
+    a2 = file000.loc[file000['venue']==a,'short'].values[0]
     
     year_pp_bowl = file0.loc[(file0['season']==b)&(file0['ball']<p1),'balls_bowler'].sum()
     year_ppr_bowl = file0.loc[(file0['season']==b)&(file0['ball']<p1),'runs_off_bat'].sum() + file0.loc[(file0['season']==b)&(file0['ball']<p1),'extras'].sum()
@@ -278,8 +281,8 @@ for x in venues_season:
     #print(a,b,now.time())
     #venue_bowl.append([a,b,venue_balls_bowl,venue_runs_bowl,venue_zeros_bowl,venue_ones_bowl,venue_twos_bowl,venue_threes_bowl,venue_fours_bowl,venue_sixes_bowl,venue_extras_bowl,venue_wickets_bowl,venue_pp_bowl,venue_mid_bowl,venue_setup_bowl,venue_death_bowl,venue_runs_bowl/venue_balls_bowl,venue_zeros_bowl/venue_balls_bowl,venue_ones_bowl/venue_balls_bowl,venue_twos_bowl/venue_balls_bowl,venue_threes_bowl/venue_balls_bowl,venue_fours_bowl/venue_balls_bowl,venue_sixes_bowl/venue_balls_bowl,venue_extras_bowl/venue_balls_bowl,venue_wickets_bowl/venue_balls_bowl,venue_pp_bowl/venue_balls_bowl,venue_mid_bowl/venue_balls_bowl,venue_setup_bowl/venue_balls_bowl,venue_death_bowl/venue_balls_bowl])
     #venue_bat.append([a,b,venue_balls_bat,venue_runs_bat,venue_zeros_bat,venue_ones_bat,venue_twos_bat,venue_threes_bat,venue_fours_bat,venue_sixes_bat,venue_wickets_bat,venue_pp_bat,venue_mid_bat,venue_setup_bat,venue_death_bat,venue_runs_bat/venue_balls_bat,venue_zeros_bat/venue_balls_bat,venue_ones_bat/venue_balls_bat,venue_twos_bat/venue_balls_bat,venue_threes_bat/venue_balls_bat,venue_fours_bat/venue_balls_bat,venue_sixes_bat/venue_balls_bat,venue_wickets_bat/venue_balls_bat,venue_pp_bat/venue_balls_bat,venue_mid_bat/venue_balls_bat,venue_setup_bat/venue_balls_bat,venue_death_bat/venue_balls_bat])
-    venue_bat_phase.append([a,b,venue_pp_bat,venue_ppr_bat,venue_ppw_bat,venue_mid_bat,venue_midr_bat,venue_midw_bat,venue_setup_bat,venue_setupr_bat,venue_setupw_bat,venue_death_bat,venue_deathr_bat,venue_deathw_bat,venue_pp_bat/venue_ppw_bat,venue_mid_bat/venue_midw_bat,venue_setup_bat/venue_setupw_bat,venue_death_bat/venue_deathw_bat,100*venue_ppr_bat/venue_pp_bat,100*venue_midr_bat/venue_mid_bat,100*venue_setupr_bat/venue_setup_bat,100*venue_deathr_bat/venue_death_bat])
-    venue_bowl_phase.append([a,b,venue_pp_bowl,venue_ppr_bowl,venue_ppw_bowl,venue_mid_bowl,venue_midr_bowl,venue_midw_bowl,venue_setup_bowl,venue_setupr_bowl,venue_setupw_bowl,venue_death_bowl,venue_deathr_bowl,venue_deathw_bowl,6*venue_ppr_bowl/venue_pp_bowl,6*venue_midr_bowl/venue_mid_bowl,6*venue_setupr_bowl/venue_setup_bowl,6*venue_deathr_bowl/venue_death_bowl,venue_pp_bowl/venue_ppw_bowl,venue_mid_bowl/venue_midw_bowl,venue_setup_bowl/venue_setupw_bowl,venue_death_bowl/venue_deathw_bowl])
+    venue_bat_phase.append([a2,b,venue_pp_bat,venue_ppr_bat,venue_ppw_bat,venue_mid_bat,venue_midr_bat,venue_midw_bat,venue_setup_bat,venue_setupr_bat,venue_setupw_bat,venue_death_bat,venue_deathr_bat,venue_deathw_bat,venue_pp_bat/venue_ppw_bat,venue_mid_bat/venue_midw_bat,venue_setup_bat/venue_setupw_bat,venue_death_bat/venue_deathw_bat,100*venue_ppr_bat/venue_pp_bat,100*venue_midr_bat/venue_mid_bat,100*venue_setupr_bat/venue_setup_bat,100*venue_deathr_bat/venue_death_bat])
+    venue_bowl_phase.append([a2,b,venue_pp_bowl,venue_ppr_bowl,venue_ppw_bowl,venue_mid_bowl,venue_midr_bowl,venue_midw_bowl,venue_setup_bowl,venue_setupr_bowl,venue_setupw_bowl,venue_death_bowl,venue_deathr_bowl,venue_deathw_bowl,6*venue_ppr_bowl/venue_pp_bowl,6*venue_midr_bowl/venue_mid_bowl,6*venue_setupr_bowl/venue_setup_bowl,6*venue_deathr_bowl/venue_death_bowl,venue_pp_bowl/venue_ppw_bowl,venue_mid_bowl/venue_midw_bowl,venue_setup_bowl/venue_setupw_bowl,venue_death_bowl/venue_deathw_bowl])
 
 print("venue average and phases data dumped")
 now = datetime.datetime.now()
@@ -404,13 +407,6 @@ def dumps():
         lol2.to_excel(writer, sheet_name="batting year", index=False)
         lol.to_excel(writer, sheet_name="bowling year", index=False)
         
-    print("all data dumped to the desired excel file, run projections now")
+    print("all data dumped to the desired excel file, run aggregate if you want to then run projections")
         
 dumps()
-if(comp not in ['odi','t20i','tests']):
-    os.remove(input_file)
-    os.remove(input_file2)
-else:
-    os.remove(input_file2)
-now = datetime.datetime.now()
-print(now.time())
