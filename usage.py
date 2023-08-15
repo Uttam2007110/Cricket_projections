@@ -104,9 +104,9 @@ def analyse(u,w):
     return coeffs
 
 def analyse_bowl_game(u,w,factor):
-    if(factor <= 1): input_file = f'{path}/t20i.csv'
-    if(factor == 2.5): input_file = f'{path}/odi.csv'
-    if(factor == 11.25): input_file = f'{path}/tests.csv'
+    if(factor <= 1): input_file = f'{path}/raw/t20i.csv'
+    if(factor == 2.5): input_file = f'{path}/raw/odi.csv'
+    if(factor == 11.25): input_file = f'{path}/raw/tests.csv'
     #input_file = 'C:/Users/Subramanya.Ganti/Downloads/cricket/t20i.csv'
     file0 = pd.read_csv(input_file,sep=',',low_memory=False)
     file0 = file0.fillna(0)
@@ -184,9 +184,9 @@ def analyse_bowl_game(u,w,factor):
     return coeffs
     
 def analyse_bat_game(u,w,factor):
-    if(factor <= 1): input_file = f'{path}/t20i.csv'
-    if(factor == 2.5): input_file = f'{path}/odi.csv'
-    if(factor == 11.25): input_file = f'{path}/tests.csv'
+    if(factor <= 1): input_file = f'{path}/raw/t20i.csv'
+    if(factor == 2.5): input_file = f'{path}/raw/odi.csv'
+    if(factor == 11.25): input_file = f'{path}/raw/tests.csv'
     file0 = pd.read_csv(input_file,sep=',',low_memory=False)
     file0 = file0.fillna(0)
     c = 0; coeffs = []
