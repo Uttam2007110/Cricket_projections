@@ -9,10 +9,10 @@ import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 import numpy as np
 
-home = ["LAA"]
-opps = ["PIT"]
-display = 'Tigers'    #Blue%20Jays
-date = '2023-07-23'     #yyyy-mm-dd
+home = ["PIT"]
+opps = ["STL"]
+display = 'Cardinals'    #Blue%20Jays
+date = '2023-08-23'     #yyyy-mm-dd
 iters = 2
 
 # %%  pull projections from fangraphs
@@ -20,17 +20,17 @@ def generate():
     i = 1
     df_bat = []; df_pit = []; df_rv = []
     while i < 31:
-      df_list = pd.read_html(f'https://www.fangraphs.com/projections?pos=&stats=bat&type=rzips&statgroup=fantasy&fantasypreset=dashboard&lg=&team={i}')
+      df_list = pd.read_html(f'https://www.fangraphs.com/projections?pos=&stats=bat&type=steamerr&statgroup=fantasy&fantasypreset=dashboard&lg=&team={i}')
       df_bat_new = df_list[6]
       if(i==1): df_bat = df_bat_new
       else: df_bat = pd.concat([df_bat, df_bat_new])
       
-      df_list = pd.read_html(f'https://www.fangraphs.com/projections?pos=&stats=sta&type=rzips&statgroup=fantasy&fantasypreset=dashboard&lg=&team={i}')
+      df_list = pd.read_html(f'https://www.fangraphs.com/projections?pos=&stats=sta&type=steamerr&statgroup=fantasy&fantasypreset=dashboard&lg=&team={i}')
       df_pit_new = df_list[6]
       if(i==1): df_pit = df_pit_new
       else: df_pit = pd.concat([df_pit, df_pit_new])
       
-      df_list = pd.read_html(f'https://www.fangraphs.com/projections?pos=&stats=rel&type=rzips&statgroup=fantasy&fantasypreset=dashboard&lg=&team={i}')
+      df_list = pd.read_html(f'https://www.fangraphs.com/projections?pos=&stats=rel&type=steamerr&statgroup=fantasy&fantasypreset=dashboard&lg=&team={i}')
       df_rv_new = df_list[6]
       if(i==1): df_rv = df_rv_new
       else: df_rv = pd.concat([df_rv, df_rv_new])
@@ -82,9 +82,11 @@ def calculate(df_bat,df_st,df_rv,home,opps,lineups_bat,lineups_st,lineups_rv):
 
     for x in df_st.values:
         if(lineups_st[lineups_st['Name'] == x[1]]['Team'].values[0] == home and lineups_st[lineups_st['Name'] == x[1]]['Starting'].values[0] == 1):
-            st.append([x[1],x[2],0,x[5]/x[4],x[11]/x[5],x[12]/x[5],x[13]/x[5],x[14]/x[5],x[15]/x[5],x[21],x[23],x[24],0])
+            ip_pit = (x[5]-(x[4]-x[3]))/x[3]
+            st.append([x[1],x[2],0,ip_pit,x[11]/x[5],x[12]/x[5],x[13]/x[5],x[14]/x[5],x[15]/x[5],x[21],x[23],x[24],0])
         if(lineups_st[lineups_st['Name'] == x[1]]['Team'].values[0] == opps and lineups_st[lineups_st['Name'] == x[1]]['Starting'].values[0] == 1):
-            st.append([x[1],x[2],0,x[5]/x[4],x[11]/x[5],x[12]/x[5],x[13]/x[5],x[14]/x[5],x[15]/x[5],x[21],x[23],x[24],0])
+            ip_pit = (x[5]-(x[4]-x[3]))/x[3]
+            st.append([x[1],x[2],0,ip_pit,x[11]/x[5],x[12]/x[5],x[13]/x[5],x[14]/x[5],x[15]/x[5],x[21],x[23],x[24],0])
     st = pd.DataFrame(st)
     st.columns = st.iloc[0];st = st.drop(0)
 
@@ -211,7 +213,9 @@ def results(bat,pit):
     return (final,bat,pit)
 
 (df_bat,df_st,df_rv) = generate()
-
+df_bat = df_bat[df_bat['PA']>1]
+df_st = df_st[df_st['IP']>1]
+df_rv = df_rv[df_rv['IP']>1]
 df_st['LOB%'] = df_st['LOB%'].str.replace('%', '')
 df_st['LOB%'] = df_st['LOB%'].astype(float)/100
 df_rv['LOB%'] = df_rv['LOB%'].str.replace('%', '')
