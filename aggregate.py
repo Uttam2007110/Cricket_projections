@@ -8,12 +8,25 @@ convert stats from one league to another and create an aggregate file
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 
-base_comp = 'hundredw'
-compm = ['bbl','ipl','lpl','sa20','hundred','bpl','blast','mlc','psl']   #blast and smat need to be adjusted
-compw = ['wbbl','wpl','hundredw','t20iw']
+base_comp = 'ipl'
+compm = ['bbl','ipl','lpl','sa20','hundred','bpl','blast','mlc','psl','ilt','t20i','cpl']
+lsm = [1,1,.9,1,1,1,.95,.95,1,.95,.95,1]
+compw = ['wbbl','wpl','hundredw','t20iw','frb']
+lsw = [1,1,1,.9,.85]
 
-if(base_comp in compw): comp = compw
-else: comp = compm
+if(base_comp in compw): 
+    comp = compw
+    ls = lsw
+    mult = ls[compw.index(base_comp)]
+    ls = [x/mult for x in ls]
+elif(base_comp in compm):
+    comp = compm
+    ls = lsm
+    mult = ls[compm.index(base_comp)]
+    ls = [x/mult for x in ls]
+else:
+    print("new competition, not in either list")
+    comp = [base_comp]; ls = [1]; mult = 1
 
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 input_file = f'{path}/summary/{base_comp}_summary.xlsx'
@@ -46,27 +59,27 @@ while i<len(comp):
         comp_file = f'{path}/summary/{comp[i]}_summary.xlsx'
         comp_bowl = pd.read_excel(comp_file,'bowling seasons')
         comp_bat = pd.read_excel(comp_file,'batting seasons')
-        print(base_comp,comp[i])
+        print(base_comp,comp[i],"runs","wickets")
         #print("SR",bat['xruns'].sum()/bat['balls_batsman'].sum(),"balls/wkt",bat['balls_batsman'].sum()/bat['outs_batsman'].sum())
         #print("SR",comp_bat['xruns'].sum()/comp_bat['balls_batsman'].sum(),"balls/wkt",comp_bat['balls_batsman'].sum()/comp_bat['outs_batsman'].sum())
-        runs_f = (bat['xruns'].sum()/bat['balls_batsman'].sum())/(comp_bat['xruns'].sum()/comp_bat['balls_batsman'].sum())
-        outs_f = (bat['balls_batsman'].sum()/bat['outs_batsman'].sum())/(comp_bat['balls_batsman'].sum()/comp_bat['outs_batsman'].sum())
+        runs_f = ((bat['xruns'].sum()/bat['balls_batsman'].sum())/(comp_bat['xruns'].sum()/comp_bat['balls_batsman'].sum()))
+        outs_f = ((bat['balls_batsman'].sum()/bat['outs_batsman'].sum())/(comp_bat['balls_batsman'].sum()/comp_bat['outs_batsman'].sum()))
         print("batting",runs_f,outs_f)
-        comp_bat['runs_off_bat'] = comp_bat['runs_off_bat'] * runs_f
+        comp_bat['runs_off_bat'] = comp_bat['runs_off_bat'] * runs_f * ls[i]
         comp_bat['xruns'] = comp_bat['xruns'] * runs_f
-        comp_bat['runs/ball'] = comp_bat['runs/ball'] * runs_f
-        comp_bat['SR'] = comp_bat['SR'] * runs_f
+        comp_bat['runs/ball'] = comp_bat['runs/ball'] * runs_f * ls[i]
+        comp_bat['SR'] = comp_bat['SR'] * runs_f * ls[i]
         comp_bat['xSR'] = comp_bat['xSR'] * runs_f
-        comp_bat['outs_batsman'] = comp_bat['outs_batsman'] * (1/outs_f)
+        comp_bat['outs_batsman'] = comp_bat['outs_batsman'] * (1/outs_f) * (1/ ls[i])
         comp_bat['xwickets'] = comp_bat['xwickets'] * (1/outs_f)
-        comp_bat['AVG'] = comp_bat['AVG'] * outs_f
+        comp_bat['AVG'] = comp_bat['AVG'] * outs_f * ls[i]
         comp_bat['xAVG'] = comp_bat['xAVG'] * outs_f
-        comp_bat['wickets/ball'] = comp_bat['wickets/ball'] * (1/outs_f)
-        comp_bat['1s'] = comp_bat['1s'] * runs_f
-        comp_bat['2s'] = comp_bat['2s'] * runs_f
-        comp_bat['3s'] = comp_bat['3s'] * runs_f
-        comp_bat['4s'] = comp_bat['4s'] * runs_f
-        comp_bat['6s'] = comp_bat['6s'] * runs_f
+        comp_bat['wickets/ball'] = comp_bat['wickets/ball'] * (1/outs_f) * (1/ ls[i])
+        comp_bat['1s'] = comp_bat['1s'] * runs_f * ls[i]
+        comp_bat['2s'] = comp_bat['2s'] * runs_f * ls[i]
+        comp_bat['3s'] = comp_bat['3s'] * runs_f * ls[i]
+        comp_bat['4s'] = comp_bat['4s'] * runs_f * ls[i]
+        comp_bat['6s'] = comp_bat['6s'] * runs_f * ls[i]
         comp_bat['balls_batsman'] = comp_bat['runs_off_bat']/(comp_bat['runs/ball']+0.0000001)
         comp_bat['bf_GP'] = comp_bat['balls_batsman']/comp_bat['bf_GP']
         comp_bat['0s'] = comp_bat['balls_batsman'] - (comp_bat['1s']+comp_bat['2s']+comp_bat['3s']+comp_bat['4s']+comp_bat['6s']+comp_bat['outs_batsman'])
@@ -75,24 +88,24 @@ while i<len(comp):
         elif(base_comp=='hundred' or base_comp=='hundredw'): comp_bat['bf_GP'] = comp_bat['bf_GP'] / (5/6)
         bat_all.append(comp_bat)
         
-        rc_f = (bowl['xruns'].sum()/bowl['balls_bowler'].sum())/(comp_bowl['xruns'].sum()/comp_bowl['balls_bowler'].sum())
-        wickets_f = (bowl['balls_bowler'].sum()/bowl['outs_bowler'].sum())/(comp_bowl['balls_bowler'].sum()/comp_bowl['outs_bowler'].sum())
+        rc_f = ((bowl['xruns'].sum()/bowl['balls_bowler'].sum())/(comp_bowl['xruns'].sum()/comp_bowl['balls_bowler'].sum()))
+        wickets_f = ((bowl['balls_bowler'].sum()/bowl['outs_bowler'].sum())/(comp_bowl['balls_bowler'].sum()/comp_bowl['outs_bowler'].sum()))
         print("bowling",rc_f,wickets_f)
-        comp_bowl['runs_off_bat'] = comp_bowl['runs_off_bat'] * rc_f
+        comp_bowl['runs_off_bat'] = comp_bowl['runs_off_bat'] * rc_f / ls[i]
         comp_bowl['xruns'] = comp_bowl['xruns'] * rc_f
-        comp_bowl['runs/ball'] = comp_bowl['runs/ball'] * rc_f
-        comp_bowl['ECON'] = comp_bowl['ECON'] * rc_f
+        comp_bowl['runs/ball'] = comp_bowl['runs/ball'] * rc_f / ls[i]
+        comp_bowl['ECON'] = comp_bowl['ECON'] * rc_f / ls[i]
         comp_bowl['xECON'] = comp_bowl['xECON'] * rc_f
-        comp_bowl['outs_bowler'] = comp_bowl['outs_bowler'] * (1/wickets_f)
+        comp_bowl['outs_bowler'] = comp_bowl['outs_bowler'] * (1/wickets_f) * ls[i]
         comp_bowl['xwickets'] = comp_bowl['xwickets'] * (1/wickets_f)
-        comp_bowl['SR'] = comp_bowl['SR'] * wickets_f
+        comp_bowl['SR'] = comp_bowl['SR'] * wickets_f / ls[i]
         comp_bowl['xSR'] = comp_bowl['xSR'] * wickets_f
-        comp_bowl['wickets/ball'] = comp_bowl['wickets/ball'] * (1/wickets_f)        
-        comp_bowl['1s'] = comp_bowl['1s'] * rc_f
-        comp_bowl['2s'] = comp_bowl['2s'] * rc_f
-        comp_bowl['3s'] = comp_bowl['3s'] * rc_f
-        comp_bowl['4s'] = comp_bowl['4s'] * rc_f
-        comp_bowl['6s'] = comp_bowl['6s'] * rc_f
+        comp_bowl['wickets/ball'] = comp_bowl['wickets/ball'] * (1/wickets_f) * ls[i]        
+        comp_bowl['1s'] = comp_bowl['1s'] * rc_f / ls[i]
+        comp_bowl['2s'] = comp_bowl['2s'] * rc_f / ls[i]
+        comp_bowl['3s'] = comp_bowl['3s'] * rc_f / ls[i]
+        comp_bowl['4s'] = comp_bowl['4s'] * rc_f / ls[i]
+        comp_bowl['6s'] = comp_bowl['6s'] * rc_f / ls[i]
         comp_bowl['extras'] = comp_bowl['extras'] * rc_f
         comp_bowl['balls_bowler'] = comp_bowl['runs_off_bat']/(comp_bowl['runs/ball']+0.0000001)
         comp_bowl['bb_GP'] = comp_bowl['balls_bowler']/comp_bowl['bb_GP']
