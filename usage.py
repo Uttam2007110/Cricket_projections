@@ -86,8 +86,9 @@ def usage_corrected(bowler,file_name,values,f):
                 c = c + 1
         
         for y in sublist.index:
-            if(f == 11.25): dummy = 1
-            if(x != "Free Agent" and dummy >= 1): file_name['usage'][y] = file_name['usage'][y]/dummy
+            #if(f == 11.25): dummy = 1
+            if(game_sim == 0 and dummy >= 1): file_name['usage'][y] = file_name['usage'][y]/dummy
+            elif(game_sim > 0): dummy = 1
            
     return file_name
 
