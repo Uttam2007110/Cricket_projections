@@ -11,21 +11,21 @@ import datetime
 from usage import *
 pd.options.mode.chained_assignment = None  # default='warn'
 
-comp = 'hundred'
+comp = 'ipl'
 proj_year = 2024
-aggregate = 1
+aggregate = 0
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
 if(comp=='hundred' or comp=='hundredw'):
-    factor = (5/6); #hundred
+    factor = (5/6); aggregate = 1 #hundred
 elif(comp=='odi' or comp=='odiw' or comp=='odiq' or comp=='rlc'):
     factor = 2.5; aggregate = 0  #odi
-elif(comp=='tests'):
+elif(comp=='tests' or comp == 'cc'):
     factor = 11.25; aggregate = 0 #test
 elif(comp=='t20iq'):
     factor = 1; aggregate = 0 #international t20
 else:
-    factor = 1;     #assume its a t20 league by default
+    factor = 1; aggregate = 1 #assume its a t20 league by default
 
 if(aggregate == 1): input_file = f'{path}/summary/{comp}_aggregate.xlsx' # aggregated summary
 else: input_file = f'{path}/summary/{comp}_summary.xlsx' # the output of generate.py
@@ -42,6 +42,9 @@ def unique(list1):
             unique_list.append(x)
     # print list
     return unique_list
+
+now = datetime.datetime.now()
+print(now.time())
 
 #file0 = pd.read_excel(input_file,'Sheet1')
 file = pd.read_excel(input_file,'bowling seasons')
@@ -519,8 +522,6 @@ def bowling_projection(df,df2,player,year):
 def venue_projections():    
     venue_bat = pd.read_excel(input_file,'venue batting')
     bat_avg = pd.read_excel(input_file,'batting phases')
-    venue_bowl = pd.read_excel(input_file,'venue bowling')
-    bowl_avg = pd.read_excel(input_file,'bowling phases')
     teams = list(dict.fromkeys(venue_bat['Venue'].tolist()))
     
     proj_year_bat = pd.DataFrame(columns=venue_bat.columns)
@@ -564,8 +565,6 @@ def venue_projections():
     return final
 
 def proj_dump():
-    now = datetime.datetime.now()
-    print(now.time())
     lolcow = [["bowler","season","team","RCAA","WTAA","usage","ECON","SR","wickets/ball","pp usage","mid usage","setup usage","death usage","runs/ball","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","xECON","xSR","bb_GP"]]
     lolcow2 = [["bowler","season","team","RCAA","WTAA","usage","ECON","SR","wickets/ball","pp usage","mid usage","setup usage","death usage","runs/ball","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","xECON","xSR","bb_GP"]]
     lolcow4 = [["batsman","season","team","RSAA","OAA","usage","balls/wkt","SR","runs/ball","wickets/ball","pp usage","mid usage","setup usage","death usage","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","xballs/wkt","xSR","bf_GP"]]
@@ -639,10 +638,21 @@ def proj_dump():
         concat.append(x+";"+str(y))
     concat = np.unique(concat)
         
-    lol = bowls(file,lol,concat,factor)     #for usage adjustment
-    lol4 = bats(file3,lol4,concat,factor)   #for usage adjustment    
-    lol2 = bowls(file,lol2,concat,factor)     #for usage adjustment
-    lol5 = bats(file3,lol5,concat,factor)   #for usage adjustment
+    #lol = bowls(file,lol,concat,factor)     #for usage adjustment
+    #lol4 = bats(file3,lol4,concat,factor)   #for usage adjustment    
+    #lol2 = bowls(file,lol2,concat,factor)   #for usage adjustment
+    #lol5 = bats(file3,lol5,concat,factor)   #for usage adjustment
+    
+    for t in unique(lol['team'].to_list()):
+        if(t != 'Free Agent'):
+            team_bowl_usage = lol.loc[lol['team']==t,'usage'].sum()
+            team_bat_usage = lol4.loc[lol4['team']==t,'usage'].sum()
+            if(team_bowl_usage>1):
+                lol.loc[lol['team']==t,'usage'] = lol.loc[lol['team']==t,'usage']/team_bowl_usage
+                lol2.loc[lol2['team']==t,'usage'] = lol2.loc[lol2['team']==t,'usage']/team_bowl_usage
+            if(team_bat_usage>1):
+                lol4.loc[lol4['team']==t,'usage'] = lol4.loc[lol4['team']==t,'usage']/team_bat_usage
+                lol5.loc[lol5['team']==t,'usage'] = lol5.loc[lol5['team']==t,'usage']/team_bat_usage
     
     try:
         (lol4,lol) = balance(lol4,lol,0,factor)
@@ -679,8 +689,20 @@ def proj_dump():
         except IndexError: p_bowl = "Free Agent"
         if(p_bat == "Free Agent"): p_team = p_bowl
         else : p_team = p_bat
-                
-        final.append([x,p_team,p_team])
+        
+        if(p_team=='Free Agent' and (comp=='t20i' or comp=='odi' or comp=='tests' or comp=='t20iw' or comp=='odiw')):
+            k = 1
+            while (p_team=='Free Agent' and k<5):
+                try: p_bat = file3.loc[(file3['batsman']==x)&(file3['season']==proj_year-k),'batting_team'].values[0]
+                except IndexError: p_bat = "Free Agent"
+                try: p_bowl = file.loc[(file['bowler']==x)&(file['season']==proj_year-2),'bowling_team'].values[0]
+                except IndexError: p_bowl = "Free Agent"
+                if(p_bat == "Free Agent"): p_team = p_bowl
+                else : p_team = p_bat
+                k += 1
+            final.append([x,'Free Agent',p_team])
+        else:
+            final.append([x,p_team,p_team])
         
     final = pd.DataFrame(final)
     final.columns = final.iloc[0];final = final.drop(0)
