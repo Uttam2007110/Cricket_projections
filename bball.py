@@ -8,11 +8,12 @@ NBA projections courtesy numberFire
 import pandas as pd
 import numpy as np
 
-date = '10/24/23'     #month/day/year
-squads = ['Golden-State-Warriors','Phoenix-Suns']
+date = '10/25/23'     #month/day/year
+squads = ['Boston-Celtics','New-York-Knicks']
 
 player_list = 1     # 0-picks up players from the team pages, 1-picks up players from ROS projections page
-file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
+#file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
+file = "C:/Users/Subramanya.Ganti/Downloads/cricket/NBA prices.xlsx"
 
 teams = ['Atlanta-Hawks', 'Boston-Celtics', 'Brooklyn-Nets', 'Charlotte-Hornets',
  'Chicago-Bulls', 'Cleveland-Cavaliers', 'Dallas-Mavericks', 'Denver-Nuggets',
@@ -140,6 +141,7 @@ def extract_players_v2():
     names = names.applymap(lambda x: str(x.replace(".", "-")))
     names = names.applymap(lambda x: str(x.replace("Ish-Smith", "Ishmael-Smith")))   #feed his ass to the white whale
     names = names.applymap(lambda x: str(x.replace("Patrick-Baldwin", "Patrick-Baldwin-Jr")))
+    names = names.applymap(lambda x: str(x.replace("Dennis-Smith","Dennis-Smith-Jr.")))
     names = names.applymap(lambda x: str(x.replace("Dennis-Smith-Jr","Dennis-Smith-Jr.")))
     names = names.applymap(lambda x: str(x.replace("Desmond-Bane","Desmond-Bane-1")))
     names = names.applymap(lambda x: str(x.replace("Troy-Brown-Jr","Troy-Brown")))
@@ -147,15 +149,40 @@ def extract_players_v2():
     names = names.applymap(lambda x: str(x.replace("Devonte--Graham","Devonte-Graham")))
     names = names.applymap(lambda x: str(x.replace("Michael-Porter", "Michael-Porter-Jr")))
     names = names.applymap(lambda x: str(x.replace("Gary-Payton", "Gary-Payton-II")))
-    names = names.applymap(lambda x: str(x.replace("Danuel-House", "Danuel-House-Jr")))
-    names = names.applymap(lambda x: str(x.replace("Dennis-Smith","Dennis-Smith-Jr.")))
+    names = names.applymap(lambda x: str(x.replace("Danuel-House", "Danuel-House-Jr")))    
+    names = names.applymap(lambda x: str(x.replace("Nick-Smith","Nick-Smith-Jr")))
+    names = names.applymap(lambda x: str(x.replace("Bruce-Brown","Bruce-Brown-Jr")))
+    names = names.applymap(lambda x: str(x.replace("Wendell-Carter","Wendell-Carter-Jr")))
+    names = names.applymap(lambda x: str(x.replace("Wendell-Moore","Wendell-Moore-Jr")))
+    names = names.applymap(lambda x: str(x.replace("Gary-Trent","Gary-Trent-Jr")))
+    names = names.applymap(lambda x: str(x.replace("Marvin-Bagley", "Marvin-Bagley-III")))
+    names = names.applymap(lambda x: str(x.replace("Trey-Murphy", "Trey-Murphy-III")))
+    names = names.applymap(lambda x: str(x.replace("Jaime-Jaquez","Jaime-Jaquez-Jr")))
+    names = names.applymap(lambda x: str(x.replace("Kira-Lewis","Kira-Lewis-Jr")))
+    names = names.applymap(lambda x: str(x.replace("Vince-Williams","Vince-Williams-Jr")))
+    names = names.applymap(lambda x: str(x.replace("Kenneth-Lofton","Kenneth-Lofton-Jr")))
+    names = names.applymap(lambda x: str(x.replace("Larry-Nance","Larry-Nance-Jr")))
+    names = names.applymap(lambda x: str(x.replace("Jaren-Jackson","Jaren-Jackson-Jr")))
+    names = names.applymap(lambda x: str(x.replace("Derrick-Jones","Derrick-Jones-Jr")))
+    names = names.applymap(lambda x: str(x.replace("John-Butler","John-Butler-Jr")))
+    names = names.applymap(lambda x: str(x.replace("Brandon-Boston","Brandon-Boston-Jr")))
+    names = names.applymap(lambda x: str(x.replace("Andre-Jackson","Andre-Jackson-Jr")))
 
     print("All players data collected")
     names.reset_index(drop=True, inplace=True)
     return names
 
-if(player_list == 1): player = extract_players_v2()
-else: player = extract_players(teams)
+if(player_list == 1): 
+    player = extract_players_v2()
+elif(player_list == 0): 
+    player = extract_players(teams)
+else: 
+    try: 
+        player = pd.read_excel(file,'Sheet1')
+        player.rename(columns = {'Squad':'Team'}, inplace = True)
+        player.drop(['Pos','Cost'], axis=1, inplace=True)
+    except FileNotFoundError:
+        print("file with player names and prices not found")
 
 # %%  calculate projections
 def xPts(player):
@@ -257,7 +284,8 @@ def randomizer(f_points,home,opps):
             if(t==home): h+=1
             if(t==opps): o+=1
             j+=1
-        if(h>5 or o>5 or cost>100 or cost<=95): i=i-1
+        # cap cost lower bound at which number?
+        if(h>5 or o>5 or cost>100 or cost<=92): i=i-1
         else: 
             team.append(combo); print("valid combo",i+1,"iteration",it+1)
             cap = f_points[f_points.Name.isin(combo)]
@@ -281,7 +309,7 @@ def randomizer(f_points,home,opps):
 f_points['Name'] = f_points['Name'].str.replace("-", " ")
 f_points['Team'] = f_points['Team'].str.replace("-", " ")
 print()
-print(squads[0].replace('-',' '),round(f_points.loc[f_points['Team']==squads[0].replace('-',' '),'PTS'].sum(),1))
-print(squads[1].replace('-',' '),round(f_points.loc[f_points['Team']==squads[1].replace('-',' '),'PTS'].sum(),1))
+for t in squads:
+    print(t.replace('-',' '),round(f_points.loc[f_points['Team']==t.replace('-',' '),'PTS'].sum(),1))
 print()
 a_team = randomizer(f_points,squads[0].replace('-',' '),squads[1].replace('-',' '))
