@@ -8,10 +8,12 @@ NBA projections courtesy numberFire
 import pandas as pd
 import numpy as np
 
-date = '4/7/23'   #month/day/year
-squads = ["Golden-State-Warriors","Sacramento-Kings"]
+date = '10/24/23'     #month/day/year
+squads = ['Golden-State-Warriors','Phoenix-Suns']
 
+player_list = 1     # 0-picks up players from the team pages, 1-picks up players from ROS projections page
 file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
+
 teams = ['Atlanta-Hawks', 'Boston-Celtics', 'Brooklyn-Nets', 'Charlotte-Hornets',
  'Chicago-Bulls', 'Cleveland-Cavaliers', 'Dallas-Mavericks', 'Denver-Nuggets',
  'Detroit-Pistons', 'Golden-State-Warriors', 'Houston-Rockets', 'Indiana-Pacers',
@@ -47,6 +49,7 @@ def extract_players(teams):
             string = string.replace("Troy-Brown-Jr","Troy-Brown")
             string = string.replace("Willy-Hernangomez","Guillermo-Hernangomez")
             string = string.replace("Devonte--Graham","Devonte-Graham")
+            string = string.replace("Dennis-Smith","Dennis-Smith-Jr.")
             player.append([string,lol])
             j = j + 1
         j = 0
@@ -58,14 +61,108 @@ def extract_players(teams):
     print("All players data collected")
     return player
 
-player = extract_players(teams)
+def extract_players_v2():
+    centers = pd.read_html('https://www.numberfire.com/nba/fantasy/remaining-projections/centers?scope=total')
+    centers = centers[0]
+    forwards = pd.read_html('https://www.numberfire.com/nba/fantasy/remaining-projections/forwards?scope=total')
+    forwards = forwards[0]
+    guards = pd.read_html('https://www.numberfire.com/nba/fantasy/remaining-projections/guards?scope=total')
+    guards = guards[0]
+    
+    for x in centers['Player'].values:
+        words = x.split()
+        secondwords = iter(words)
+        next(secondwords)
+        split = [' '.join((first, second)) for first, second in zip(words, secondwords)]
+        #print(split[0],split[len(split)-1])
+        centers.loc[centers['Player']==x,'Player'] = split[0]
+        centers.loc[centers['Player']==split[0],'Team'] = split[len(split)-1][-4:]
+        
+    for x in forwards['Player'].values:
+        words = x.split()
+        secondwords = iter(words)
+        next(secondwords)
+        split = [' '.join((first, second)) for first, second in zip(words, secondwords)]
+        #print(split[0],split[len(split)-1])
+        forwards.loc[forwards['Player']==x,'Player'] = split[0]
+        forwards.loc[forwards['Player']==split[0],'Team'] = split[len(split)-1][-4:]
+        
+    for x in guards['Player'].values:
+        words = x.split()
+        secondwords = iter(words)
+        next(secondwords)
+        split = [' '.join((first, second)) for first, second in zip(words, secondwords)]
+        #print(split[0],split[len(split)-1])
+        guards.loc[guards['Player']==x,'Player'] = split[0]
+        guards.loc[guards['Player']==split[0],'Team'] = split[len(split)-1][-4:]
+    
+    
+    names = [centers, forwards, guards]
+    names = pd.concat(names)
+    names = names.drop_duplicates()
+    names.rename(columns = {'Player':'Name'}, inplace = True)
+    
+    names['Team'] = names['Team'].replace('ATL)', 'Atlanta-Hawks')
+    names['Team'] = names['Team'].replace('BOS)', 'Boston-Celtics')
+    names['Team'] = names['Team'].replace('BKN)', 'Brooklyn-Nets')
+    names['Team'] = names['Team'].replace('CHA)', 'Charlotte-Hornets')
+    names['Team'] = names['Team'].replace('CHI)', 'Chicago-Bulls')
+    names['Team'] = names['Team'].replace('CLE)', 'Cleveland-Cavaliers')
+    names['Team'] = names['Team'].replace('DAL)', 'Dallas-Mavericks')
+    names['Team'] = names['Team'].replace('DEN)', 'Denver-Nuggets')
+    names['Team'] = names['Team'].replace('DET)', 'Detroit-Pistons')
+    names['Team'] = names['Team'].replace(' GS)', 'Golden-State-Warriors')
+    names['Team'] = names['Team'].replace('HOU)', 'Houston-Rockets')
+    names['Team'] = names['Team'].replace('IND)', 'Indiana-Pacers')
+    names['Team'] = names['Team'].replace('LAC)', 'Los-Angeles-Clippers')
+    names['Team'] = names['Team'].replace('LAL)', 'Los-Angeles-Lakers')
+    names['Team'] = names['Team'].replace('MEM)', 'Memphis-Grizzlies')
+    names['Team'] = names['Team'].replace('MIA)', 'Miami-Heat')
+    names['Team'] = names['Team'].replace('MIL)', 'Milwaukee-Bucks')
+    names['Team'] = names['Team'].replace('MIN)', 'Minnesota-Timberwolves')
+    names['Team'] = names['Team'].replace(' NO)', 'New-Orleans-Pelicans')
+    names['Team'] = names['Team'].replace(' NY)', 'New-York-Knicks')
+    names['Team'] = names['Team'].replace('OKC)', 'Oklahoma-City-Thunder')
+    names['Team'] = names['Team'].replace('ORL)', 'Orlando-Magic')
+    names['Team'] = names['Team'].replace('PHI)', 'Philadelphia-76ers')
+    names['Team'] = names['Team'].replace('PHX)', 'Phoenix-Suns')
+    names['Team'] = names['Team'].replace('POR)', 'Portland-Trail-Blazers')
+    names['Team'] = names['Team'].replace('SAC)', 'Sacramento-Kings')
+    names['Team'] = names['Team'].replace(' SA)', 'San-Antonio-Spurs')
+    names['Team'] = names['Team'].replace('TOR)', 'Toronto-Raptors')
+    names['Team'] = names['Team'].replace('TAH)', 'Utah-Jazz')
+    names['Team'] = names['Team'].replace('WSH)', 'Washington-Wizards')
+    
+    names = names.applymap(lambda x: str(x.replace(' ','-')))
+    names = names.applymap(lambda x: str(x.replace("J.", "J")))  #for PJ Tucker
+    names = names.applymap(lambda x: str(x.replace("'", "-")))
+    names = names.applymap(lambda x: str(x.replace("Jr.", "Jr")))
+    names = names.applymap(lambda x: str(x.replace(".", "-")))
+    names = names.applymap(lambda x: str(x.replace("Ish-Smith", "Ishmael-Smith")))   #feed his ass to the white whale
+    names = names.applymap(lambda x: str(x.replace("Patrick-Baldwin", "Patrick-Baldwin-Jr")))
+    names = names.applymap(lambda x: str(x.replace("Dennis-Smith-Jr","Dennis-Smith-Jr.")))
+    names = names.applymap(lambda x: str(x.replace("Desmond-Bane","Desmond-Bane-1")))
+    names = names.applymap(lambda x: str(x.replace("Troy-Brown-Jr","Troy-Brown")))
+    names = names.applymap(lambda x: str(x.replace("Willy-Hernangomez","Guillermo-Hernangomez")))
+    names = names.applymap(lambda x: str(x.replace("Devonte--Graham","Devonte-Graham")))
+    names = names.applymap(lambda x: str(x.replace("Michael-Porter", "Michael-Porter-Jr")))
+    names = names.applymap(lambda x: str(x.replace("Gary-Payton", "Gary-Payton-II")))
+    names = names.applymap(lambda x: str(x.replace("Danuel-House", "Danuel-House-Jr")))
+    names = names.applymap(lambda x: str(x.replace("Dennis-Smith","Dennis-Smith-Jr.")))
+
+    print("All players data collected")
+    names.reset_index(drop=True, inplace=True)
+    return names
+
+if(player_list == 1): player = extract_players_v2()
+else: player = extract_players(teams)
 
 # %%  calculate projections
 def xPts(player):
     i = 0; initial = 0;
-    while i<len(player):
-        name = player.loc[i+1][0]
-        p_team = player.loc[i+1][1]
+    while i<len(player)-1:
+        name = player.loc[i][0]       #review the +1 logic for loc
+        p_team = player.loc[i][1]
         if p_team in squads:
             try:
                 table2 = pd.read_html(f'https://www.numberfire.com/nba/players/projections/{name}')
@@ -85,23 +182,18 @@ def xPts(player):
                     else: projections = pd.concat([projections,p])
             except ValueError: print(name,"skipped as URL is wrong")
         i = i + 1
-    projections = projections.drop(['Salary','Value','FGM-A','FTM-A'],axis=1)
-    projections['3PM-A'] = projections['3PM-A'].str.split('-').str[0]
-    projections['3PM-A'] = projections['3PM-A'].astype(float)
-    projections.rename(columns = {'3PM-A':'3PM'}, inplace = True)
+    projections = projections.drop(['Salary','Value','FGM-A','FTM-A','3PM-A'],axis=1)
     first_column = projections.pop('Name')
     projections.insert(0, 'Name', first_column)
     second_column = projections.pop('Team')
     projections.insert(1, 'Team', second_column)
-    #d11 scoring system
-    #projections['FP'] = projections['PTS']+1.2*projections['REB']+1.5*projections['AST']+3*(projections['STL']+projections['BLK'])-projections['TOV']
-    #m11c scoring system
-    projections['FP'] = 3*projections['PTS']+3.5*projections['REB']+5*projections['AST']+10*(projections['STL']+projections['BLK'])-2*projections['TOV']-projections['PF']+projections['3PM']
+    projections['FP'] = projections['PTS']+1.2*projections['REB']+1.5*projections['AST']+3*(projections['STL']+projections['BLK'])-projections['TOV']
     projections = projections[projections['MIN'] >= 1]
     projections = projections.sort_values(by=['FP'],ascending=False)
     return projections
 
 f_points = xPts(player)
+f_points.reset_index(drop=True, inplace=True)
 try:
     data = pd.read_excel(file,'Sheet1')
     data = data.fillna(100)
@@ -114,7 +206,7 @@ except FileNotFoundError:
 
 # %%  generate 11 unique lineup combinations
 def randomizer(f_points,home,opps):
-    team = [["PG","SG","SF","PF","C","6","7","8","Star","Pro","xPts"]]; i=0; j=0; diffs=[]; it=0
+    team = [["PG","SG","SF","PF","C","6","7","8","Star","Pro","xPts",'Cost']]; i=0; j=0; it=0
     centers = f_points.loc[f_points['Pos'] == 5]
     c = pow(centers['FP'],3).tolist()
     centers = centers['Name'].tolist()
@@ -141,7 +233,7 @@ def randomizer(f_points,home,opps):
     sum_pg = sum(pg)
     pg = [x/sum_pg for x in pg]
     
-    while i<11:
+    while (i<11 and it<100000):
         h=0; o=0; cost=0
         p1 = np.random.choice(centers, 1, p=c, replace=False)
         p2 = np.random.choice(power, 1, p=pf, replace=False)
@@ -165,7 +257,7 @@ def randomizer(f_points,home,opps):
             if(t==home): h+=1
             if(t==opps): o+=1
             j+=1
-        if(h>5 or o>5 or cost>100): i=i-1
+        if(h>5 or o>5 or cost>100 or cost<=95): i=i-1
         else: 
             team.append(combo); print("valid combo",i+1,"iteration",it+1)
             cap = f_points[f_points.Name.isin(combo)]
@@ -177,7 +269,7 @@ def randomizer(f_points,home,opps):
             y = np.random.choice(cap, 2, p=p2, replace=False)
             pts += f_points.loc[(f_points['Name']==y[0]),'FP'].sum() + (f_points.loc[(f_points['Name']==y[1]),'FP'].sum()/2)
             y = y.tolist()
-            combo += y + [pts]
+            combo += y + [pts] + [cost]
             
         i +=1; j=0; it+=1
         
@@ -188,4 +280,8 @@ def randomizer(f_points,home,opps):
 
 f_points['Name'] = f_points['Name'].str.replace("-", " ")
 f_points['Team'] = f_points['Team'].str.replace("-", " ")
-a_team = randomizer(f_points,squads[0],squads[1])
+print()
+print(squads[0].replace('-',' '),round(f_points.loc[f_points['Team']==squads[0].replace('-',' '),'PTS'].sum(),1))
+print(squads[1].replace('-',' '),round(f_points.loc[f_points['Team']==squads[1].replace('-',' '),'PTS'].sum(),1))
+print()
+a_team = randomizer(f_points,squads[0].replace('-',' '),squads[1].replace('-',' '))
