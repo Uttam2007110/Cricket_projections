@@ -9,15 +9,15 @@ import glob
 import pandas as pd
 from datetime import datetime
  
-comp = 't20i'
+comp = 'wbbl'
 if(comp == 'odiq'):
-    path = "C:/Users/Subramanya.Ganti/Downloads/cricket/odi"
+    path = "C:/Users/Subramanya.Ganti/Downloads/cricket/raw/odi"
 elif(comp == 't20iq'):
-    path = "C:/Users/Subramanya.Ganti/Downloads/cricket/t20i"
+    path = "C:/Users/Subramanya.Ganti/Downloads/cricket/raw/t20i"
 else:
-    path = f"C:/Users/Subramanya.Ganti/Downloads/cricket/{comp}"
-output = f'{comp}.csv'
-output2 = f'{comp}_GP.csv'
+    path = f"C:/Users/Subramanya.Ganti/Downloads/cricket/raw/{comp}"
+output = f'C:/Users/Subramanya.Ganti/Downloads/cricket/raw/{comp}.csv'
+output2 = f'C:/Users/Subramanya.Ganti/Downloads/cricket/raw/{comp}_GP.csv'
 db_start = 2017
 league = 0; check = 0
 col_names = ["col1", "col2", "team", "player","id"]
@@ -31,7 +31,7 @@ elif(comp == 't20iw'):
 elif(comp == 'odiw'):
     countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","West Indies","Pakistan","Bangladesh","Thailand","Ireland"]
 elif(comp == 'odi'):
-    countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","Pakistan","Bangladesh","Afghanistan","West Indies","Netherlands"]
+    countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","Pakistan","Bangladesh","Afghanistan","West Indies","Netherlands","Nepal","Ireland"]
 elif(comp == 't20i'):
     countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","West Indies","Pakistan","Bangladesh","Ireland","Afghanistan","Zimbabwe","Scotland","Netherlands","Namibia","United Arab Emirates"]
 elif(comp == 't20iq'):
@@ -47,7 +47,10 @@ for file in file_list:
         date = datetime.strptime(df['start_date'][0], '%Y-%m-%d')
         if(league == 0):check = df['batting_team'][0] in countries and df['bowling_team'][0] in countries
         if(date.year>=db_start and (check or league)):
-            df['season'] = date.year
+            if((comp == 'bbl' or comp == 'wbbl' or comp == 'ss' or comp == 'wss' or comp == 'shield') and date.month < 4):   #big bash is a december-january league
+                df['season'] = date.year-1
+            else:                
+                df['season'] = date.year
             print(df['start_date'][0],df['batting_team'][0],df['bowling_team'][0])
             excl_list.append(df)
             
@@ -61,7 +64,10 @@ for file in file_list:
             names = df.loc[(df['col2']=='player') | (df['col2']=='players'),'player']
             names = pd.concat([names,pd.Series([t1,t2])])
             names = pd.DataFrame(names)
-            names['season'] = date.year
+            if((comp == 'bbl' or comp == 'wbbl' or comp == 'ss' or comp == 'wss' or comp == 'shield') and date.month < 4):   #big bash is a december-january league
+                names['season'] = date.year-1
+            else:                
+                names['season'] = date.year
             names = names.rename(columns={0: 'player'})
             if(i==0): names_list=names; i=1
             else: names_list = pd.concat([names_list,names])
