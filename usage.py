@@ -57,8 +57,8 @@ def usage_corrected(bowler,file_name,values,f):
         if(bowler == 0): #and x != "Free Agent"):
             if(game_sim == 1):
                 sublist = sublist.sort_values(by=['bf_GP'],ascending=False)
-                sublist['factor'] = 0.2*sublist['pp usage']+0.1*sublist['mid usage']+0.05*sublist['setup usage']+0.01*sublist['death usage']
-                sublist['factor'] += (sublist['bf_GP']/(f*120))
+                sublist['factor'] = 0.24*sublist['pp usage']+0.12*sublist['mid usage']+0.06*sublist['setup usage']+0.01*sublist['death usage']
+                sublist['factor'] += 0.9*(sublist['bf_GP']/(f*120))
                 sublist = sublist.sort_values(by=['factor'],ascending=False)
                 sublist.drop(['factor'], axis=1)
             k = sublist.count()[0]
