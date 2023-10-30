@@ -11,22 +11,22 @@ import datetime
 from usage import *
 pd.options.mode.chained_assignment = None  # default='warn'
 
-comp = 'ipl'
+comp = 'odi'
 proj_year = 2024
 aggregate = 0
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
 if(comp=='hundred' or comp=='hundredw'):
     factor = (5/6); aggregate = 1 #hundred
-elif(comp=='odi' or comp=='odiw' or comp=='odiq' or comp=='rlc'):
-    factor = 2.5; aggregate = 0  #odi
-elif(comp=='tests' or comp == 'cc'):
-    factor = 11.25; aggregate = 0 #test
+elif(comp=='odi' or comp=='odiq' or comp=='odiw' or comp=='rlc'):
+    factor = 2.5; aggregate = 1  #odi
+elif(comp=='tests' or comp == 'cc' or comp == 'shield'):
+    factor = 11.25; aggregate = 1 #test
 elif(comp=='t20iq'):
     factor = 1; aggregate = 0 #international t20
 else:
     factor = 1; aggregate = 1 #assume its a t20 league by default
-
+    
 if(aggregate == 1): input_file = f'{path}/summary/{comp}_aggregate.xlsx' # aggregated summary
 else: input_file = f'{path}/summary/{comp}_summary.xlsx' # the output of generate.py
 dumps_file = f"{path}/projections/{comp}_comps.xlsx"
@@ -45,6 +45,7 @@ def unique(list1):
 
 now = datetime.datetime.now()
 print(now.time())
+print(f"{comp} projections started")
 
 #file0 = pd.read_excel(input_file,'Sheet1')
 file = pd.read_excel(input_file,'bowling seasons')
