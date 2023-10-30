@@ -8,11 +8,13 @@ convert stats from one league to another and create an aggregate file
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 
-base_comp = 'ipl'
-compm = ['bbl','ipl','lpl','sa20','hundred','bpl','blast','mlc','psl','ilt','t20i','cpl']
-lsm = [1,1,.9,1,1,1,.95,.95,1,.95,.95,1]
-compw = ['wbbl','wpl','hundredw','t20iw','frb']
-lsw = [1,1,1,.9,.85]
+base_comp = 'odi'
+compm = ['bbl','ipl','lpl','sa20','hundred','bpl','blast','mlc','psl','ilt','t20i','cpl','odi','odiq','rlc','smat','ss','t20iq']
+lsm = [.95,1,.9,.95,1,.9,.95,.95,1,.95,.95,1,.95,.8,.85,.85,.9,.8]
+compw = ['wbbl','wpl','hundredw','t20iw','frb','odiw','wcpl']
+lsw = [1,1,1,.9,.85,.9,1]
+compt = ['tests','cc','shield']
+lst = [1,.9,.9]
 
 if(base_comp in compw): 
     comp = compw
@@ -23,6 +25,11 @@ elif(base_comp in compm):
     comp = compm
     ls = lsm
     mult = ls[compm.index(base_comp)]
+    ls = [x/mult for x in ls]
+elif(base_comp in compt):
+    comp = compt
+    ls = lst
+    mult = ls[compt.index(base_comp)]
     ls = [x/mult for x in ls]
 else:
     print("new competition, not in either list")
@@ -37,7 +44,7 @@ if(base_comp=='hundred' or base_comp=='hundredw'):
     factor = (5/6); #hundred
 elif(base_comp=='odi' or base_comp=='odiw' or base_comp=='odiq' or base_comp=='rlc'):
     factor = 2.5;   #odi
-elif(base_comp=='tests'):
+elif(base_comp=='tests' or base_comp=='cc' or base_comp=='shield'):
     factor = 11.25; #test
 else:
     factor = 1;     #assume its a t20 by default
@@ -54,11 +61,18 @@ bowl['bb_GP'] = bowl['balls_bowler']/(bowl['bb_GP']+0.00000001)
 bat_all = [bat]
 bowl_all = [bowl]
 
+venue_bat = pd.read_excel(input_file,'venue batting')
+venue_bowl = pd.read_excel(input_file,'venue bowling')
+venue_bat = [venue_bat]
+venue_bowl = [venue_bowl]
+
 while i<len(comp):
     if(comp[i]!=base_comp):
         comp_file = f'{path}/summary/{comp[i]}_summary.xlsx'
         comp_bowl = pd.read_excel(comp_file,'bowling seasons')
         comp_bat = pd.read_excel(comp_file,'batting seasons')
+        comp_venue_bat = pd.read_excel(comp_file,'venue batting')
+        comp_venue_bowl = pd.read_excel(comp_file,'venue bowling')
         print(base_comp,comp[i],"runs","wickets")
         #print("SR",bat['xruns'].sum()/bat['balls_batsman'].sum(),"balls/wkt",bat['balls_batsman'].sum()/bat['outs_batsman'].sum())
         #print("SR",comp_bat['xruns'].sum()/comp_bat['balls_batsman'].sum(),"balls/wkt",comp_bat['balls_batsman'].sum()/comp_bat['outs_batsman'].sum())
@@ -84,9 +98,21 @@ while i<len(comp):
         comp_bat['bf_GP'] = comp_bat['balls_batsman']/comp_bat['bf_GP']
         comp_bat['0s'] = comp_bat['balls_batsman'] - (comp_bat['1s']+comp_bat['2s']+comp_bat['3s']+comp_bat['4s']+comp_bat['6s']+comp_bat['outs_batsman'])
         comp_bat.loc[comp_bat['0s']<0,'0s']=0
-        if(comp[i]=='hundred' or comp[i]=='hundredw'): comp_bat['bf_GP'] = comp_bat['bf_GP'] *(5/6)
-        elif(base_comp=='hundred' or base_comp=='hundredw'): comp_bat['bf_GP'] = comp_bat['bf_GP'] / (5/6)
+        if(comp[i]=='hundred' or comp[i]=='hundredw'): comp_bat['bf_GP'] = comp_bat['bf_GP'] * (5/6)
+        if(base_comp=='hundred' or base_comp=='hundredw'): comp_bat['bf_GP'] = comp_bat['bf_GP'] / (5/6)
+        if(comp[i]=='odi' or comp[i]=='odiq' or comp[i]=='odiw' or comp[i] =='rlc'): comp_bat['bf_GP'] = comp_bat['bf_GP'] * (2.5)
+        if(base_comp=='odi' or base_comp=='odiq' or base_comp=='odiw' or base_comp =='rlc'): comp_bat['bf_GP'] = comp_bat['bf_GP'] / (2.5)
         bat_all.append(comp_bat)
+        
+        comp_venue_bat['Sum of pp_runs_batsman'] = comp_venue_bat['Sum of pp_runs_batsman'] * runs_f * ls[i]
+        comp_venue_bat['Sum of pp_wickets_batsman'] = comp_venue_bat['Sum of pp_wickets_batsman'] * (1/outs_f) * (1/ ls[i])
+        comp_venue_bat['Sum of mid_runs_batsman'] = comp_venue_bat['Sum of mid_runs_batsman'] * runs_f * ls[i]
+        comp_venue_bat['Sum of mid_wickets_batsman'] = comp_venue_bat['Sum of mid_wickets_batsman'] * (1/outs_f) * (1/ ls[i])
+        comp_venue_bat['Sum of setup_runs_batsman'] = comp_venue_bat['Sum of setup_runs_batsman'] * runs_f * ls[i]
+        comp_venue_bat['Sum of setup_wickets_batsman'] = comp_venue_bat['Sum of setup_wickets_batsman'] * (1/outs_f) * (1/ ls[i])
+        comp_venue_bat['Sum of death_runs_batsman'] = comp_venue_bat['Sum of death_runs_batsman'] * runs_f * ls[i]
+        comp_venue_bat['Sum of death_wickets_batsman'] = comp_venue_bat['Sum of death_wickets_batsman'] * (1/outs_f) * (1/ ls[i])
+        venue_bat.append(comp_venue_bat)
         
         rc_f = ((bowl['xruns'].sum()/bowl['balls_bowler'].sum())/(comp_bowl['xruns'].sum()/comp_bowl['balls_bowler'].sum()))
         wickets_f = ((bowl['balls_bowler'].sum()/bowl['outs_bowler'].sum())/(comp_bowl['balls_bowler'].sum()/comp_bowl['outs_bowler'].sum()))
@@ -112,13 +138,27 @@ while i<len(comp):
         comp_bowl['0s'] = comp_bowl['balls_bowler'] - (comp_bowl['1s']+comp_bowl['2s']+comp_bowl['3s']+comp_bowl['4s']+comp_bowl['6s']+comp_bowl['outs_bowler'])
         comp_bowl.loc[comp_bowl['0s']<0,'0s']=0
         if(comp[i]=='hundred' or comp[i]=='hundredw'): comp_bowl['bb_GP'] = comp_bowl['bb_GP'] *(5/6)
-        elif(base_comp=='hundred' or base_comp=='hundredw'): comp_bowl['bb_GP'] = comp_bowl['bb_GP'] / (5/6)
+        if(base_comp=='hundred' or base_comp=='hundredw'): comp_bowl['bb_GP'] = comp_bowl['bb_GP'] / (5/6)
+        if(comp[i]=='odi' or comp[i]=='odiq' or comp[i]=='odiw' or comp[i] =='rlc'): comp_bowl['bb_GP'] = comp_bowl['bb_GP'] * (2.5)
+        if(base_comp=='odi' or base_comp=='odiq' or base_comp=='odiw' or base_comp =='rlc'): comp_bowl['bb_GP'] = comp_bowl['bb_GP'] / (2.5)
         bowl_all.append(comp_bowl)
+        
+        comp_venue_bowl['Sum of pp_runs_bowler'] = comp_venue_bowl['Sum of pp_runs_bowler'] * rc_f * ls[i]
+        comp_venue_bowl['Sum of pp_wickets_bowler'] = comp_venue_bowl['Sum of pp_wickets_bowler'] * (1/wickets_f) * (1/ ls[i])
+        comp_venue_bowl['Sum of mid_runs_bowler'] = comp_venue_bowl['Sum of mid_runs_bowler'] * rc_f * ls[i]
+        comp_venue_bowl['Sum of mid_wickets_bowler'] = comp_venue_bowl['Sum of mid_wickets_bowler'] * (1/wickets_f) * (1/ ls[i])
+        comp_venue_bowl['Sum of setup_runs_bowler'] = comp_venue_bowl['Sum of setup_runs_bowler'] * rc_f * ls[i]
+        comp_venue_bowl['Sum of setup_wickets_bowler'] = comp_venue_bowl['Sum of setup_wickets_bowler'] * (1/wickets_f) * (1/ ls[i])
+        comp_venue_bowl['Sum of death_runs_bowler'] = comp_venue_bowl['Sum of death_runs_bowler'] * rc_f * ls[i]
+        comp_venue_bowl['Sum of death_wickets_bowler'] = comp_venue_bowl['Sum of death_wickets_bowler'] * (1/wickets_f) * (1/ ls[i])
+        venue_bowl.append(comp_venue_bowl)
         
     i+=1
 
 bat_all = pd.concat(bat_all)
 bowl_all = pd.concat(bowl_all)
+venue_bat = pd.concat(venue_bat)
+venue_bowl = pd.concat(venue_bowl)
 
 bat_all = bat_all.groupby(['batsman','season'], as_index=False).sum()
 bat_all.insert(loc=2, column='batting_team', value='Free Agent')
@@ -135,6 +175,9 @@ for x in bowl_all.values:
         bowl_all.loc[(bowl_all['bowler']==x[0])&(bowl_all['season']==x[1]),'bowling_team'] = team.loc[(team['player']==x[0])&(team['season']==x[1]),'team'].values[0]
     except IndexError:
         bowl_all.loc[(bowl_all['bowler']==x[0])&(bowl_all['season']==x[1]),'bowling_team'] = "Free Agent"
+        
+venue_bat = venue_bat.groupby(['Venue','Season'], as_index=False).sum()
+venue_bowl = venue_bowl.groupby(['Venue','Season'], as_index=False).sum()
 
 bat_all['runs/ball'] = bat_all['runs_off_bat']/(bat_all['balls_batsman']+0.000001)
 bat_all['0s/ball'] = bat_all['0s']/(bat_all['balls_batsman']+0.000001)
@@ -191,6 +234,25 @@ bowl_all['usage'] =bowl_all['bb_GP']/(120*factor)
 bowl_all['RCAA'] = 20*(bowl_all['ECON']-bowl_all['xECON'])*bowl_all['usage']*factor
 bowl_all = bowl_all[bowl_all.balls_bowler != 0]
 
+venue_bat['pp AVG'] = venue_bat['Sum of powerplay']/venue_bat['Sum of pp_wickets_batsman']
+venue_bat['mid AVG'] = venue_bat['Sum of middle']/venue_bat['Sum of mid_wickets_batsman']
+venue_bat['setup AVG'] = venue_bat['Sum of setup']/venue_bat['Sum of setup_wickets_batsman']
+venue_bat['death AVG'] = venue_bat['Sum of death']/venue_bat['Sum of death_wickets_batsman']
+venue_bat['pp SR'] = venue_bat['Sum of pp_runs_batsman']/venue_bat['Sum of powerplay']
+venue_bat['mid SR'] = venue_bat['Sum of mid_runs_batsman']/venue_bat['Sum of middle']
+venue_bat['setup SR'] = venue_bat['Sum of setup_runs_batsman']/venue_bat['Sum of setup']
+venue_bat['death SR'] = venue_bat['Sum of death_runs_batsman']/venue_bat['Sum of death']
+
+venue_bowl['pp SR'] = venue_bowl['Sum of powerplay']/venue_bowl['Sum of pp_wickets_bowler']
+venue_bowl['mid SR'] = venue_bowl['Sum of middle']/venue_bowl['Sum of mid_wickets_bowler']
+venue_bowl['setup SR'] = venue_bowl['Sum of setup']/venue_bowl['Sum of setup_wickets_bowler']
+venue_bowl['death SR'] = venue_bowl['Sum of death']/venue_bowl['Sum of death_wickets_bowler']
+venue_bowl['pp ECON'] = venue_bowl['Sum of pp_runs_bowler']/venue_bowl['Sum of powerplay'] * 6
+venue_bowl['mid ECON'] = venue_bowl['Sum of mid_runs_bowler']/venue_bowl['Sum of middle'] * 6
+venue_bowl['setup ECON'] = venue_bowl['Sum of setup_runs_bowler']/venue_bowl['Sum of setup'] * 6
+venue_bowl['death ECON'] = venue_bowl['Sum of death_runs_bowler']/venue_bowl['Sum of death'] * 6
+
+
 def dumps():
     lol = pd.read_excel(input_file,'bowling year')
     lol2 = pd.read_excel(input_file,'batting year')
@@ -198,8 +260,10 @@ def dumps():
     lol4 = pd.read_excel(input_file,'batting phases')
     lol5 = bowl_all
     lol6 = bat_all
-    lol7 = pd.read_excel(input_file,'venue bowling')
-    lol8 = pd.read_excel(input_file,'venue batting')
+    #lol7 = pd.read_excel(input_file,'venue bowling')
+    #lol8 = pd.read_excel(input_file,'venue batting')
+    lol7 = venue_bowl
+    lol8 = venue_bat
     with pd.ExcelWriter(output_file) as writer:
         lol8.to_excel(writer, sheet_name="venue batting", index=False)
         lol7.to_excel(writer, sheet_name="venue bowling", index=False)
