@@ -8,12 +8,12 @@ NBA projections courtesy numberFire
 import pandas as pd
 import numpy as np
 
-date = '10/30/23'     #month/day/year
-squads = ['Washington-Wizards','Boston-Celtics']
+date = '11/6/23'     #month/day/year
+squads = ['Los-Angeles-Lakers','Miami-Heat']
 
 player_list = 2     # 0-picks up players from the team pages, 1-picks up players from ROS projections page
-#file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
-file = "C:/Users/Subramanya.Ganti/Downloads/cricket/NBA prices.xlsx"
+file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
+#file = "C:/Users/Subramanya.Ganti/Downloads/cricket/NBA prices.xlsx"
 
 teams = ['Atlanta-Hawks', 'Boston-Celtics', 'Brooklyn-Nets', 'Charlotte-Hornets',
  'Chicago-Bulls', 'Cleveland-Cavaliers', 'Dallas-Mavericks', 'Denver-Nuggets',
@@ -221,6 +221,7 @@ def xPts(player):
 
 f_points = xPts(player)
 f_points.reset_index(drop=True, inplace=True)
+f_points['FP/MIN'] = f_points['FP']/f_points['MIN']
 try:
     data = pd.read_excel(file,'Sheet1')
     data = data.fillna(100)
@@ -285,7 +286,7 @@ def randomizer(f_points,home,opps):
             if(t==opps): o+=1
             j+=1
         # cap cost lower bound at which number?
-        if(h>5 or o>5 or cost>100 or cost<=92): i=i-1
+        if(h>5 or o>5 or cost>100 or cost<=95): i=i-1
         else: 
             team.append(combo); print("valid combo",i+1,"iteration",it+1)
             cap = f_points[f_points.Name.isin(combo)]
@@ -309,6 +310,7 @@ def randomizer(f_points,home,opps):
 f_points['Name'] = f_points['Name'].str.replace("-", " ")
 f_points['Team'] = f_points['Team'].str.replace("-", " ")
 print()
+print("Total mins projected",f_points['MIN'].sum())
 for t in squads:
     print(t.replace('-',' '),round(f_points.loc[f_points['Team']==t.replace('-',' '),'PTS'].sum(),1))
 print()
