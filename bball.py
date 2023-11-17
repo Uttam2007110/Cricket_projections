@@ -7,13 +7,22 @@ NBA projections courtesy numberFire
 # %%  specify the teams playing
 import pandas as pd
 import numpy as np
+from itertools import chain
 
-date = '11/6/23'     #month/day/year
-squads = ['Los-Angeles-Lakers','Miami-Heat']
+date = '11/17/23'     #month/day/year
+squads = ['Charlotte-Hornets','Milwaukee-Bucks']
+#squads = ['Toronto-Raptors','Boston-Celtics']
+#squads = ['New-Orleans-Pelicans','Denver-Nuggets']
+#squads = ['Portland-Trail-Blazers','Los-Angeles-Lakers']
+#squads = ['Utah-Jazz','Phoenix-Suns']
+#squads = ['Los-Angeles-Clippers','Houston-Rockets']
+#squads = ['','']
 
-player_list = 2     # 0-picks up players from the team pages, 1-picks up players from ROS projections page
-file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
-#file = "C:/Users/Subramanya.Ganti/Downloads/cricket/NBA prices.xlsx"
+# 0-picks up players from the team pages, 1-from ROS projections page, 2-from the NBA prices.xlsx
+player_list = 2
+n = 11
+#file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
+file = "C:/Users/Subramanya.Ganti/Downloads/cricket/NBA prices.xlsx"
 
 teams = ['Atlanta-Hawks', 'Boston-Celtics', 'Brooklyn-Nets', 'Charlotte-Hornets',
  'Chicago-Bulls', 'Cleveland-Cavaliers', 'Dallas-Mavericks', 'Denver-Nuggets',
@@ -23,6 +32,8 @@ teams = ['Atlanta-Hawks', 'Boston-Celtics', 'Brooklyn-Nets', 'Charlotte-Hornets'
  'Oklahoma-City-Thunder', 'Orlando-Magic', 'Philadelphia-76ers', 'Phoenix-Suns',
  'Portland-Trail-Blazers', 'Sacramento-Kings', 'San-Antonio-Spurs', 'Toronto-Raptors',
  'Utah-Jazz', 'Washington-Wizards']
+
+#f_points['FP'] = f_points['FP/MIN']*f_points['MIN']
 
 # %%  extract all the avaliable players
 def extract_players(teams):
@@ -215,7 +226,7 @@ def xPts(player):
     second_column = projections.pop('Team')
     projections.insert(1, 'Team', second_column)
     projections['FP'] = projections['PTS']+1.2*projections['REB']+1.5*projections['AST']+3*(projections['STL']+projections['BLK'])-projections['TOV']
-    projections = projections[projections['MIN'] >= 1]
+    projections = projections[projections['PTS'] > 0]
     projections = projections.sort_values(by=['FP'],ascending=False)
     return projections
 
@@ -232,9 +243,9 @@ except FileNotFoundError:
     f_points['Pos'] = 1
     f_points['Cost'] = 0.5
 
-# %%  generate 11 unique lineup combinations
-def randomizer(f_points,home,opps):
-    team = [["PG","SG","SF","PF","C","6","7","8","Star","Pro","xPts",'Cost']]; i=0; j=0; it=0
+# %%  generate n unique lineup combinations
+def randomizer(f_points,home,opps,n):
+    team = [["PG","SG","SF","PF","C","6","7","8","Star","Pro","xPts",'xMins','Cost']]; i=0; j=0; it=0
     centers = f_points.loc[f_points['Pos'] == 5]
     c = pow(centers['FP'],4).tolist()
     centers = centers['Name'].tolist()
@@ -261,8 +272,13 @@ def randomizer(f_points,home,opps):
     sum_pg = sum(pg)
     pg = [x/sum_pg for x in pg]
     
-    while (i<11 and it<100000):
-        h=0; o=0; cost=0
+    while (i<n and it<100000):
+        h=0; o=0; cost=0; xmins=0; tot=0; min_c=280
+        if(it >= 500 or i>2):min_c=260
+        if(it >= 1500 or i>4):min_c=240
+        if(it >= 5000 or i>6):min_c=230
+        if(it >= 10000 or i>8):min_c=220
+        if(it >= 50000 or i>10):min_c=0
         p1 = np.random.choice(centers, 1, p=c, replace=False)
         p2 = np.random.choice(power, 1, p=pf, replace=False)
         p3 = np.random.choice(small, 1, p=sf, replace=False)
@@ -282,11 +298,13 @@ def randomizer(f_points,home,opps):
         while j<8:
             t = f_points.loc[f_points['Name'] == combo[j], 'Team'].values[0]
             cost += f_points.loc[f_points['Name'] == combo[j], 'Cost'].values[0]
+            xmins += f_points.loc[f_points['Name'] == combo[j], 'MIN'].values[0]
+            tot += f_points.loc[f_points['Name'] == combo[j], 'FP'].values[0]
             if(t==home): h+=1
             if(t==opps): o+=1
             j+=1
-        # cap cost lower bound at which number?
-        if(h>5 or o>5 or cost>100 or cost<=95): i=i-1
+        xmins = round(xmins,2)
+        if(h>5 or o>5 or cost>100 or tot<min_c or (xmins in chain(*team))): i=i-1
         else: 
             team.append(combo); print("valid combo",i+1,"iteration",it+1)
             cap = f_points[f_points.Name.isin(combo)]
@@ -298,20 +316,21 @@ def randomizer(f_points,home,opps):
             y = np.random.choice(cap, 2, p=p2, replace=False)
             pts += f_points.loc[(f_points['Name']==y[0]),'FP'].sum() + (f_points.loc[(f_points['Name']==y[1]),'FP'].sum()/2)
             y = y.tolist()
-            combo += y + [pts] + [cost]
+            combo += y + [pts] + [xmins] + [cost]
             
         i +=1; j=0; it+=1
         
     team = pd.DataFrame(team)
     team.columns = team.iloc[0];team = team.drop(0)
-    team = team.T
+    team = team.apply(pd.to_numeric, errors='ignore')
+    #team = team.T
     return team
 
 f_points['Name'] = f_points['Name'].str.replace("-", " ")
 f_points['Team'] = f_points['Team'].str.replace("-", " ")
+
 print()
-print("Total mins projected",f_points['MIN'].sum())
 for t in squads:
-    print(t.replace('-',' '),round(f_points.loc[f_points['Team']==t.replace('-',' '),'PTS'].sum(),1))
-print()
-a_team = randomizer(f_points,squads[0].replace('-',' '),squads[1].replace('-',' '))
+    print(round(f_points.loc[f_points['Team']==t.replace('-',' '),'PTS'].sum(),1),t.replace('-',' '),"(",round(f_points.loc[f_points['Team']==t.replace('-',' '),'MIN'].sum(),1),")")
+print()    
+a_team = randomizer(f_points,squads[0].replace('-',' '),squads[1].replace('-',' '),n)
