@@ -9,13 +9,8 @@ import pandas as pd
 import numpy as np
 from itertools import chain
 
-date = '11/17/23'     #month/day/year
-squads = ['Charlotte-Hornets','Milwaukee-Bucks']
-#squads = ['Toronto-Raptors','Boston-Celtics']
-#squads = ['New-Orleans-Pelicans','Denver-Nuggets']
-#squads = ['Portland-Trail-Blazers','Los-Angeles-Lakers']
-#squads = ['Utah-Jazz','Phoenix-Suns']
-#squads = ['Los-Angeles-Clippers','Houston-Rockets']
+date = '11/21/23'     #month/day/year
+squads = ['Los-Angeles-Lakers','Utah-Jazz']
 #squads = ['','']
 
 # 0-picks up players from the team pages, 1-from ROS projections page, 2-from the NBA prices.xlsx
@@ -272,13 +267,13 @@ def randomizer(f_points,home,opps,n):
     sum_pg = sum(pg)
     pg = [x/sum_pg for x in pg]
     
-    while (i<n and it<100000):
-        h=0; o=0; cost=0; xmins=0; tot=0; min_c=280
-        if(it >= 500 or i>2):min_c=260
-        if(it >= 1500 or i>4):min_c=240
-        if(it >= 5000 or i>6):min_c=230
-        if(it >= 10000 or i>8):min_c=220
-        if(it >= 50000 or i>10):min_c=0
+    while (i<n and it<30000):
+        h=0; o=0; cost=0; xmins=0; pts=0; min_c=360
+        if(it >= 500 or i>2):min_c=340
+        if(it >= 1500 or i>4):min_c=320
+        if(it >= 5000 or i>6):min_c=300
+        if(it >= 10000 or i>8):min_c=280
+        if(it >= 15000 or i>10):min_c=0
         p1 = np.random.choice(centers, 1, p=c, replace=False)
         p2 = np.random.choice(power, 1, p=pf, replace=False)
         p3 = np.random.choice(small, 1, p=sf, replace=False)
@@ -299,14 +294,8 @@ def randomizer(f_points,home,opps,n):
             t = f_points.loc[f_points['Name'] == combo[j], 'Team'].values[0]
             cost += f_points.loc[f_points['Name'] == combo[j], 'Cost'].values[0]
             xmins += f_points.loc[f_points['Name'] == combo[j], 'MIN'].values[0]
-            tot += f_points.loc[f_points['Name'] == combo[j], 'FP'].values[0]
             if(t==home): h+=1
             if(t==opps): o+=1
-            j+=1
-        xmins = round(xmins,2)
-        if(h>5 or o>5 or cost>100 or tot<min_c or (xmins in chain(*team))): i=i-1
-        else: 
-            team.append(combo); print("valid combo",i+1,"iteration",it+1)
             cap = f_points[f_points.Name.isin(combo)]
             pts = sum(cap['FP'])
             p2 = pow(cap['FP'],8).tolist()
@@ -316,6 +305,11 @@ def randomizer(f_points,home,opps,n):
             y = np.random.choice(cap, 2, p=p2, replace=False)
             pts += f_points.loc[(f_points['Name']==y[0]),'FP'].sum() + (f_points.loc[(f_points['Name']==y[1]),'FP'].sum()/2)
             y = y.tolist()
+            j+=1
+        xmins = round(xmins,2)
+        if(h>5 or o>5 or cost>100 or pts<min_c or (xmins in chain(*team))): i=i-1
+        else: 
+            team.append(combo); print("valid combo",i+1,"iteration",it+1)            
             combo += y + [pts] + [xmins] + [cost]
             
         i +=1; j=0; it+=1
