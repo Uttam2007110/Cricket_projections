@@ -8,6 +8,8 @@ NBA projections courtesy numberFire
 import pandas as pd
 import numpy as np
 from itertools import chain
+from pulp import LpMaximize, LpProblem, LpStatus, lpSum, LpVariable, GLPK
+pd.options.mode.chained_assignment = None  # default='warn'
 
 date = '11/21/23'     #month/day/year
 squads = ['Los-Angeles-Lakers','Utah-Jazz']
@@ -327,4 +329,76 @@ print()
 for t in squads:
     print(round(f_points.loc[f_points['Team']==t.replace('-',' '),'PTS'].sum(),1),t.replace('-',' '),"(",round(f_points.loc[f_points['Team']==t.replace('-',' '),'MIN'].sum(),1),")")
 print()    
-a_team = randomizer(f_points,squads[0].replace('-',' '),squads[1].replace('-',' '),n)
+#a_team = randomizer(f_points,squads[0].replace('-',' '),squads[1].replace('-',' '),n)
+
+#%% PuLP solver
+def solver(f_points):
+    duplicate = f_points.copy()
+    dummy_team = duplicate['Team'][0]
+    duplicate['dummy_team'] = np.where(duplicate['Team']==dummy_team,1,0)
+    duplicate['PG'] = np.where(duplicate['Pos']==1,1,0)
+    duplicate['SG'] = np.where(duplicate['Pos']==2,1,0)
+    duplicate['SF'] = np.where(duplicate['Pos']==3,1,0)
+    duplicate['PFs'] = np.where(duplicate['Pos']==4,1,0)
+    duplicate['C'] = np.where(duplicate['Pos']==5,1,0)
+    duplicate['Sel'] = 0
+    model = LpProblem(name="resource-allocation", sense=LpMaximize)
+    
+    # Define the decision variables
+    x = {i: LpVariable(name=f"x{i}", cat="Binary") for i in range (0, len(duplicate))}
+    c = {i: LpVariable(name=f"c{i}", cat="Binary") for i in range (0, len(duplicate))}
+    vc = {i: LpVariable(name=f"vc{i}", cat="Binary") for i in range (0, len(duplicate))}
+    
+    # Add constraints
+    model += (lpSum(x.values()) == 8, "total players in team")
+    model += (lpSum(c.values()) == 1, "captain")
+    model += (lpSum(vc.values()) == 1, "vice captain")
+    model += (lpSum( x[k] * duplicate['Cost'][k] for k in range (0, len(duplicate))) <= 100, "cost")
+    model += (lpSum( x[k] * duplicate['PG'][k] for k in range (0, len(duplicate))) >= 1, "PG")
+    model += (lpSum( x[k] * duplicate['SG'][k] for k in range (0, len(duplicate))) >= 1, "SG")
+    model += (lpSum( x[k] * duplicate['SF'][k] for k in range (0, len(duplicate))) >= 1, "SF")
+    model += (lpSum( x[k] * duplicate['PFs'][k] for k in range (0, len(duplicate))) >= 1, "PF")
+    model += (lpSum( x[k] * duplicate['C'][k] for k in range (0, len(duplicate))) >= 1, "C")
+    model += (lpSum( x[k] * duplicate['dummy_team'][k] for k in range (0, len(duplicate))) >= 3, "Team min")
+    model += (lpSum( x[k] * duplicate['dummy_team'][k] for k in range (0, len(duplicate))) <= 5, "Team max")
+    
+    for k in range (0, len(duplicate)): model += (x[k]-c[k]-vc[k] >= 0,f"unique C-VC {k}")
+    
+    # Set objective
+    model += lpSum( (x[k]+c[k]+0.5*vc[k]) * duplicate['FP'][k] for k in range (0, len(duplicate)))
+    
+    # Solve the optimization problem
+    status = model.solve(solver=GLPK(msg=False))    
+    print(f"{LpStatus[model.status]}, xPts {model.objective.value()}")
+    xpts = model.objective.value()
+    
+    #for var in model.variables(): print(var.name,var.value())
+    for name, constraint in model.constraints.items():
+        if(name == 'cost'): cost = 100+constraint.value()
+        #print(f"{name}: {constraint.value()}")   
+    for k in range (0, len(duplicate)): duplicate['Sel'][k] = x[k].value() + c[k].value() + 0.5*vc[k].value()
+    
+    return duplicate,xpts,cost
+
+a_team = [["1","2","3","4","5","6","7","8","Star","Pro","xPts",'xMins','Cost']];
+for k in range (1,n+1):
+    xmins=0
+    print(f"solution {k}")
+    solution,xPts,cost = solver(f_points)
+    solution = solution.sort_values(by=['Pos'],ascending=True)
+    names = solution.loc[solution['Sel'] >= 1, 'Name']
+    names = names.to_list()
+    for j in names:
+        xmins += f_points.loc[f_points['Name'] == j, 'MIN'].values[0]
+    cap = solution.loc[solution['Sel'] == 2, 'Name']
+    cap = cap.to_list()
+    vice = solution.loc[solution['Sel'] == 1.5, 'Name']
+    vice = vice.to_list()
+    xmins = round(xmins,2)
+    names = names + cap + vice + [xPts] + [xmins] + [cost]
+    print(names)
+    a_team.append(names)
+
+a_team = pd.DataFrame(a_team)
+a_team.columns = a_team.iloc[0];a_team = a_team.drop(0)
+a_team = a_team.apply(pd.to_numeric, errors='ignore')
