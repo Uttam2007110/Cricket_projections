@@ -11,15 +11,19 @@ from itertools import chain
 from pulp import LpMaximize, LpProblem, LpStatus, lpSum, LpVariable, GLPK
 pd.options.mode.chained_assignment = None  # default='warn'
 
-date = '11/21/23'     #month/day/year
-squads = ['Los-Angeles-Lakers','Utah-Jazz']
+date = '11/24/23'     #month/day/year
+#squads = ['Boston-Celtics','Orlando-Magic']
+squads = ['Phoenix-Suns','Memphis-Grizzlies']
+#squads = ['New-York-Knicks','Miami-Heat']
+#squads = ['Milwaukee-Bucks','Washington-Wizards']
+#squads = ['Golden-State-Warriors','San-Antonio-Spurs']
+#squads = ['Los-Angeles-Clippers','New-Orleans-Pelicans']
 #squads = ['','']
 
 # 0-picks up players from the team pages, 1-from ROS projections page, 2-from the NBA prices.xlsx
-player_list = 2
-n = 11
-#file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
-file = "C:/Users/Subramanya.Ganti/Downloads/cricket/NBA prices.xlsx"
+player_list = 2; n = 11
+file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
+#file = "C:/Users/Subramanya.Ganti/Downloads/cricket/NBA prices.xlsx"
 
 teams = ['Atlanta-Hawks', 'Boston-Celtics', 'Brooklyn-Nets', 'Charlotte-Hornets',
  'Chicago-Bulls', 'Cleveland-Cavaliers', 'Dallas-Mavericks', 'Denver-Nuggets',
@@ -240,42 +244,45 @@ except FileNotFoundError:
     f_points['Pos'] = 1
     f_points['Cost'] = 0.5
 
-# %%  generate n unique lineup combinations
-def randomizer(f_points,home,opps,n):
-    team = [["PG","SG","SF","PF","C","6","7","8","Star","Pro","xPts",'xMins','Cost']]; i=0; j=0; it=0
-    centers = f_points.loc[f_points['Pos'] == 5]
-    c = pow(centers['FP'],4).tolist()
-    centers = centers['Name'].tolist()
-    sum_c = sum(c)
-    c = [x/sum_c for x in c]
-    power = f_points.loc[f_points['Pos'] == 4]
-    pf = pow(power['FP'],4).tolist()
-    power = power['Name'].tolist()
-    sum_pf = sum(pf)
-    pf = [x/sum_pf for x in pf]
-    small = f_points.loc[f_points['Pos'] == 3]
-    sf = pow(small['FP'],4).tolist()
-    small = small['Name'].tolist()
-    sum_sf = sum(sf)
-    sf = [x/sum_sf for x in sf]
-    shooting = f_points.loc[f_points['Pos'] == 2]
-    sg = pow(shooting['FP'],4).tolist()
-    shooting = shooting['Name'].tolist()
-    sum_sg = sum(sg)
-    sg = [x/sum_sg for x in sg]
-    point = f_points.loc[f_points['Pos'] == 1]
-    pg = pow(point['FP'],4).tolist()
-    point = point['Name'].tolist()
-    sum_pg = sum(pg)
-    pg = [x/sum_pg for x in pg]
-    
+# %%  generate n unique lineup combinations (legacy)
+def randomizer(f_points_og,f_points,home,opps,n):
+    team = [["PG","SG","SF","PF","C","6","7","8","Star","Pro","xPts",'xMins','Cost']]; i=0; j=0; it=0   
     while (i<n and it<30000):
-        h=0; o=0; cost=0; xmins=0; pts=0; min_c=360
-        if(it >= 500 or i>2):min_c=340
-        if(it >= 1500 or i>4):min_c=320
-        if(it >= 5000 or i>6):min_c=300
-        if(it >= 10000 or i>8):min_c=280
-        if(it >= 15000 or i>10):min_c=0
+        #random noise introduced in mins/efficiency
+        f_points['RV'] = np.random.normal(f_points_og['FP/MIN'],f_points_og['FP/MIN']/7)
+        f_points['FP'] = f_points['RV']*f_points['MIN']
+        centers = f_points.loc[f_points['Pos'] == 5]
+        c = pow(centers['FP'],3).tolist()
+        centers = centers['Name'].tolist()
+        sum_c = sum(c)
+        c = [x/sum_c for x in c]
+        power = f_points.loc[f_points['Pos'] == 4]
+        pf = pow(power['FP'],3).tolist()
+        power = power['Name'].tolist()
+        sum_pf = sum(pf)
+        pf = [x/sum_pf for x in pf]
+        small = f_points.loc[f_points['Pos'] == 3]
+        sf = pow(small['FP'],3).tolist()
+        small = small['Name'].tolist()
+        sum_sf = sum(sf)
+        sf = [x/sum_sf for x in sf]
+        shooting = f_points.loc[f_points['Pos'] == 2]
+        sg = pow(shooting['FP'],3).tolist()
+        shooting = shooting['Name'].tolist()
+        sum_sg = sum(sg)
+        sg = [x/sum_sg for x in sg]
+        point = f_points.loc[f_points['Pos'] == 1]
+        pg = pow(point['FP'],3).tolist()
+        point = point['Name'].tolist()
+        sum_pg = sum(pg)
+        pg = [x/sum_pg for x in pg]
+        
+        h=0; o=0; cost=0; xmins=0; pts=0; actual=0; min_c=400
+        if(it >= 500):min_c=370
+        if(it >= 1500):min_c=340
+        if(it >= 5000):min_c=315
+        if(it >= 10000):min_c=300
+        if(it >= 15000):min_c=0
         p1 = np.random.choice(centers, 1, p=c, replace=False)
         p2 = np.random.choice(power, 1, p=pf, replace=False)
         p3 = np.random.choice(small, 1, p=sf, replace=False)
@@ -284,7 +291,7 @@ def randomizer(f_points,home,opps,n):
         p1 = p1.tolist(); p2 = p2.tolist();p3 = p3.tolist();p4 = p4.tolist(); p5 = p5.tolist();
         combo = p5+p4+p3+p2+p1
         rest = f_points[~f_points.Name.isin(combo)]
-        r = pow(rest['FP'],4).tolist()
+        r = pow(rest['FP'],3).tolist()
         rest = rest['Name'].tolist()
         sum_r = sum(r)
         r = [x/sum_r for x in r]
@@ -296,23 +303,26 @@ def randomizer(f_points,home,opps,n):
             t = f_points.loc[f_points['Name'] == combo[j], 'Team'].values[0]
             cost += f_points.loc[f_points['Name'] == combo[j], 'Cost'].values[0]
             xmins += f_points.loc[f_points['Name'] == combo[j], 'MIN'].values[0]
+            actual += f_points_og.loc[f_points_og['Name'] == combo[j], 'FP'].values[0]
             if(t==home): h+=1
             if(t==opps): o+=1
             cap = f_points[f_points.Name.isin(combo)]
             pts = sum(cap['FP'])
-            p2 = pow(cap['FP'],8).tolist()
+            p2 = pow(cap['FP'],6).tolist()
             cap = cap['Name'].tolist()
             sum_p2 = sum(p2)
             p2 = [x/sum_p2 for x in p2]
             y = np.random.choice(cap, 2, p=p2, replace=False)
-            pts += f_points.loc[(f_points['Name']==y[0]),'FP'].sum() + (f_points.loc[(f_points['Name']==y[1]),'FP'].sum()/2)
+            pts += f_points.loc[(f_points['Name']==y[0]),'FP'].sum() + (f_points.loc[(f_points['Name']==y[1]),'FP'].sum()/2)           
             y = y.tolist()
             j+=1
         xmins = round(xmins,2)
-        if(h>5 or o>5 or cost>100 or pts<min_c or (xmins in chain(*team))): i=i-1
-        else: 
+        if(h>5 or o>5 or cost>100 or cost<95 or pts<min_c or (xmins in chain(*team))): i=i-1
+        else:
+            actual += f_points_og.loc[(f_points_og['Name']==y[0]),'FP'].sum() + (f_points_og.loc[(f_points_og['Name']==y[1]),'FP'].sum()/2)
+            #print(f_points_og.loc[(f_points_og['Name']==y[0]),'FP'].sum(),f_points_og.loc[(f_points_og['Name']==y[1]),'FP'].sum())
             team.append(combo); print("valid combo",i+1,"iteration",it+1)            
-            combo += y + [pts] + [xmins] + [cost]
+            combo += y + [actual] + [xmins] + [cost]
             
         i +=1; j=0; it+=1
         
@@ -323,15 +333,15 @@ def randomizer(f_points,home,opps,n):
     return team
 
 f_points['Name'] = f_points['Name'].str.replace("-", " ")
-f_points['Team'] = f_points['Team'].str.replace("-", " ")
+f_points['Team'] = f_points['Team'].str.replace("-", " ")    
+#a_team = randomizer(f_points,f_points.copy(),squads[0].replace('-',' '),squads[1].replace('-',' '),n)
 
+# %%  PuLP solver
 print()
 for t in squads:
     print(round(f_points.loc[f_points['Team']==t.replace('-',' '),'PTS'].sum(),1),t.replace('-',' '),"(",round(f_points.loc[f_points['Team']==t.replace('-',' '),'MIN'].sum(),1),")")
-print()    
-#a_team = randomizer(f_points,squads[0].replace('-',' '),squads[1].replace('-',' '),n)
+print()
 
-#%% PuLP solver
 def solver(f_points):
     duplicate = f_points.copy()
     dummy_team = duplicate['Team'][0]
@@ -369,7 +379,7 @@ def solver(f_points):
     
     # Solve the optimization problem
     status = model.solve(solver=GLPK(msg=False))    
-    print(f"{LpStatus[model.status]}, xPts {model.objective.value()}")
+    #print(f"{LpStatus[model.status]}, xPts {model.objective.value()}")
     xpts = model.objective.value()
     
     #for var in model.variables(): print(var.name,var.value())
@@ -380,25 +390,40 @@ def solver(f_points):
     
     return duplicate,xpts,cost
 
-a_team = [["1","2","3","4","5","6","7","8","Star","Pro","xPts",'xMins','Cost']];
-for k in range (1,n+1):
-    xmins=0
-    print(f"solution {k}")
-    solution,xPts,cost = solver(f_points)
-    solution = solution.sort_values(by=['Pos'],ascending=True)
-    names = solution.loc[solution['Sel'] >= 1, 'Name']
-    names = names.to_list()
-    for j in names:
-        xmins += f_points.loc[f_points['Name'] == j, 'MIN'].values[0]
-    cap = solution.loc[solution['Sel'] == 2, 'Name']
-    cap = cap.to_list()
-    vice = solution.loc[solution['Sel'] == 1.5, 'Name']
-    vice = vice.to_list()
-    xmins = round(xmins,2)
-    names = names + cap + vice + [xPts] + [xmins] + [cost]
-    print(names)
-    a_team.append(names)
+def iterator(f_points,n):
+    a_team = [["1","2","3","4","5","6","7","8","Star","Pro","xPts",'xMins','Cost']];
+    k=1
+    while(k<n+1):      
+        #random noise introduced in mins/efficiency
+        f_points_copy = f_points.copy()
+        if(k>1):
+            f_points_copy['RV'] = np.random.normal(f_points['FP/MIN'],f_points['FP/MIN']/6)
+            f_points_copy['FP'] = f_points_copy['RV']*f_points_copy['MIN']       
+        solution,xPts,cost = solver(f_points_copy)
+        solution = solution.sort_values(by=['Pos'],ascending=True)
+        names = solution.loc[solution['Sel'] >= 1, 'Name']
+        names = names.to_list()
+        
+        xPts=0; xmins=0
+        for j in names:
+            xmins += f_points.loc[f_points['Name'] == j, 'MIN'].values[0]
+            xPts += f_points.loc[f_points['Name'] == j, 'FP'].values[0]
+        cap = solution.loc[solution['Sel'] == 2, 'Name']
+        cap = cap.to_list()
+        vice = solution.loc[solution['Sel'] == 1.5, 'Name']
+        vice = vice.to_list()
+        xPts += f_points.loc[f_points['Name'] == cap[0], 'FP'].values[0] + (f_points.loc[f_points['Name'] == vice[0], 'FP'].values[0])/2
+        xmins = round(xmins,2)
+        names = names + cap + vice + [xPts] + [xmins] + [cost]
+        if(xmins in chain(*a_team)):
+            k = k - 1
+        else:
+            a_team.append(names)
+            print(f"solution {k} found")
+        k = k + 1
+    return a_team
 
+a_team = iterator(f_points,n)
 a_team = pd.DataFrame(a_team)
 a_team.columns = a_team.iloc[0];a_team = a_team.drop(0)
 a_team = a_team.apply(pd.to_numeric, errors='ignore')
