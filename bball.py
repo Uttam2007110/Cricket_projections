@@ -1,40 +1,27 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Jun 22 01:55:40 2023
-NBA projections courtesy numberFire
+NBA projections courtesy numberFire 
+f_points['FP'] = f_points['FP/MIN']*f_points['MIN']
 @author: GF63
 """
 # %%  specify the teams playing
-import pandas as pd
+import pandas as pd     
 import numpy as np
 from itertools import chain
-from pulp import LpMaximize, LpProblem, LpStatus, lpSum, LpVariable, GLPK
+from pulp import LpMaximize, LpProblem, lpSum, LpVariable, GLPK
 pd.options.mode.chained_assignment = None  # default='warn'
 
-date = '11/24/23'     #month/day/year
-#squads = ['Boston-Celtics','Orlando-Magic']
-squads = ['Phoenix-Suns','Memphis-Grizzlies']
-#squads = ['New-York-Knicks','Miami-Heat']
-#squads = ['Milwaukee-Bucks','Washington-Wizards']
-#squads = ['Golden-State-Warriors','San-Antonio-Spurs']
-#squads = ['Los-Angeles-Clippers','New-Orleans-Pelicans']
-#squads = ['','']
+date = '11/29/23'     #month/day/year
+squads = ['DET','LAL']
 
 # 0-picks up players from the team pages, 1-from ROS projections page, 2-from the NBA prices.xlsx
 player_list = 2; n = 11
 file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
 #file = "C:/Users/Subramanya.Ganti/Downloads/cricket/NBA prices.xlsx"
 
-teams = ['Atlanta-Hawks', 'Boston-Celtics', 'Brooklyn-Nets', 'Charlotte-Hornets',
- 'Chicago-Bulls', 'Cleveland-Cavaliers', 'Dallas-Mavericks', 'Denver-Nuggets',
- 'Detroit-Pistons', 'Golden-State-Warriors', 'Houston-Rockets', 'Indiana-Pacers',
- 'Los-Angeles-Clippers', 'Los-Angeles-Lakers', 'Memphis-Grizzlies', 'Miami-Heat',
- 'Milwaukee-Bucks', 'Minnesota-Timberwolves', 'New-Orleans-Pelicans', 'New-York-Knicks',
- 'Oklahoma-City-Thunder', 'Orlando-Magic', 'Philadelphia-76ers', 'Phoenix-Suns',
- 'Portland-Trail-Blazers', 'Sacramento-Kings', 'San-Antonio-Spurs', 'Toronto-Raptors',
- 'Utah-Jazz', 'Washington-Wizards']
-
-#f_points['FP'] = f_points['FP/MIN']*f_points['MIN']
+teams = ['ATL','BOS','BKN','CHA','CHI','CLE','DAL','DEN','DET','GSW','HOU','IND','LAC','LAL','MEM',
+         'MIA','MIL','MIN','NOP','NYK','OKC','ORL','PHI','PHX','POR','SAC','SAS','TOR','UTA','WAS']
 
 # %%  extract all the avaliable players
 def extract_players(teams):
@@ -114,37 +101,11 @@ def extract_players_v2():
     names = pd.concat(names)
     names = names.drop_duplicates()
     names.rename(columns = {'Player':'Name'}, inplace = True)
-    
-    names['Team'] = names['Team'].replace('ATL)', 'Atlanta-Hawks')
-    names['Team'] = names['Team'].replace('BOS)', 'Boston-Celtics')
-    names['Team'] = names['Team'].replace('BKN)', 'Brooklyn-Nets')
-    names['Team'] = names['Team'].replace('CHA)', 'Charlotte-Hornets')
-    names['Team'] = names['Team'].replace('CHI)', 'Chicago-Bulls')
-    names['Team'] = names['Team'].replace('CLE)', 'Cleveland-Cavaliers')
-    names['Team'] = names['Team'].replace('DAL)', 'Dallas-Mavericks')
-    names['Team'] = names['Team'].replace('DEN)', 'Denver-Nuggets')
-    names['Team'] = names['Team'].replace('DET)', 'Detroit-Pistons')
-    names['Team'] = names['Team'].replace(' GS)', 'Golden-State-Warriors')
-    names['Team'] = names['Team'].replace('HOU)', 'Houston-Rockets')
-    names['Team'] = names['Team'].replace('IND)', 'Indiana-Pacers')
-    names['Team'] = names['Team'].replace('LAC)', 'Los-Angeles-Clippers')
-    names['Team'] = names['Team'].replace('LAL)', 'Los-Angeles-Lakers')
-    names['Team'] = names['Team'].replace('MEM)', 'Memphis-Grizzlies')
-    names['Team'] = names['Team'].replace('MIA)', 'Miami-Heat')
-    names['Team'] = names['Team'].replace('MIL)', 'Milwaukee-Bucks')
-    names['Team'] = names['Team'].replace('MIN)', 'Minnesota-Timberwolves')
-    names['Team'] = names['Team'].replace(' NO)', 'New-Orleans-Pelicans')
-    names['Team'] = names['Team'].replace(' NY)', 'New-York-Knicks')
-    names['Team'] = names['Team'].replace('OKC)', 'Oklahoma-City-Thunder')
-    names['Team'] = names['Team'].replace('ORL)', 'Orlando-Magic')
-    names['Team'] = names['Team'].replace('PHI)', 'Philadelphia-76ers')
-    names['Team'] = names['Team'].replace('PHX)', 'Phoenix-Suns')
-    names['Team'] = names['Team'].replace('POR)', 'Portland-Trail-Blazers')
-    names['Team'] = names['Team'].replace('SAC)', 'Sacramento-Kings')
-    names['Team'] = names['Team'].replace(' SA)', 'San-Antonio-Spurs')
-    names['Team'] = names['Team'].replace('TOR)', 'Toronto-Raptors')
-    names['Team'] = names['Team'].replace('TAH)', 'Utah-Jazz')
-    names['Team'] = names['Team'].replace('WSH)', 'Washington-Wizards')
+    names['Team'] = names['Team'].replace(' GS)', 'GSW')
+    names['Team'] = names['Team'].replace(' NO)', 'NOP')
+    names['Team'] = names['Team'].replace(' NY)', 'NYK')
+    names['Team'] = names['Team'].replace(' SA)', 'SAS')
+    names['Team'] = names['Team'].replace('TAH)', 'UTA')
     
     names = names.applymap(lambda x: str(x.replace(' ','-')))
     names = names.applymap(lambda x: str(x.replace("J.", "J")))  #for PJ Tucker
@@ -397,8 +358,9 @@ def iterator(f_points,n):
         #random noise introduced in mins/efficiency
         f_points_copy = f_points.copy()
         if(k>1):
-            f_points_copy['RV'] = np.random.normal(f_points['FP/MIN'],f_points['FP/MIN']/6)
-            f_points_copy['FP'] = f_points_copy['RV']*f_points_copy['MIN']       
+            f_points_copy['RV'] = np.random.normal(f_points['FP/MIN'],7*f_points['FP/MIN']/f_points['MIN'])
+            f_points_copy['FP'] = f_points_copy['RV']*f_points_copy['MIN']
+            #print(f_points_copy[['Name','FP']])
         solution,xPts,cost = solver(f_points_copy)
         solution = solution.sort_values(by=['Pos'],ascending=True)
         names = solution.loc[solution['Sel'] >= 1, 'Name']
