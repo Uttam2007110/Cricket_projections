@@ -10,15 +10,16 @@ import pandas as pd
 import numpy as np
 from itertools import chain
 from pulp import LpMaximize, LpProblem, lpSum, LpVariable, GLPK
+from scipy.stats import truncnorm
 pd.options.mode.chained_assignment = None  # default='warn'
 
-date = '11/29/23'     #month/day/year
-squads = ['DET','LAL']
+date = '11/30/23'     #month/day/year
+squads = ['GSW','LAC']
 
 # 0-picks up players from the team pages, 1-from ROS projections page, 2-from the NBA prices.xlsx
 player_list = 2; n = 11
-file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
-#file = "C:/Users/Subramanya.Ganti/Downloads/cricket/NBA prices.xlsx"
+#file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
+file = "C:/Users/Subramanya.Ganti/Downloads/cricket/NBA prices.xlsx"
 
 teams = ['ATL','BOS','BKN','CHA','CHI','CLE','DAL','DEN','DET','GSW','HOU','IND','LAC','LAL','MEM',
          'MIA','MIL','MIN','NOP','NYK','OKC','ORL','PHI','PHX','POR','SAC','SAS','TOR','UTA','WAS']
@@ -303,6 +304,9 @@ for t in squads:
     print(round(f_points.loc[f_points['Team']==t.replace('-',' '),'PTS'].sum(),1),t.replace('-',' '),"(",round(f_points.loc[f_points['Team']==t.replace('-',' '),'MIN'].sum(),1),")")
 print()
 
+def get_truncated_normal(mean=0, sd=1, low=0, upp=10):
+    return truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd)
+
 def solver(f_points):
     duplicate = f_points.copy()
     dummy_team = duplicate['Team'][0]
@@ -358,8 +362,8 @@ def iterator(f_points,n):
         #random noise introduced in mins/efficiency
         f_points_copy = f_points.copy()
         if(k>1):
-            f_points_copy['RV'] = np.random.normal(f_points['FP/MIN'],7*f_points['FP/MIN']/f_points['MIN'])
-            f_points_copy['FP'] = f_points_copy['RV']*f_points_copy['MIN']
+            XP = get_truncated_normal(mean=f_points['FP'],sd=10*f_points['FP/MIN']*(1+(24-f_points['MIN'])/48), low=0, upp=100)
+            f_points_copy['FP'] = XP.rvs()
             #print(f_points_copy[['Name','FP']])
         solution,xPts,cost = solver(f_points_copy)
         solution = solution.sort_values(by=['Pos'],ascending=True)
