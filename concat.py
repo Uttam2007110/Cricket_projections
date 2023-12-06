@@ -19,6 +19,7 @@ else:
 output = f'C:/Users/Subramanya.Ganti/Downloads/cricket/raw/{comp}.csv'
 output2 = f'C:/Users/Subramanya.Ganti/Downloads/cricket/raw/{comp}_GP.csv'
 db_start = 2017
+db_end = 2100
 league = 0; check = 0
 col_names = ["col1", "col2", "team", "player","id"]
 excl_list = []; names_list=[]; i=0
@@ -33,11 +34,13 @@ elif(comp == 'odiw'):
 elif(comp == 'odi'):
     countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","Pakistan","Bangladesh","Afghanistan","West Indies","Netherlands","Nepal","Ireland"]
 elif(comp == 't20i'):
-    countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","West Indies","Pakistan","Bangladesh","Ireland","Afghanistan","Zimbabwe","Scotland","Netherlands","Namibia","United Arab Emirates"]
+    countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","West Indies","Pakistan","Bangladesh","Ireland","Afghanistan","Zimbabwe","Scotland","Netherlands","Namibia","United Arab Emirates","Nepal","Oman","Papua New Guinea","Canada","United States of America"]
 elif(comp == 't20iq'):
-    countries = ["Ireland","Scotland","Jersey","Italy","Germany","Denmark","Austria","France","Spain","Netherlands","Malta","Uganda","Malasiya","Kenya","Portugal","Belgium","Norway","Finland"]
+    countries = ["Ireland","Scotland","Jersey","Italy","Germany","Denmark","Austria","Netherlands","Zimbabwe","Namibia","Nigeria","Rwanda","Tanzania","Uganda","Kenya","Bahrain","Hong Kong","Kuwait","Malaysia","Nepal","Oman","Singapore","United Arab Emirates","Japan","Papua New Guinea","Philippines","Canada","United States of America"]
 elif(comp == 'tests'):
     countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","Pakistan","West Indies"]
+elif(comp == 'cwc'):
+    countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","Pakistan","Bangladesh","Afghanistan","West Indies","Netherlands","Nepal","Ireland","Zimbabwe","Kenya","Namibia"]
 else:
     league = 1
 
@@ -46,7 +49,7 @@ for file in file_list:
         df = pd.read_csv(file)
         date = datetime.strptime(df['start_date'][0], '%Y-%m-%d')
         if(league == 0):check = df['batting_team'][0] in countries and df['bowling_team'][0] in countries
-        if(date.year>=db_start and (check or league)):
+        if(date.year>=db_start and (check or league) and date.year<=db_end):
             if((comp == 'bbl' or comp == 'wbbl' or comp == 'ss' or comp == 'wss' or comp == 'shield') and date.month < 4):   #big bash is a december-january league
                 df['season'] = date.year-1
             else:                
@@ -60,7 +63,7 @@ for file in file_list:
         t1 = df.loc[(df['col2']=='team') | (df['col2']=='teams'),'team'].values[0]
         t2 = df.loc[(df['col2']=='team') | (df['col2']=='teams'),'team'].values[1]
         if(league == 0):check = t1 in countries and t2 in countries
-        if(date.year>=db_start and (check or league)):
+        if(date.year>=db_start and (check or league) and date.year<=db_end):
             names = df.loc[(df['col2']=='player') | (df['col2']=='players'),'player']
             names = pd.concat([names,pd.Series([t1,t2])])
             names = pd.DataFrame(names)
