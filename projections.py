@@ -7,12 +7,12 @@ projecting league performances based on past seasons
 import numpy as np
 import pandas as pd
 import math
-import datetime
+from datetime import datetime
 from usage import *
 pd.options.mode.chained_assignment = None  # default='warn'
 
-comp = 'odi'
-proj_year = 2024
+comp = 'bbl'
+proj_year = 2024  #year+1 of the last season for which you have data
 aggregate = 0
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
@@ -23,10 +23,12 @@ elif(comp=='odi' or comp=='odiq' or comp=='odiw' or comp=='rlc'):
 elif(comp=='tests' or comp == 'cc' or comp == 'shield'):
     factor = 11.25; aggregate = 1 #test
 elif(comp=='t20iq'):
-    factor = 1; aggregate = 0 #international t20
+    factor = 1; aggregate = 0 #international t20 qualifiers
+elif(comp=='cwc'):
+    factor = 2.5; aggregate = 0 #old ODIs
 else:
     factor = 1; aggregate = 1 #assume its a t20 league by default
-    
+  
 if(aggregate == 1): input_file = f'{path}/summary/{comp}_aggregate.xlsx' # aggregated summary
 else: input_file = f'{path}/summary/{comp}_summary.xlsx' # the output of generate.py
 dumps_file = f"{path}/projections/{comp}_comps.xlsx"
@@ -43,8 +45,8 @@ def unique(list1):
     # print list
     return unique_list
 
-now = datetime.datetime.now()
-print(now.time())
+#now = datetime.datetime.now()
+#print(now.time())
 print(f"{comp} projections started")
 
 #file0 = pd.read_excel(input_file,'Sheet1')
@@ -54,11 +56,8 @@ file3 = pd.read_excel(input_file,'batting seasons')
 file4 = pd.read_excel(input_file,'batting year')
 proxy_bowl = []; proxy_bat = []
 
-for (x,y) in zip(file['bowler'].values,file['season'].values):
-    proxy_bowl.append(18+math.sqrt(file.loc[(file['bowler']==x)&(file['season']<y),'balls_bowler'].sum())/5)
-    
-for (x,y) in zip(file3['batsman'].values,file3['season'].values):
-    proxy_bat.append(18+math.sqrt(file3.loc[(file3['batsman']==x)&(file3['season']<y),'balls_batsman'].sum())/5)
+for (x,y) in zip(file['bowler'].values,file['season'].values): proxy_bowl.append(18+math.sqrt(file.loc[(file['bowler']==x)&(file['season']<y),'balls_bowler'].sum())/5)
+for (x,y) in zip(file3['batsman'].values,file3['season'].values): proxy_bat.append(18+math.sqrt(file3.loc[(file3['batsman']==x)&(file3['season']<y),'balls_batsman'].sum())/5)
 
 file['age_proxy'] = proxy_bowl
 file3['age_proxy'] = proxy_bat
@@ -66,6 +65,43 @@ name0 = file['bowler'].values
 unique_names = unique(name0)
 name00 = file3['batsman'].values
 unique_names2 = unique(name00)
+
+def player_aging(batting,bowling,proj_year):
+    #reference = pd.read_csv(f'{path}/people.csv',sep=',',low_memory=False,encoding='latin-1')
+    reference = pd.read_excel(f'{path}/people.xlsx','people')
+    print("Player DOBs collected")
+    print("-----------------------------------")
+    for y0 in batting.values:
+        p_dob = reference.loc[reference['unique_name']==y0[0],'dob'].sum()
+        try: p_age = int((datetime(proj_year,4,1) - p_dob).days/365)
+        except TypeError: p_age = 28; print(y0[0],"has dob issue")
+        batting.loc[batting['batsman']==y0[0],'dots/ball'] += 0.000966*p_age + 0.058436*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.02771
+        batting.loc[batting['batsman']==y0[0],'1s/ball'] += -0.00072866*p_age - 0.038869*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.023522
+        batting.loc[batting['batsman']==y0[0],'2s/ball'] += -0.00012862*p_age + 0.009251*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.017422
+        batting.loc[batting['batsman']==y0[0],'4s/ball'] += 0.000071548*p_age - 0.026967*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.001723
+        batting.loc[batting['batsman']==y0[0],'6s/ball'] += -0.000094568*p_age + 0.005449*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.001363
+        batting.loc[batting['batsman']==y0[0],'wickets/ball'] += 0.000277347*p_age + 0.010306*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.007334
+        
+    for y00 in bowling.values:
+        p_dob = reference.loc[reference['unique_name']==y00[0],'dob'].sum()
+        try: p_age = int((datetime(proj_year,4,1) - p_dob).days/365)
+        except TypeError: p_age = 28; print(y00[0],"has dob issue")
+        bowling.loc[bowling['bowler']==y00[0],'dots/ball'] += -0.00007606*p_age + 0.172822*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.01640
+        bowling.loc[bowling['bowler']==y00[0],'1s/ball'] += 0.000013308*p_age - 0.0720761*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.005167
+        bowling.loc[bowling['bowler']==y00[0],'2s/ball'] += 0.000051438*p_age - 0.0774087*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.003987
+        bowling.loc[bowling['bowler']==y00[0],'4s/ball'] += 0.000010719*p_age - 0.0235676*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.003424
+        bowling.loc[bowling['bowler']==y00[0],'6s/ball'] += 0.000003777*p_age + 0.0060524*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.003439
+        bowling.loc[bowling['bowler']==y00[0],'wickets/ball'] += 0.000112113*p_age + 0.0158677*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.005956
+        
+    batting['runs/ball'] = batting['1s/ball']+2*batting['2s/ball']+3*batting['3s/ball']+4*batting['4s/ball']+6*batting['6s/ball']
+    batting['SR'] = 100*batting['runs/ball']
+    batting['balls/wkt'] = 1/batting['wickets/ball']
+    
+    bowling['runs/ball'] = bowling['1s/ball']+2*bowling['2s/ball']+3*bowling['3s/ball']+4*bowling['4s/ball']+6*bowling['6s/ball']+bowling['extras/ball']
+    bowling['ECON'] = 6*bowling['runs/ball']
+    bowling['SR'] = 1/bowling['wickets/ball']
+    print("-----------------------------------")
+    return (batting,bowling)
 
 def mdist(df,v,p):
     proxy1 = 18+math.sqrt(df.loc[(df['bowler']==v[0])&(df['season']<v[1]),'balls_bowler'].sum())/5
@@ -520,7 +556,7 @@ def bowling_projection(df,df2,player,year):
     #print(p_wickets)
     return projection 
 
-def venue_projections():    
+def venue_projections():
     venue_bat = pd.read_excel(input_file,'venue batting')
     bat_avg = pd.read_excel(input_file,'batting phases')
     teams = list(dict.fromkeys(venue_bat['Venue'].tolist()))
@@ -626,23 +662,24 @@ def proj_dump():
             lolcow5.append(p_dummy)           
     """
     lol = pd.DataFrame(lolcow)
-    lol.columns = lol.iloc[0];lol = lol.drop(0)
-    lol2 = pd.DataFrame(lolcow) #lolcow2
-    lol2.columns = lol2.iloc[0];lol2 = lol2.drop(0)
+    lol.columns = lol.iloc[0];lol = lol.drop(0)   
     lol4 = pd.DataFrame(lolcow4)
     lol4.columns = lol4.iloc[0];lol4 = lol4.drop(0)
-    lol5 = pd.DataFrame(lolcow4) #lolcow5
-    lol5.columns = lol5.iloc[0];lol5 = lol5.drop(0)
     print("batting projections dumped")
+    
+    if(factor <= 2.5): 
+        (lol5,lol2) = player_aging(lol4.copy(),lol.copy(),proj_year)
+    else:
+        lol2 = pd.DataFrame(lolcow) #lolcow2
+        lol2.columns = lol2.iloc[0];lol2 = lol2.drop(0)
+        lol5 = pd.DataFrame(lolcow4) #lolcow5
+        lol5.columns = lol5.iloc[0];lol5 = lol5.drop(0)
+    print("aging applied")
+    
     concat = [];
     for (x,y) in zip(file['bowling_team'].values,file['season'].values):
         concat.append(x+";"+str(y))
     concat = np.unique(concat)
-        
-    #lol = bowls(file,lol,concat,factor)     #for usage adjustment
-    #lol4 = bats(file3,lol4,concat,factor)   #for usage adjustment    
-    #lol2 = bowls(file,lol2,concat,factor)   #for usage adjustment
-    #lol5 = bats(file3,lol5,concat,factor)   #for usage adjustment
     
     for t in unique(lol['team'].to_list()):
         if(t != 'Free Agent'):
@@ -721,8 +758,8 @@ def proj_dump():
         lol4.to_excel(writer, sheet_name="Marcel bat", index=False)        
             
     print("venue factors dumped")
-    now = datetime.datetime.now()
-    print(now.time())
+    #now = datetime.datetime.now()
+    #print(now.time())
     return (lol2,lol5)
 
 def comps_future(df,comps):
@@ -822,11 +859,11 @@ def comps_dump_bat(player,year):
 def bowling_projection_comps(file,file2,player,year,logs,base_proj):
     #base_proj = bowling_projection(file,file2,player,year)
     comps = mdist(file,base_proj,player)
-    now = datetime.datetime.now()
-    print("comps done",now.time())
+    #now = datetime.datetime.now()
+    #print("comps done",now.time())
     projection = similarity_calc(comps, player, year, base_proj[2])
-    now = datetime.datetime.now()
-    print("similarity done",now.time())
+    #now = datetime.datetime.now()
+    #print("similarity done",now.time())
     c = 0; delta = []; comps_expected = []
     
     for x in comps:
@@ -872,8 +909,8 @@ def bowling_projection_comps(file,file2,player,year,logs,base_proj):
         print("RCAA,WTAA")
         print(20*(projection_new[4]-projection_new[19])*projection_new[3],120*((1/projection_new[5])-(1/projection_new[20]))*projection_new[3])
     
-    now = datetime.datetime.now()
-    print("new projection found",now.time())
+    #now = datetime.datetime.now()
+    #print("new projection found",now.time())
     return projection_new
     
 def similarity_calc(comps,player,year,team):
@@ -1402,7 +1439,7 @@ def batting_projection(df,df2,player,year):
     return projection
 
 def logs(x,y):
-    #print(bowling_projection(file,file2,x,y))
+    print(bowling_projection(file,file2,x,y))
     print(batting_projection(file3,file4,x,y))
     #bowling_projection_comps(file,file2,x,y,1)
     #batting_projection_comps(file3,file4,x,y,1)
@@ -1412,6 +1449,6 @@ def logs(x,y):
     #mdist_bat(file3,batting_projection(file3,file4,x,y),unique_names2)
     print("logs dumped")
 
-#logs("D Ferreira",2024)
+#logs("V Kohli",2024)
 #venue_projections = venue_projections()
 (aa_bowl,aa_bat)=proj_dump()
