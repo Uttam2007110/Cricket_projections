@@ -15,20 +15,22 @@ from collections import Counter
 pd.options.mode.chained_assignment = None  # default='warn'
 np.seterr(all='ignore')
 
-comp = 'odi'; year = '23'; unique_combos = 6
+comp = 'bbl'; year = '23'; unique_combos = 6
 #if another league data is used as a proxy then set 1
 home=[]; opps=[]; venue = []; proxy = 0; custom = 0
 #date based game selection if 0, else specific gameweek or entire season
-gw = 0; writer = 1
+gw = 0; writer = 0
 #select teams manually
-#home = ["England"]; opps = ["South Africa"]; venue = ["Wankhede"]
+#home = ["South Africa"]; opps = ["India"]; venue = ["Kingsmead"]
 #select custom date
-#custom = dt.datetime(2023,10,29) #year,month,date
+#custom = dt.datetime(2023,12,10) #year,month,date
 #type of scoring system, default dream 11
 coversoff = 0; ex22 = 0; cricdraft = 0
 
 #frauds like ben stokes who bowl whenever they feel like it
-not_bowling_list = ['BA Stokes','NR Sciver','FG Kemp','DJ Mitchell','M Labuschagne','MR Marsh','SIR Dunkley']
+not_bowling_list = ['BA Stokes','FG Kemp','DJ Mitchell','MR Marsh','SIR Dunkley','RK Singh']
+#frauds who suddenly decide to bat in a different position
+custom_position_list = [['MS Wade',7],['SA Yadav',4]]
 
 #%% find projections for the games in question
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
@@ -37,6 +39,11 @@ else: input_file = f"{path}/projections/{comp}_projections.xlsx"
 input_file1 = f"{path}/summary/{comp}_summary.xlsx"
 output_dump = f"{path}/outputs/{comp}_{year}_game.xlsx"
 game_avg = []
+
+custom_position_list = pd.DataFrame(custom_position_list, columns=['player', 'position'])
+custom_position_list = custom_position_list.sort_values(by=['position'],ascending=True)
+with pd.ExcelWriter(f'{path}/custom_positions.xlsx') as writer:
+    custom_position_list.to_excel(writer, sheet_name="custom positions", index=False)
 
 def fixtures_file(now,comp,gw):
     fixtures = f"{path}/schedule.xlsx"
@@ -586,49 +593,49 @@ def coversoff_projection(a,b,input_file1,input_file,factor,v):
     
     if(factor <= 1):
         #runs 4s and 6s have pts
-        bat_game['xPts'] = 120*factor*bat_game['usage']*(bat_game['runs/ball']+10*bat_game['6s/ball']+6*bat_game['4s/ball'])
+        bat_game['xPts'] = 120*factor*bat_game['usage']*(bat_game['runs/ball']+2*bat_game['6s/ball']+1*bat_game['4s/ball'])
         #duck        
-        #bat_game['xPts'] = bat_game['xPts'] - 50*rs.cdf(1)*(1-bf.cdf(6))
-        #less tha 4 runs -25
-        #bat_game['xPts'] = bat_game['xPts'] - 25*(rs.cdf(4)-rs.cdf(1))*(1-bf.cdf(6))
+        bat_game['xPts'] = bat_game['xPts'] - 10*rs.cdf(1)*(1-bf.cdf(6))
+        #less than x runs -25
+        bat_game['xPts'] = bat_game['xPts'] - 5*(rs.cdf(5)-rs.cdf(1))*(1-bf.cdf(6))
         #run rate bonus
         #bat_game['xPts'] = bat_game['xPts'] + 120*factor*bat_game['usage']*bat_game['runs/ball'] - (4/3)*(bat_game['usage']*factor*120)
         #SR bonuses
-        bat_game['xPts'] = bat_game['xPts'] + 120*(1-SR.cdf(200))*(1-rs.cdf(20))
-        bat_game['xPts'] = bat_game['xPts'] + 100*(SR.cdf(200)-SR.cdf(180))*(1-rs.cdf(20))
-        bat_game['xPts'] = bat_game['xPts'] + 80*(SR.cdf(180)-SR.cdf(160))*(1-rs.cdf(25))
-        bat_game['xPts'] = bat_game['xPts'] + 60*(SR.cdf(160)-SR.cdf(140))*(1-rs.cdf(25))
-        bat_game['xPts'] = bat_game['xPts'] - 20*(SR.cdf(140)-SR.cdf(130))*(1-rs.cdf(25))
-        bat_game['xPts'] = bat_game['xPts'] - 80*(SR.cdf(130)-SR.cdf(100))*(1-bf.cdf(6))
-        bat_game['xPts'] = bat_game['xPts'] - 100*(SR.cdf(100))*(1-bf.cdf(6))
+        bat_game['xPts'] = bat_game['xPts'] + 30*(1-SR.cdf(200))*(1-rs.cdf(20))
+        bat_game['xPts'] = bat_game['xPts'] + 20*(SR.cdf(200)-SR.cdf(180))*(1-rs.cdf(20))
+        bat_game['xPts'] = bat_game['xPts'] + 15*(SR.cdf(180)-SR.cdf(160))*(1-rs.cdf(25))
+        bat_game['xPts'] = bat_game['xPts'] + 10*(SR.cdf(160)-SR.cdf(140))*(1-bf.cdf(20))
+        bat_game['xPts'] = bat_game['xPts'] - 10*(SR.cdf(120)-SR.cdf(100))*(1-bf.cdf(20))
+        bat_game['xPts'] = bat_game['xPts'] - 20*(SR.cdf(100))*(1-bf.cdf(20))
         #milestone bonuses
-        bat_game['xPts'] = bat_game['xPts'] + 20*(rs.cdf(35)-rs.cdf(20))
-        bat_game['xPts'] = bat_game['xPts'] + 40*(rs.cdf(50)-rs.cdf(35))
-        bat_game['xPts'] = bat_game['xPts'] + 70*(rs.cdf(65)-rs.cdf(50))
-        bat_game['xPts'] = bat_game['xPts'] + 120*(rs.cdf(75)-rs.cdf(65))
-        bat_game['xPts'] = bat_game['xPts'] + 150*(1-rs.cdf(75))
+        bat_game['xPts'] = bat_game['xPts'] + 10*(rs.cdf(40)-rs.cdf(25))
+        bat_game['xPts'] = bat_game['xPts'] + 15*(rs.cdf(60)-rs.cdf(40))
+        bat_game['xPts'] = bat_game['xPts'] + 20*(rs.cdf(80)-rs.cdf(60))
+        bat_game['xPts'] = bat_game['xPts'] + 25*(rs.cdf(100)-rs.cdf(80))
+        bat_game['xPts'] = bat_game['xPts'] + 40*(1-rs.cdf(100))
     elif(factor == 2.5):
         #runs 4s and 6s have pts
-        bat_game['xPts'] = 120*factor*bat_game['usage']*(bat_game['runs/ball']+10*bat_game['6s/ball']+3*bat_game['4s/ball'])
+        bat_game['xPts'] = 120*factor*bat_game['usage']*(bat_game['runs/ball']+3*bat_game['6s/ball']+2*bat_game['4s/ball'])
         #duck        
-        bat_game['xPts'] = bat_game['xPts'] - 30*rs.cdf(1)*(1-bf.cdf(30))
-        #less tha 4 runs -25
-        bat_game['xPts'] = bat_game['xPts'] - 30*(rs.cdf(20)-rs.cdf(1))*(1-bf.cdf(30))
+        bat_game['xPts'] = bat_game['xPts'] - 20*rs.cdf(1)*(1-bf.cdf(30))
+        #less than x runs -25
+        bat_game['xPts'] = bat_game['xPts'] - 5*(rs.cdf(5)-rs.cdf(1))*(1-bf.cdf(30))
         #run rate bonus
         #bat_game['xPts'] = bat_game['xPts'] + 120*factor*bat_game['usage']*bat_game['runs/ball'] - (4/3)*(bat_game['usage']*factor*120)
         #SR bonuses
-        bat_game['xPts'] = bat_game['xPts'] + 100*(1-SR.cdf(120))*(1-rs.cdf(50))
-        bat_game['xPts'] = bat_game['xPts'] + 75*(SR.cdf(120)-SR.cdf(100))*(1-rs.cdf(50))
-        bat_game['xPts'] = bat_game['xPts'] + 50*(SR.cdf(100)-SR.cdf(90))*(1-rs.cdf(50))
-        bat_game['xPts'] = bat_game['xPts'] - 50*(SR.cdf(80)-SR.cdf(75))*(1-bf.cdf(20))
-        bat_game['xPts'] = bat_game['xPts'] - 75*(SR.cdf(75)-SR.cdf(70))*(1-bf.cdf(20))
-        bat_game['xPts'] = bat_game['xPts'] - 100*(SR.cdf(70))*(1-bf.cdf(20))
+        bat_game['xPts'] = bat_game['xPts'] + 30*(1-SR.cdf(150))*(1-bf.cdf(20))
+        bat_game['xPts'] = bat_game['xPts'] + 20*(SR.cdf(150)-SR.cdf(125))*(1-bf.cdf(20))
+        bat_game['xPts'] = bat_game['xPts'] - 10*(SR.cdf(125)-SR.cdf(100))*(1-bf.cdf(20))
+        bat_game['xPts'] = bat_game['xPts'] + 10*(SR.cdf(100)-SR.cdf(75))*(1-bf.cdf(20))
+        bat_game['xPts'] = bat_game['xPts'] - 20*(SR.cdf(75)-SR.cdf(50))*(1-bf.cdf(20))
+        bat_game['xPts'] = bat_game['xPts'] - 30*(SR.cdf(50)-SR.cdf(25))*(1-bf.cdf(20))
+        bat_game['xPts'] = bat_game['xPts'] - 50*(SR.cdf(25))*(1-bf.cdf(20))
         #milestone bonuses
-        bat_game['xPts'] = bat_game['xPts'] + 40*(rs.cdf(50)-rs.cdf(40))
-        bat_game['xPts'] = bat_game['xPts'] + 50*(rs.cdf(75)-rs.cdf(50))
-        bat_game['xPts'] = bat_game['xPts'] + 75*(rs.cdf(100)-rs.cdf(75))
-        bat_game['xPts'] = bat_game['xPts'] + 100*(rs.cdf(125)-rs.cdf(100))
-        bat_game['xPts'] = bat_game['xPts'] + 150*(1-rs.cdf(125))
+        bat_game['xPts'] = bat_game['xPts'] + 10*(rs.cdf(50)-rs.cdf(30))
+        bat_game['xPts'] = bat_game['xPts'] + 20*(rs.cdf(75)-rs.cdf(50))
+        bat_game['xPts'] = bat_game['xPts'] + 30*(rs.cdf(100)-rs.cdf(75))
+        bat_game['xPts'] = bat_game['xPts'] + 50*(rs.cdf(150)-rs.cdf(100))
+        bat_game['xPts'] = bat_game['xPts'] + 75*(1-rs.cdf(150))
         
         
     #bowler cant bowl more than 20% of the overs except in tests
@@ -662,47 +669,47 @@ def coversoff_projection(a,b,input_file1,input_file,factor,v):
         
     elif(factor == 1):
         #wicket is 35 pts
-        bowl_game['xPts'] = 120*factor*bowl_game['usage']*bowl_game['wickets/ball']*35
+        bowl_game['xPts'] = 120*factor*bowl_game['usage']*bowl_game['wickets/ball']*32
         #dot balls pts
-        bowl_game['xPts'] += 120*factor*bowl_game['usage']*bowl_game['dots/ball']*5
+        bowl_game['xPts'] += 120*factor*bowl_game['usage']*bowl_game['dots/ball']*1
         #ECON bonuses
-        bowl_game['xPts'] = bowl_game['xPts'] - 100*(1-ECON.cdf(9.5))*(1-bb.cdf(6))
-        bowl_game['xPts'] = bowl_game['xPts'] - 80*(ECON.cdf(9.5)-ECON.cdf(8.5))*(1-bb.cdf(6))
-        bowl_game['xPts'] = bowl_game['xPts'] - 40*(ECON.cdf(8.5)-ECON.cdf(8))*(1-bb.cdf(6))
-        bowl_game['xPts'] = bowl_game['xPts'] + 60*(ECON.cdf(8)-ECON.cdf(7))*(1-bb.cdf(6))
-        bowl_game['xPts'] = bowl_game['xPts'] + 80*(ECON.cdf(7)-ECON.cdf(6))*(1-bb.cdf(6))
-        bowl_game['xPts'] = bowl_game['xPts'] + 100*(ECON.cdf(6)-ECON.cdf(4))*(1-bb.cdf(6))
-        bowl_game['xPts'] = bowl_game['xPts'] + 120*(ECON.cdf(4))*(1-bb.cdf(6))
+        bowl_game['xPts'] = bowl_game['xPts'] - 20*(1-ECON.cdf(10))*(1-bb.cdf(6))
+        bowl_game['xPts'] = bowl_game['xPts'] - 10*(ECON.cdf(10)-ECON.cdf(9))*(1-bb.cdf(6))
+        bowl_game['xPts'] = bowl_game['xPts'] - 5*(ECON.cdf(9)-ECON.cdf(8))*(1-bb.cdf(6))
+        #bowl_game['xPts'] = bowl_game['xPts'] + 0*(ECON.cdf(8)-ECON.cdf(7))*(1-bb.cdf(6))
+        bowl_game['xPts'] = bowl_game['xPts'] + 10*(ECON.cdf(7)-ECON.cdf(6))*(1-bb.cdf(6))
+        bowl_game['xPts'] = bowl_game['xPts'] + 20*(ECON.cdf(6)-ECON.cdf(4))*(1-bb.cdf(6))
+        bowl_game['xPts'] = bowl_game['xPts'] + 30*(ECON.cdf(4))*(1-bb.cdf(6))
         #milestone bonuses
-        #bowl_game['xPts'] = bowl_game['xPts'] + 30*(wkts.cdf(3)-wkts.cdf(2))
-        bowl_game['xPts'] = bowl_game['xPts'] + 80*(wkts.cdf(4)-wkts.cdf(3))
-        bowl_game['xPts'] = bowl_game['xPts'] + 120*(wkts.cdf(5)-wkts.cdf(4))
-        bowl_game['xPts'] = bowl_game['xPts'] + 150*(wkts.cdf(6)-wkts.cdf(5))
-        bowl_game['xPts'] = bowl_game['xPts'] + 200*(1-wkts.cdf(6))
+        bowl_game['xPts'] = bowl_game['xPts'] + 15*(wkts.cdf(3)-wkts.cdf(2))
+        bowl_game['xPts'] = bowl_game['xPts'] + 30*(wkts.cdf(4)-wkts.cdf(3))
+        bowl_game['xPts'] = bowl_game['xPts'] + 50*(wkts.cdf(5)-wkts.cdf(4))
+        bowl_game['xPts'] = bowl_game['xPts'] + 75*(wkts.cdf(6)-wkts.cdf(5))
+        bowl_game['xPts'] = bowl_game['xPts'] + 100*(1-wkts.cdf(6))
         #maiden over
-        bowl_game['xPts'] = bowl_game['xPts'] + 100*np.power(bowl_game['dots/ball'],6)*20*bowl_game['usage']*factor
+        bowl_game['xPts'] = bowl_game['xPts'] + 25*np.power(bowl_game['dots/ball'],6)*20*bowl_game['usage']*factor
         
     elif(factor == 2.5):
         #wicket is 30 pts
-        bowl_game['xPts'] = 120*factor*bowl_game['usage']*bowl_game['wickets/ball']*30
+        bowl_game['xPts'] = 120*factor*bowl_game['usage']*bowl_game['wickets/ball']*35
         #dot balls pts
         #bowl_game['xPts'] += 120*factor*bowl_game['usage']*bowl_game['dots/ball']*5
         #ECON bonuses
-        bowl_game['xPts'] = bowl_game['xPts'] - 100*(1-ECON.cdf(6.5))*(1-bb.cdf(30))
-        bowl_game['xPts'] = bowl_game['xPts'] - 50*(ECON.cdf(6.5)-ECON.cdf(5.75))*(1-bb.cdf(30))
-        bowl_game['xPts'] = bowl_game['xPts'] - 30*(ECON.cdf(5.75)-ECON.cdf(7.7))*(1-bb.cdf(30))
-        bowl_game['xPts'] = bowl_game['xPts'] + 50*(ECON.cdf(5.5)-ECON.cdf(5))*(1-bb.cdf(30))
-        bowl_game['xPts'] = bowl_game['xPts'] + 100*(ECON.cdf(5)-ECON.cdf(4))*(1-bb.cdf(30))
-        bowl_game['xPts'] = bowl_game['xPts'] + 125*(ECON.cdf(4)-ECON.cdf(3))*(1-bb.cdf(30))
-        bowl_game['xPts'] = bowl_game['xPts'] + 150*(ECON.cdf(3))*(1-bb.cdf(30))
+        bowl_game['xPts'] = bowl_game['xPts'] - 40*(1-ECON.cdf(9))*(1-bb.cdf(18))
+        bowl_game['xPts'] = bowl_game['xPts'] - 20*(ECON.cdf(9)-ECON.cdf(9))*(1-bb.cdf(18))
+        bowl_game['xPts'] = bowl_game['xPts'] - 10*(ECON.cdf(7)-ECON.cdf(6))*(1-bb.cdf(18))
+        bowl_game['xPts'] = bowl_game['xPts'] + 10*(ECON.cdf(6)-ECON.cdf(5))*(1-bb.cdf(18))
+        bowl_game['xPts'] = bowl_game['xPts'] + 20*(ECON.cdf(5)-ECON.cdf(4))*(1-bb.cdf(18))
+        bowl_game['xPts'] = bowl_game['xPts'] + 30*(ECON.cdf(4)-ECON.cdf(3))*(1-bb.cdf(18))
+        bowl_game['xPts'] = bowl_game['xPts'] + 50*(ECON.cdf(3))*(1-bb.cdf(18))
         #milestone bonuses
-        bowl_game['xPts'] = bowl_game['xPts'] + 30*(wkts.cdf(3)-wkts.cdf(2))
-        bowl_game['xPts'] = bowl_game['xPts'] + 70*(wkts.cdf(4)-wkts.cdf(3))
-        bowl_game['xPts'] = bowl_game['xPts'] + 100*(wkts.cdf(5)-wkts.cdf(4))
-        bowl_game['xPts'] = bowl_game['xPts'] + 150*(wkts.cdf(7)-wkts.cdf(5))
-        bowl_game['xPts'] = bowl_game['xPts'] + 200*(1-wkts.cdf(7))
+        bowl_game['xPts'] = bowl_game['xPts'] + 10*(wkts.cdf(3)-wkts.cdf(2))
+        bowl_game['xPts'] = bowl_game['xPts'] + 30*(wkts.cdf(4)-wkts.cdf(3))
+        bowl_game['xPts'] = bowl_game['xPts'] + 50*(wkts.cdf(5)-wkts.cdf(4))
+        bowl_game['xPts'] = bowl_game['xPts'] + 70*(wkts.cdf(6)-wkts.cdf(5))
+        bowl_game['xPts'] = bowl_game['xPts'] + 100*(1-wkts.cdf(6))
         #maiden over
-        bowl_game['xPts'] = bowl_game['xPts'] + 25*np.power(bowl_game['dots/ball'],6)*20*bowl_game['usage']*factor
+        bowl_game['xPts'] = bowl_game['xPts'] + 15*np.power(bowl_game['dots/ball'],6)*20*bowl_game['usage']*factor
     
 
     if(factor == 5/6): factor = 1
