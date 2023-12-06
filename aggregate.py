@@ -8,13 +8,16 @@ convert stats from one league to another and create an aggregate file
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 
-base_comp = 'odi'
+base_comp = 'bbl'
 compm = ['bbl','ipl','lpl','sa20','hundred','bpl','blast','mlc','psl','ilt','t20i','cpl','odi','odiq','rlc','smat','ss','t20iq']
-lsm = [.95,1,.9,.95,1,.9,.95,.95,1,.95,.95,1,.95,.8,.85,.85,.9,.8]
+lsm = [.95,1,.9,.95,1,.9,.95,.95,1,.95,.95,1,.95,.8,.8,.85,.9,.8]
 compw = ['wbbl','wpl','hundredw','t20iw','frb','odiw','wcpl']
 lsw = [1,1,1,.9,.85,.9,1]
 compt = ['tests','cc','shield']
 lst = [1,.9,.9]
+
+name_changes = [['NR Sciver','NR Sciver-Brunt'],['KH Brunt','KH Sciver-Brunt'],['L Winfield','L Winfield-Hill']]
+name_changes = pd.DataFrame(name_changes, columns=['old', 'new'])
 
 if(base_comp in compw): 
     comp = compw
@@ -58,6 +61,15 @@ team_bowl.rename(columns = {'bowler':'player','bowling_team':'team'}, inplace = 
 team = pd.concat([team_bat, team_bowl], ignore_index=True, sort=False)
 bat['bf_GP'] = bat['balls_batsman']/(bat['bf_GP']+0.00000001)
 bowl['bb_GP'] = bowl['balls_bowler']/(bowl['bb_GP']+0.00000001)
+
+for x0 in name_changes.values:
+    for y0 in bat.values:
+        if(x0[0]==y0[0]): bat.loc[bat['batsman']==y0[0],'batsman'] = x0[1]
+        
+for x0 in name_changes.values:
+    for y0 in bowl.values:
+        if(x0[0]==y0[0]): bowl.loc[bowl['bowler']==y0[0],'bowler'] = x0[1]
+
 bat_all = [bat]
 bowl_all = [bowl]
 
@@ -71,6 +83,15 @@ while i<len(comp):
         comp_file = f'{path}/summary/{comp[i]}_summary.xlsx'
         comp_bowl = pd.read_excel(comp_file,'bowling seasons')
         comp_bat = pd.read_excel(comp_file,'batting seasons')
+        
+        for x0 in name_changes.values:
+            for y0 in comp_bat.values:
+                if(x0[0]==y0[0]): comp_bat.loc[comp_bat['batsman']==y0[0],'batsman'] = x0[1]
+                
+        for x0 in name_changes.values:
+            for y0 in comp_bowl.values:
+                if(x0[0]==y0[0]): comp_bowl.loc[comp_bowl['bowler']==y0[0],'bowler'] = x0[1]
+        
         comp_venue_bat = pd.read_excel(comp_file,'venue batting')
         comp_venue_bowl = pd.read_excel(comp_file,'venue bowling')
         print(base_comp,comp[i],"runs","wickets")
@@ -154,7 +175,7 @@ while i<len(comp):
         venue_bowl.append(comp_venue_bowl)
         
     i+=1
-
+            
 bat_all = pd.concat(bat_all)
 bowl_all = pd.concat(bowl_all)
 venue_bat = pd.concat(venue_bat)
