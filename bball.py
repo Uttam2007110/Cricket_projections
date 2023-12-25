@@ -13,13 +13,13 @@ from pulp import LpMaximize, LpProblem, lpSum, LpVariable, GLPK
 from scipy.stats import truncnorm
 pd.options.mode.chained_assignment = None  # default='warn'
 
-date = '11/30/23'     #month/day/year
-squads = ['GSW','LAC']
+date = '12/25/23'     #month/day/year
+squads = ['MIL','NYK']
 
 # 0-picks up players from the team pages, 1-from ROS projections page, 2-from the NBA prices.xlsx
 player_list = 2; n = 11
-#file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
-file = "C:/Users/Subramanya.Ganti/Downloads/cricket/NBA prices.xlsx"
+file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
+#file = "C:/Users/Subramanya.Ganti/Downloads/cricket/NBA prices.xlsx"
 
 teams = ['ATL','BOS','BKN','CHA','CHI','CLE','DAL','DEN','DET','GSW','HOU','IND','LAC','LAL','MEM',
          'MIA','MIL','MIN','NOP','NYK','OKC','ORL','PHI','PHX','POR','SAC','SAS','TOR','UTA','WAS']
@@ -356,6 +356,8 @@ def solver(f_points):
     return duplicate,xpts,cost
 
 def iterator(f_points,n):
+    f_points = f_points[f_points.MIN >= 8]
+    f_points.reset_index(drop=True, inplace=True)
     a_team = [["1","2","3","4","5","6","7","8","Star","Pro","xPts",'xMins','Cost']];
     k=1
     while(k<n+1):      
@@ -386,10 +388,12 @@ def iterator(f_points,n):
         else:
             a_team.append(names)
             print(f"solution {k} found")
-        k = k + 1
+        k = k + 1   
     return a_team
 
 a_team = iterator(f_points,n)
 a_team = pd.DataFrame(a_team)
 a_team.columns = a_team.iloc[0];a_team = a_team.drop(0)
 a_team = a_team.apply(pd.to_numeric, errors='ignore')
+a_team = a_team.sort_values(by=['xPts'],ascending=False)
+a_team.index = np.arange(1, len(a_team)+1)
