@@ -6,7 +6,7 @@ f_points['FP'] = f_points['FP/MIN']*f_points['MIN']
 @author: GF63
 """
 # %%  specify the teams playing
-import pandas as pd     
+import pandas as pd
 import numpy as np
 from itertools import chain
 from pulp import LpMaximize, LpProblem, lpSum, LpVariable, GLPK
@@ -14,12 +14,12 @@ from scipy.stats import truncnorm
 pd.options.mode.chained_assignment = None  # default='warn'
 
 date = '12/25/23'     #month/day/year
-squads = ['MIL','NYK']
+squads = ['PHX','DAL']
 
 # 0-picks up players from the team pages, 1-from ROS projections page, 2-from the NBA prices.xlsx
-player_list = 2; n = 11
-file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
-#file = "C:/Users/Subramanya.Ganti/Downloads/cricket/NBA prices.xlsx"
+player_list = 2; n = 11; use_solver = 1
+#file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
+file = "C:/Users/Subramanya.Ganti/Downloads/cricket/NBA prices.xlsx"
 
 teams = ['ATL','BOS','BKN','CHA','CHI','CLE','DAL','DEN','DET','GSW','HOU','IND','LAC','LAL','MEM',
          'MIA','MIL','MIN','NOP','NYK','OKC','ORL','PHI','PHX','POR','SAC','SAS','TOR','UTA','WAS']
@@ -206,7 +206,7 @@ except FileNotFoundError:
     f_points['Pos'] = 1
     f_points['Cost'] = 0.5
 
-# %%  generate n unique lineup combinations (legacy)
+# %%  generate unique combinations using a randomizer (legacy)
 def randomizer(f_points_og,f_points,home,opps,n):
     team = [["PG","SG","SF","PF","C","6","7","8","Star","Pro","xPts",'xMins','Cost']]; i=0; j=0; it=0   
     while (i<n and it<30000):
@@ -294,16 +294,7 @@ def randomizer(f_points_og,f_points,home,opps,n):
     #team = team.T
     return team
 
-f_points['Name'] = f_points['Name'].str.replace("-", " ")
-f_points['Team'] = f_points['Team'].str.replace("-", " ")    
-#a_team = randomizer(f_points,f_points.copy(),squads[0].replace('-',' '),squads[1].replace('-',' '),n)
-
-# %%  PuLP solver
-print()
-for t in squads:
-    print(round(f_points.loc[f_points['Team']==t.replace('-',' '),'PTS'].sum(),1),t.replace('-',' '),"(",round(f_points.loc[f_points['Team']==t.replace('-',' '),'MIN'].sum(),1),")")
-print()
-
+# %%  generate unique combinations using a PuLP solver
 def get_truncated_normal(mean=0, sd=1, low=0, upp=10):
     return truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd)
 
@@ -391,9 +382,19 @@ def iterator(f_points,n):
         k = k + 1   
     return a_team
 
-a_team = iterator(f_points,n)
-a_team = pd.DataFrame(a_team)
-a_team.columns = a_team.iloc[0];a_team = a_team.drop(0)
-a_team = a_team.apply(pd.to_numeric, errors='ignore')
+#%% print team stats and combos
+print()
+for t in squads:
+    print(round(f_points.loc[f_points['Team']==t.replace('-',' '),'PTS'].sum(),1),t.replace('-',' '),"(",round(f_points.loc[f_points['Team']==t.replace('-',' '),'MIN'].sum(),1),")")
+print()
+f_points['Name'] = f_points['Name'].str.replace("-", " ")
+f_points['Team'] = f_points['Team'].str.replace("-", " ")
+if(use_solver == 1):
+    a_team = iterator(f_points,n)
+    a_team = pd.DataFrame(a_team)
+    a_team.columns = a_team.iloc[0];a_team = a_team.drop(0)
+    a_team = a_team.apply(pd.to_numeric, errors='ignore')
+else:
+    a_team = randomizer(f_points,f_points.copy(),squads[0].replace('-',' '),squads[1].replace('-',' '),n)
 a_team = a_team.sort_values(by=['xPts'],ascending=False)
 a_team.index = np.arange(1, len(a_team)+1)
