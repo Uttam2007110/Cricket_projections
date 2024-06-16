@@ -16,7 +16,7 @@ venues = pd.read_excel(input_file,'Sheet1')
 def venue_aggregate(venue_list,venues,path):
     file_list = glob.glob(path + "/*summary.xlsx")
     for file in file_list:
-        if(file[-17:] != "smat_summary.xlsx"):
+        if(file[-17:] != "smat_summary.xlsx" or True):
             df_bat = pd.read_excel(file,'venue batting')
             comp_venues = df_bat['Venue'].tolist()
             #venue_list.append(comp_venues)
