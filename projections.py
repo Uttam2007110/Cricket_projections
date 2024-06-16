@@ -11,8 +11,8 @@ from datetime import datetime
 from usage import *
 pd.options.mode.chained_assignment = None  # default='warn'
 
-comp = 'bbl'
-proj_year = 2024  #year+1 of the last season for which you have data
+comp = 'blast'
+proj_year = 2025  #year+1 of the season you want projections for
 aggregate = 0
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
@@ -20,7 +20,7 @@ if(comp=='hundred' or comp=='hundredw'):
     factor = (5/6); aggregate = 1 #hundred
 elif(comp=='odi' or comp=='odiq' or comp=='odiw' or comp=='rlc'):
     factor = 2.5; aggregate = 1  #odi
-elif(comp=='tests' or comp == 'cc' or comp == 'shield'):
+elif(comp=='tests' or comp == 'cc' or comp == 'shield' or comp == 'testsw'):
     factor = 11.25; aggregate = 1 #test
 elif(comp=='t20iq'):
     factor = 1; aggregate = 0 #international t20 qualifiers
@@ -67,31 +67,31 @@ name00 = file3['batsman'].values
 unique_names2 = unique(name00)
 
 def player_aging(batting,bowling,proj_year):
+    missing = []
     #reference = pd.read_csv(f'{path}/people.csv',sep=',',low_memory=False,encoding='latin-1')
     reference = pd.read_excel(f'{path}/people.xlsx','people')
     print("Player DOBs collected")
-    print("-----------------------------------")
     for y0 in batting.values:
         p_dob = reference.loc[reference['unique_name']==y0[0],'dob'].sum()
-        try: p_age = int((datetime(proj_year,4,1) - p_dob).days/365)
-        except TypeError: p_age = 28; print(y0[0],"has dob issue")
-        batting.loc[batting['batsman']==y0[0],'dots/ball'] += 0.000966*p_age + 0.058436*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.02771
-        batting.loc[batting['batsman']==y0[0],'1s/ball'] += -0.00072866*p_age - 0.038869*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.023522
-        batting.loc[batting['batsman']==y0[0],'2s/ball'] += -0.00012862*p_age + 0.009251*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.017422
-        batting.loc[batting['batsman']==y0[0],'4s/ball'] += 0.000071548*p_age - 0.026967*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.001723
-        batting.loc[batting['batsman']==y0[0],'6s/ball'] += -0.000094568*p_age + 0.005449*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.001363
-        batting.loc[batting['batsman']==y0[0],'wickets/ball'] += 0.000277347*p_age + 0.010306*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.007334
+        try: p_age = int((datetime(y0[1],4,1) - p_dob).days/365)
+        except TypeError: p_age = 28; missing.append(y0[0])
+        batting.loc[(batting['batsman']==y0[0])&(batting['season']==y0[1]),'dots/ball'] += 0.000966*p_age + 0.058436*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.02771
+        batting.loc[(batting['batsman']==y0[0])&(batting['season']==y0[1]),'1s/ball'] += -0.00072866*p_age - 0.038869*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.023522
+        batting.loc[(batting['batsman']==y0[0])&(batting['season']==y0[1]),'2s/ball'] += -0.00012862*p_age + 0.009251*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.017422
+        batting.loc[(batting['batsman']==y0[0])&(batting['season']==y0[1]),'4s/ball'] += 0.000071548*p_age - 0.026967*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.001723
+        batting.loc[(batting['batsman']==y0[0])&(batting['season']==y0[1]),'6s/ball'] += -0.000094568*p_age + 0.005449*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.001363
+        batting.loc[(batting['batsman']==y0[0])&(batting['season']==y0[1]),'wickets/ball'] += 0.000277347*p_age + 0.010306*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.007334
         
     for y00 in bowling.values:
         p_dob = reference.loc[reference['unique_name']==y00[0],'dob'].sum()
-        try: p_age = int((datetime(proj_year,4,1) - p_dob).days/365)
-        except TypeError: p_age = 28; print(y00[0],"has dob issue")
-        bowling.loc[bowling['bowler']==y00[0],'dots/ball'] += -0.00007606*p_age + 0.172822*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.01640
-        bowling.loc[bowling['bowler']==y00[0],'1s/ball'] += 0.000013308*p_age - 0.0720761*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.005167
-        bowling.loc[bowling['bowler']==y00[0],'2s/ball'] += 0.000051438*p_age - 0.0774087*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.003987
-        bowling.loc[bowling['bowler']==y00[0],'4s/ball'] += 0.000010719*p_age - 0.0235676*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.003424
-        bowling.loc[bowling['bowler']==y00[0],'6s/ball'] += 0.000003777*p_age + 0.0060524*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.003439
-        bowling.loc[bowling['bowler']==y00[0],'wickets/ball'] += 0.000112113*p_age + 0.0158677*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.005956
+        try: p_age = int((datetime(y00[1],4,1) - p_dob).days/365)
+        except TypeError: p_age = 28; missing.append(y00[0])
+        bowling.loc[(bowling['bowler']==y00[0])&(bowling['season']==y00[1]),'dots/ball'] += -0.00007606*p_age + 0.172822*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.01640
+        bowling.loc[(bowling['bowler']==y00[0])&(bowling['season']==y00[1]),'1s/ball'] += 0.000013308*p_age - 0.0720761*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.005167
+        bowling.loc[(bowling['bowler']==y00[0])&(bowling['season']==y00[1]),'2s/ball'] += 0.000051438*p_age - 0.0774087*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.003987
+        bowling.loc[(bowling['bowler']==y00[0])&(bowling['season']==y00[1]),'4s/ball'] += 0.000010719*p_age - 0.0235676*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.003424
+        bowling.loc[(bowling['bowler']==y00[0])&(bowling['season']==y00[1]),'6s/ball'] += 0.000003777*p_age + 0.0060524*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.003439
+        bowling.loc[(bowling['bowler']==y00[0])&(bowling['season']==y00[1]),'wickets/ball'] += 0.000112113*p_age + 0.0158677*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.005956
         
     batting['runs/ball'] = batting['1s/ball']+2*batting['2s/ball']+3*batting['3s/ball']+4*batting['4s/ball']+6*batting['6s/ball']
     batting['SR'] = 100*batting['runs/ball']
@@ -100,8 +100,9 @@ def player_aging(batting,bowling,proj_year):
     bowling['runs/ball'] = bowling['1s/ball']+2*bowling['2s/ball']+3*bowling['3s/ball']+4*bowling['4s/ball']+6*bowling['6s/ball']+bowling['extras/ball']
     bowling['ECON'] = 6*bowling['runs/ball']
     bowling['SR'] = 1/bowling['wickets/ball']
-    print("-----------------------------------")
-    return (batting,bowling)
+    missing = set(missing)
+    missing = list(missing)
+    return (batting,bowling,missing)
 
 def mdist(df,v,p):
     proxy1 = 18+math.sqrt(df.loc[(df['bowler']==v[0])&(df['season']<v[1]),'balls_bowler'].sum())/5
@@ -667,8 +668,9 @@ def proj_dump():
     lol4.columns = lol4.iloc[0];lol4 = lol4.drop(0)
     print("batting projections dumped")
     
+    missing = []
     if(factor <= 2.5): 
-        (lol5,lol2) = player_aging(lol4.copy(),lol.copy(),proj_year)
+        (lol5,lol2,missing) = player_aging(lol4.copy(),lol.copy(),proj_year)
     else:
         lol2 = pd.DataFrame(lolcow) #lolcow2
         lol2.columns = lol2.iloc[0];lol2 = lol2.drop(0)
@@ -760,7 +762,7 @@ def proj_dump():
     print("venue factors dumped")
     #now = datetime.datetime.now()
     #print(now.time())
-    return (lol2,lol5)
+    return (lol2,lol5,missing)
 
 def comps_future(df,comps):
     names = df['bowler'].values
@@ -1449,6 +1451,42 @@ def logs(x,y):
     #mdist_bat(file3,batting_projection(file3,file4,x,y),unique_names2)
     print("logs dumped")
 
+def multi_year(x,y):
+    bats = [["batsman","season","team","RSAA","OAA","usage","balls/wkt","SR","runs/ball","wickets/ball","pp usage","mid usage","setup usage","death usage","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","xballs/wkt","xSR","bf_GP"]]
+    bat_player = batting_projection(file3,file4,x,y)
+    if(bat_player[3] > 0):
+        a = factor*1.2*(bat_player[5]-bat_player[19])*bat_player[3] #100*(p_dummy[4]/p_dummy[18])
+        b = factor*120*((1/bat_player[4])-(1/bat_player[18]))*bat_player[3] #100*(p_dummy[5]/p_dummy[19])
+        bat_player.insert(3,a)
+        bat_player.insert(4,b)
+    #bats.append(bat_player,bat_player,bat_player,bat_player,bat_player)
+    bats = bats + [bat_player] + [bat_player] + [bat_player] + [bat_player] + [bat_player]
+    bats = pd.DataFrame(bats)
+    bats.columns = bats.iloc[0];bats = bats.drop(0)
+    bats['season'] = [y,y+1,y+2,y+3,y+4]
+    
+    bowls = [["bowler","season","team","RCAA","WTAA","usage","ECON","SR","wickets/ball","pp usage","mid usage","setup usage","death usage","runs/ball","dots/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","xECON","xSR","bb_GP"]]
+    bowl_player = bowling_projection(file,file2,x,y)
+    if(bowl_player[3] > 0):        
+        b = factor*120*((1/bowl_player[5])-(1/bowl_player[20]))*bowl_player[3]
+        a = factor*1.2*(bowl_player[4]-bowl_player[19])*bowl_player[3] + factor*6*b
+        bowl_player.insert(3,a)
+        bowl_player.insert(4,b)
+    bowls = bowls + [bowl_player] + [bowl_player] + [bowl_player] + [bowl_player] + [bowl_player]
+    bowls = pd.DataFrame(bowls)
+    bowls.columns = bowls.iloc[0];bowls = bowls.drop(0)
+    bowls['season'] = [y,y+1,y+2,y+3,y+4]
+    
+    bats = bats.apply(pd.to_numeric, errors='ignore')
+    bowls = bowls.apply(pd.to_numeric, errors='ignore')
+    (bats,bowls) = player_aging(bats.copy(),bowls.copy(),y)
+    bats['RSAA'] = factor*1.2*(bats['SR']-bats['xSR'])*bats['usage']
+    bats['OAA'] = factor*120*((1/bats['balls/wkt'])-(1/bats['xballs/wkt']))*bats['usage']
+    bowls['WTAA'] = factor*120*((1/bowls['SR'])-(1/bowls['xSR']))*bowls['usage']
+    bowls['RCAA'] = factor*1.2*(bowls['ECON']-bowls['xECON'])*bowls['usage'] - factor*6*bowls['WTAA']
+    return bats,bowls
+
+#bats,bowls = multi_year("V Kohli",2024)
 #logs("V Kohli",2024)
 #venue_projections = venue_projections()
-(aa_bowl,aa_bat)=proj_dump()
+(aa_bowl,aa_bat,missing_dob)=proj_dump()
