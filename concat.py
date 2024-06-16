@@ -9,7 +9,7 @@ import glob
 import pandas as pd
 from datetime import datetime
  
-comp = 'wbbl'
+comp = 'blast'
 if(comp == 'odiq'):
     path = "C:/Users/Subramanya.Ganti/Downloads/cricket/raw/odi"
 elif(comp == 't20iq'):
@@ -18,7 +18,7 @@ else:
     path = f"C:/Users/Subramanya.Ganti/Downloads/cricket/raw/{comp}"
 output = f'C:/Users/Subramanya.Ganti/Downloads/cricket/raw/{comp}.csv'
 output2 = f'C:/Users/Subramanya.Ganti/Downloads/cricket/raw/{comp}_GP.csv'
-db_start = 2017
+db_start = 2018
 db_end = 2100
 league = 0; check = 0
 col_names = ["col1", "col2", "team", "player","id"]
@@ -34,7 +34,7 @@ elif(comp == 'odiw'):
 elif(comp == 'odi'):
     countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","Pakistan","Bangladesh","Afghanistan","West Indies","Netherlands","Nepal","Ireland"]
 elif(comp == 't20i'):
-    countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","West Indies","Pakistan","Bangladesh","Ireland","Afghanistan","Zimbabwe","Scotland","Netherlands","Namibia","United Arab Emirates","Nepal","Oman","Papua New Guinea","Canada","United States of America"]
+    countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","West Indies","Pakistan","Bangladesh","Ireland","Afghanistan","Zimbabwe","Scotland","Netherlands","Namibia","United Arab Emirates","Nepal","Oman","Papua New Guinea","Canada","United States of America","Uganda"]
 elif(comp == 't20iq'):
     countries = ["Ireland","Scotland","Jersey","Italy","Germany","Denmark","Austria","Netherlands","Zimbabwe","Namibia","Nigeria","Rwanda","Tanzania","Uganda","Kenya","Bahrain","Hong Kong","Kuwait","Malaysia","Nepal","Oman","Singapore","United Arab Emirates","Japan","Papua New Guinea","Philippines","Canada","United States of America"]
 elif(comp == 'tests'):
