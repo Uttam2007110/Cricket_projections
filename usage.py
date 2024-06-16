@@ -390,9 +390,9 @@ def balance(file_batting,file_bowling,display,fac):
         file_bowling['xECON'][c] = file_bowling['xECON'][c]*(adj_runs+extras)/lg_runs_bowl
         file_bowling['runs/ball'][c] = file_bowling['extras/ball'][c]+ file_bowling['1s/ball'][c] + 2*file_bowling['2s/ball'][c] + 3*file_bowling['3s/ball'][c] + 4*file_bowling['4s/ball'][c] + 6*file_bowling['6s/ball'][c]
         file_bowling['ECON'][c] = 6*file_bowling['runs/ball'][c]
-        file_bowling['SR'][c] = 1/file_bowling['wickets/ball'][c]
-        file_bowling['RCAA'][c] = fac*20*(file_bowling['ECON'][c]-file_bowling['xECON'][c])*file_bowling['usage'][c]
+        file_bowling['SR'][c] = 1/file_bowling['wickets/ball'][c]        
         file_bowling['WTAA'][c] = fac*120*(1/file_bowling['SR'][c]-1/file_bowling['xSR'][c])*file_bowling['usage'][c]
+        file_bowling['RCAA'][c] = fac*20*(file_bowling['ECON'][c]-file_bowling['xECON'][c])*file_bowling['usage'][c] - (6*fac)*file_bowling['WTAA'][c] #check if its 6
         
     return (file_batting,file_bowling)
 
