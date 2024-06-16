@@ -40,7 +40,7 @@ reference = reference.fillna(0)
 
 #%% extract DOBs for every player
 def age(key,start):
-    p_age = 0; dob = datetime(1,1,1)
+    p_age = 0; dob = datetime(1,1,1); bat_type = ''; bowl_type = ''
     try:
         with urllib.request.urlopen(f'http://core.espnuk.org/v2/sports/cricket/athletes/{key}') as url:
             data = json.load(url)
@@ -55,38 +55,50 @@ def age(key,start):
                 except ValueError:
                     print(name,"issue with dob",dob)
                     p_age = 100
+                try:
+                    bat_type = data['style'][0]['description']
+                except IndexError:
+                    bat_type = 'NA'
+                try:
+                    bowl_type = data['style'][1]['description']
+                except IndexError:
+                    bowl_type = 'NA'
             except KeyError:
                 print(key,"API label mismatch")
                 p_age = 100
     except HTTPError:
         print(key,"id not in cricinfo")
         p_age = 100
-    return (age,dob)
+    return (age,dob,bat_type,bowl_type)
 
 def names_list(batting,bowling,reference):
     bat = batting['batsman'].to_list()
     bowl = bowling['bowler'].to_list()
     names = bat + bowl
     names = list(set(names))
-    df = pd.DataFrame(columns=['name','ID','DOB'])
+    df = pd.DataFrame(columns=['name','ID','DOB','batType','bowlType'])
     df['name'] = names
     
     for x0 in df.values:
         #print(x0)
         pid = int(reference.loc[reference['unique_name']==x0[0],'key_cricinfo'].sum())
         df.loc[df['name']==x0[0],'ID'] = pid
-        p_age,dob = age(pid,datetime(2023,4,1))
+        p_age,dob,bat_type,bowl_type = age(pid,datetime(2024,4,1))
         df.loc[df['name']==x0[0],'DOB'] = dob
     return df
 
 def names_list_full(sheet):
     reference = pd.read_excel(f'{path}/people.xlsx',f'{sheet}')
+    #reference['batType'] = ''
+    #reference['bowlType'] = ''
     #reference = reference.fillna(0)
     #reference['dob'] = age(int(reference['key_cricinfo']),datetime(2023,4,1))[1]
     for x in reference.values:
         p_key = reference.loc[reference['unique_name']==x[2],'key_cricinfo'].sum()
-        p_age,p_dob = age(int(p_key),datetime(2023,4,1))
+        p_age,p_dob,bat_type,bowl_type = age(int(p_key),datetime(2024,4,1))
         reference.loc[reference['unique_name']==x[2],'dob'] = p_dob
+        reference.loc[reference['unique_name']==x[2],'batType'] = bat_type
+        reference.loc[reference['unique_name']==x[2],'bowlType'] = bowl_type
     return reference
 
 #names = names_list(batting_bbl,bowling_bbl,reference)
