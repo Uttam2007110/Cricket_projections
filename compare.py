@@ -8,9 +8,9 @@ comparing stats across different leagues
 import pandas as pd
 import numpy as np
 
-file1 = 'C:/Users/Subramanya.Ganti/Downloads/cricket/ipl_summary_full.xlsx'
-file2 = 'C:/Users/Subramanya.Ganti/Downloads/cricket/smat_summary.xlsx'
-output_dump = "C:/Users/Subramanya.Ganti/Downloads/league_comparision.xlsx"
+file1 = 'C:/Users/Subramanya.Ganti/Downloads/cricket/summary/ss_summary.xlsx'
+file2 = 'C:/Users/Subramanya.Ganti/Downloads/cricket/summary/hundred_summary.xlsx'
+output_dump = "C:/Users/Subramanya.Ganti/Downloads/cricket/league_comparision.xlsx"
 
 def bowling(file1,file2):
     file1 = pd.read_excel(file1,'bowling seasons')
@@ -60,8 +60,13 @@ runs_l2 = sum(common_bat['SR_l2']*common_bat['balls_l2']/100)
 print("l1 RSAA per 120 balls",120*(runs_l1-sum(common_bat['xruns_l1']))/sum(common_bat['balls_l1']))
 print("l2 RSAA per 120 balls",120*(runs_l2-sum(common_bat['xruns_l2']))/sum(common_bat['balls_l2']))
 
+l1_sr = 100*runs_l1/sum(common_bat['balls_l1'])
+l1_xsr = 100*sum(common_bat['xruns_l1'])/sum(common_bat['balls_l1'])
+l2_sr = 100*runs_l2/sum(common_bat['balls_l2'])
+l2_xsr = 100*sum(common_bat['xruns_l2'])/sum(common_bat['balls_l2'])
 print("l1 SR",100*runs_l1/sum(common_bat['balls_l1']))
 print("l1 xSR",100*sum(common_bat['xruns_l1'])/sum(common_bat['balls_l1']))
 print("l2 SR",100*runs_l2/sum(common_bat['balls_l2']))
 print("l2 xSR",100*sum(common_bat['xruns_l2'])/sum(common_bat['balls_l2']))
 print("common seasons",len(common_bat))
+print("factor l2 v l1",(l2_sr/l1_sr)/(l2_xsr/l1_xsr))
