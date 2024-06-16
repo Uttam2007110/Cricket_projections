@@ -8,15 +8,17 @@ convert stats from one league to another and create an aggregate file
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 
-base_comp = 'bbl'
+base_comp = 'blast'
 compm = ['bbl','ipl','lpl','sa20','hundred','bpl','blast','mlc','psl','ilt','t20i','cpl','odi','odiq','rlc','smat','ss','t20iq']
 lsm = [.95,1,.9,.95,1,.9,.95,.95,1,.95,.95,1,.95,.8,.8,.85,.9,.8]
-compw = ['wbbl','wpl','hundredw','t20iw','frb','odiw','wcpl']
-lsw = [1,1,1,.9,.85,.9,1]
+compw = ['wbbl','wpl','hundredw','t20iw','frb','odiw','wcpl','wss']
+lsw = [1,1,1,.9,.85,.9,1,.85]
 compt = ['tests','cc','shield']
 lst = [1,.9,.9]
 
-name_changes = [['NR Sciver','NR Sciver-Brunt'],['KH Brunt','KH Sciver-Brunt'],['L Winfield','L Winfield-Hill']]
+name_changes = [['NR Sciver','NR Sciver-Brunt'],['KH Brunt','KH Sciver-Brunt'],['L Winfield','L Winfield-Hill'],
+                ['Navdeep Saini','NA Saini'],['J Brown','Josh Brown'],['Mohammad Nawaz (3)','Mohammad Nawaz'],
+                ['Arshad Khan','Arshad Khan (2)'],['Mohsin Khan (2)','Mohsin Khan'],['Steven Ryan Taylor','SR Taylor']]
 name_changes = pd.DataFrame(name_changes, columns=['old', 'new'])
 
 if(base_comp in compw): 
@@ -35,7 +37,7 @@ elif(base_comp in compt):
     mult = ls[compt.index(base_comp)]
     ls = [x/mult for x in ls]
 else:
-    print("new competition, not in either list")
+    print("new competition, not in any list")
     comp = [base_comp]; ls = [1]; mult = 1
 
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
@@ -47,7 +49,7 @@ if(base_comp=='hundred' or base_comp=='hundredw'):
     factor = (5/6); #hundred
 elif(base_comp=='odi' or base_comp=='odiw' or base_comp=='odiq' or base_comp=='rlc'):
     factor = 2.5;   #odi
-elif(base_comp=='tests' or base_comp=='cc' or base_comp=='shield'):
+elif(base_comp=='tests' or base_comp=='cc' or base_comp=='shield' or base_comp=='testsw'):
     factor = 11.25; #test
 else:
     factor = 1;     #assume its a t20 by default
@@ -155,7 +157,7 @@ while i<len(comp):
         comp_bowl['6s'] = comp_bowl['6s'] * rc_f / ls[i]
         comp_bowl['extras'] = comp_bowl['extras'] * rc_f
         comp_bowl['balls_bowler'] = comp_bowl['runs_off_bat']/(comp_bowl['runs/ball']+0.0000001)
-        comp_bowl['bb_GP'] = comp_bowl['balls_bowler']/comp_bowl['bb_GP']
+        comp_bowl['bb_GP'] = (comp_bowl['balls_bowler']/comp_bowl['bb_GP']) * rc_f  #review this !!!
         comp_bowl['0s'] = comp_bowl['balls_bowler'] - (comp_bowl['1s']+comp_bowl['2s']+comp_bowl['3s']+comp_bowl['4s']+comp_bowl['6s']+comp_bowl['outs_bowler'])
         comp_bowl.loc[comp_bowl['0s']<0,'0s']=0
         if(comp[i]=='hundred' or comp[i]=='hundredw'): comp_bowl['bb_GP'] = comp_bowl['bb_GP'] *(5/6)
