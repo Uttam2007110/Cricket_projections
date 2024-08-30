@@ -15,29 +15,22 @@ from collections import Counter
 pd.options.mode.chained_assignment = None  # default='warn'
 np.seterr(all='ignore')
 
-comp = 'blast'; year = '24'; unique_combos = 4
+comp = 'cpl'; year = '24'; unique_combos = 4
 #if another league data is used as a proxy then set 1
 home=[]; opps=[]; venue = []; proxy = 0; custom = 0
 #date based game selection if 0, else specific gameweek or entire season
 gw = 0; write = 0
 #select teams manually
-#home = ["Canada"]; opps = ["Australia"]; venue = ["Providence"]
-#home = ["Worcestershire"]; opps = ["Lancashire"]; venue = ["Worcester"]
+#home = ["Sri Lanka"]; opps = ["India"]; venue = ["RICS"]
 #select custom date
-#custom = dt.datetime(2024,6,9) #year,month,date
+custom = dt.datetime(2024,8,31) #year,month,date
 #type of scoring system, default dream 11
-coversoff = 0; ex22 = 0; cricdraft = 1
+coversoff = 0; ex22 = 0; cricdraft = 0
 
 #frauds like ben stokes who bowl whenever they feel like it
-not_bowling_list = ['BA Stokes']
+not_bowling_list = ['BA Stokes','TM Head','SE Rutherford','R Powell','WL Madsen']
 #frauds who suddenly decide to bat in a different position
-custom_position_list = [['DR Mousley',4],['SR Patel',7],['BA Carse',5],['BA Raine',7],['KS Carlson',1],['EJ Byrom',2],
-                        ['D Elgar',1],['MS Pepper',3],['AM Rossington',2],['PI Walter',5],['DR Sams',7],
-                        ['B Swanepoel',8],['XC Bartlett',11],['LWP Wells',2],['GJ Bell',3],['JL du Plooy',4],
-                        ['DJ Willey',3],['RS Bopara',4],['LW James',4],['TB Abell',4],['TK Curran',6],['OJ Price',7],
-                        ['HD Ward',1],['OJ Carter',4],['DJ Lamb',5],['FJ Hudson-Prentice',8],['GH Roderick',6],
-                        ['AJ Hose',4],['JJ Cobb',3],['MJ Waite',1],['EA Brookes',5],['A Lyth',1],['James Bracey',3],
-                        ['JJ Bohannon',1],['CJ Anderson',6]]
+custom_position_list = [['T Stubbs',6],['SP Narine',1]]
 
 #%% find projections for the games in question
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
@@ -83,7 +76,7 @@ else:
 
 if(comp=='hundred' or comp=='hundredw'):
     f = (5/6); #hundred
-elif(comp=='odi' or comp=='odiw' or comp=='odiq' or comp=='rlc'):
+elif(comp=='odi' or comp=='odiw' or comp=='odiq' or comp=='rlc' or comp=='rhf'):
     f = 2.5;   #odi
 elif(comp=='tests' or comp == 'cc' or comp == 'shield' or comp == 'testsw'):
     f = 11.25; #test
@@ -111,11 +104,22 @@ def adj(x,f,bat):
 def get_truncated_normal(mean=0, sd=1, low=0, upp=10):
     return truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd)
 
-def adj_bowl_usage(t1,t2,bowl_game):
+def adj_bowl_usage(t1,t2,bowl_game,bias_spin,bias_pace):
     #print(bowl_game.loc[bowl_game['team']==t1,'usage'].sum())
     #print(bowl_game.loc[bowl_game['team']==t2,'usage'].sum())
     t1_bowl = bowl_game.loc[bowl_game['team']==t1,'usage'].sum()
+    t1_spin = bowl_game.loc[(bowl_game['team']==t1)&(bowl_game['bowlType_main']=='spin'),'usage'].sum()
+    t1_pace = bowl_game.loc[(bowl_game['team']==t1)&(bowl_game['bowlType_main']=='pace'),'usage'].sum()
+    #print(t1_pace,t1_spin)
     t2_bowl = bowl_game.loc[bowl_game['team']==t2,'usage'].sum()
+    t2_spin = bowl_game.loc[(bowl_game['team']==t2)&(bowl_game['bowlType_main']=='spin'),'usage'].sum()
+    t2_pace = bowl_game.loc[(bowl_game['team']==t2)&(bowl_game['bowlType_main']=='pace'),'usage'].sum()
+    
+    bowl_game.loc[(bowl_game['team']==t1)&(bowl_game['bowlType_main']=='spin'),'usage'] = (bias_spin/0.35)*bowl_game.loc[(bowl_game['team']==t1)&(bowl_game['bowlType_main']=='spin'),'usage']
+    bowl_game.loc[(bowl_game['team']==t1)&(bowl_game['bowlType_main']=='pace'),'usage'] = (bias_pace/0.65)*bowl_game.loc[(bowl_game['team']==t1)&(bowl_game['bowlType_main']=='pace'),'usage']
+    bowl_game.loc[(bowl_game['team']==t2)&(bowl_game['bowlType_main']=='spin'),'usage'] = (bias_spin/0.35)*bowl_game.loc[(bowl_game['team']==t2)&(bowl_game['bowlType_main']=='spin'),'usage']
+    bowl_game.loc[(bowl_game['team']==t2)&(bowl_game['bowlType_main']=='pace'),'usage'] = (bias_pace/0.65)*bowl_game.loc[(bowl_game['team']==t2)&(bowl_game['bowlType_main']=='pace'),'usage']
+    
     delta = 1
     while(delta > 0.00000001):
         bowl_game['usage'] = np.minimum(bowl_game['usage'],0.2)
@@ -155,8 +159,14 @@ def game_results(bat_game,factor,t1,t2,s1,s2,c1,c2,league_avg,summary):
 def cricdraft_bonus(SR,bf,rs,ECON,wkts,bb):
     c = 0; bat_total = 0; bowl_total = 0
     while(c<1000):
-        bfi = bf.rvs()
-        SRi = SR.rvs()
+        try:
+            bfi = bf.rvs()
+            SRi = SR.rvs()
+            bbi = bb.rvs()
+        except ValueError:
+            bfi = 0
+            SRi = 0
+            bbi = 0
         rsi = bfi*SRi/100
         milstonei = np.where((rsi>=50)&(rsi<100), 25, 0) + np.where((rsi>=100)&(rsi<75), 50, 0) + np.where(rsi>=150, 75, 0)
         SR_bonusi = np.where((SRi>=0)&(SRi<50), -20, 0) + np.where((SRi>=50)&(SRi<70), -15, 0) + np.where((SRi>=70)&(SRi<90), -10, 0) + \
@@ -164,7 +174,7 @@ def cricdraft_bonus(SR,bf,rs,ECON,wkts,bb):
                     np.where((SRi>=200)&(SRi<230), 1.5*rsi, 0) + np.where(SRi>=230, 2*rsi, 0)
         qualifyi =  np.where((rsi>=16)|(bfi>=12), 1, 0)
         bat_total += milstonei + qualifyi*SR_bonusi
-        bbi = bb.rvs()
+        #bbi = bb.rvs()
         ECONi = ECON.rvs()
         rci = bbi*ECONi/6
         wktsi = wkts.rvs()
@@ -179,26 +189,86 @@ def cricdraft_bonus(SR,bf,rs,ECON,wkts,bb):
     #print (bowl_total/1000)
     return ((bat_total/1000),(bowl_total/1000))
 
+def coversoff_bonus(SR,bf,rs,ECON,wkts,bb,factor):
+    c = 0; bat_total = 0; bowl_total = 0
+    while(c<1000):
+        try:
+            bfi = bf.rvs()
+            SRi = SR.rvs()
+            bbi = bb.rvs()
+        except ValueError:
+            bfi = 0
+            SRi = 0
+            bbi = 0
+        rsi = bfi*SRi/100
+        milstonei = np.where((rsi>=20)&(rsi<30), 20, 0) + np.where((rsi>=30)&(rsi<50), 40, 0) + np.where((rsi>=50)&(rsi<60), 70, 0) + \
+                    np.where((rsi>=65)&(rsi<75), 120, 0) + np.where(rsi>=75, 150, 0)
+        SR_bonusi = np.where((SRi>=0)&(SRi<100)&(bfi>=6), -100, 0) + np.where((SRi>=100)&(SRi<135)&(bfi>=6), -80, 0) + \
+                    np.where((SRi>=140)&(SRi<160)&(rsi>=50), 60, 0) + np.where((SRi>=160)&(SRi<180)&(rsi>=40), 80, 0) + \
+                    np.where((SRi>=180)&(SRi<200)&(rsi>=30), 100, 0) + np.where((SRi>=200)&(rsi>=25), 120, 0)
+        qualifyi =  1
+        bat_total += milstonei + qualifyi*SR_bonusi
+        #bbi = bb.rvs()
+        ECONi = ECON.rvs()
+        rci = bbi*ECONi/(6*factor)
+        wktsi = wkts.rvs()
+        wickets_multiplei = np.where((wktsi>=3)&(wktsi<4), 80, 0) + np.where((wktsi>=4)&(wktsi<5), 150, 0) + np.where(wktsi>=5, 200, 0)
+        ECON_bonusi = np.where((ECONi>=0)&(ECONi<4)&(bbi>=18), 150, 0) + np.where((ECONi>=4)&(ECONi<6)&(bbi>=18), 120, 0) + \
+                      np.where((ECONi>=6)&(ECONi<7.5)&(bbi>=18), 100, 0) + np.where((ECONi>=7.5)&(ECONi<8)&(bbi>=24), 80, 0) + \
+                      np.where((ECONi>=8.5)&(ECONi<9.5)&(bbi>=6), -80, 0) + np.where((ECONi>=9.5)&(bbi>=6), -100, 0)
+        qualify2i = 1
+        bowl_total += wickets_multiplei + qualify2i*ECON_bonusi
+        c += 1
+    #print (bat_total/1000)
+    #print (bowl_total/1000)
+    return ((bat_total/1000),(bowl_total/1000))
+
 def base_calculations(a,b,input_file1,input_file,factor,v):
     t1 = a
     t2 = b
     print(t1,"vs",t2)
     print('Venue -',v)
     venues = pd.read_excel(input_file,'Venue factors')
-    vrf = (venues.loc[venues['Venue']==v,'runs'].sum())**0.5        #square root because the factor is for the game as a whole
-    vwf = (venues.loc[venues['Venue']==v,'wkts'].sum())**0.5
-    if(vrf==0):vrf=1
-    if(vwf==0):vwf=1
+    #square root because the factor is for the game as a whole?
+    vrf = (venues.loc[(venues['venue']==v)&(venues['bowl_type']=='all'),'runs'].sum())
+    vrf_pace = (venues.loc[(venues['venue']==v)&(venues['bowl_type']=='pace'),'runs'].sum())
+    vrf_spin = (venues.loc[(venues['venue']==v)&(venues['bowl_type']=='spin'),'runs'].sum())
+    vwf = (venues.loc[(venues['venue']==v)&(venues['bowl_type']=='all'),'wkts'].sum())
+    vwf_pace = (venues.loc[(venues['venue']==v)&(venues['bowl_type']=='pace'),'wkts'].sum())
+    vwf_spin = (venues.loc[(venues['venue']==v)&(venues['bowl_type']=='spin'),'wkts'].sum())
+    bias_spin = (venues.loc[(venues['venue']==v)&(venues['bowl_type']=='spin'),'bias'].sum())
+    bias_pace = (venues.loc[(venues['venue']==v)&(venues['bowl_type']=='pace'),'bias'].sum())
+    if(vrf==0):vrf=1; vrf_pace=1; vrf_spin=1; bias_spin=0.35; bias_pace=0.65
+    if(vwf==0):vwf=1; vwf_pace=1; vwf_spin=1; bias_spin=0.35; bias_pace=0.65
+    
     (summary,bat,bowl) = h2h_alt(input_file1,input_file,1,factor)
-    bowl = adj_bowl_usage(t1,t2,bowl)
+    
+    people = pd.read_excel(f"{path}/people.xlsx",'people')
+    handedness_bowl = people[['unique_name','bowlType']]
+    bowl = bowl.merge(handedness_bowl, left_on='bowler', right_on='unique_name')
+    bowl = bowl.drop(columns=['unique_name'])
+    bowl['bowlType'] = bowl['bowlType'].fillna('Right-arm medium')
+    bowl['bowlType_main'] = np.where((bowl['bowlType']=='Right-arm offbreak')|(bowl['bowlType']=='Legbreak googly')|(bowl['bowlType']=='Legbreak')|(bowl['bowlType']=='Left-arm wrist-spin')|(bowl['bowlType']=='Slow left-arm orthodox'),'spin', 'pace')
+    
+    #bowl = adj_bowl_usage(t1,t2,bowl,bias_spin,bias_pace)
     summary = summary.apply(pd.to_numeric, errors='ignore')
     league_avg = (summary.loc[(summary['Team']!="Free Agent"),'runs bat'].mean() + summary.loc[(summary['Team']!="Free Agent"),'runs bowl'].mean())/2
     bat['runs/ball'] = bat['runs/ball']*vrf
     bat['SR'] = bat['runs/ball']*100
-    bowl['runs/ball'] = bowl['runs/ball']*vrf
     bat['xSR'] = bat['xSR']*vrf
-    bowl['xECON'] = bowl['xECON']*vrf
+    
+    #bowl['runs/ball'] = bowl['runs/ball']*vrf
+    #bowl['xECON'] = bowl['xECON']*vrf  
+    bowl.loc[bowl['bowlType_main']=='spin','runs/ball'] = bowl.loc[bowl['bowlType_main']=='spin','runs/ball']*vrf_spin
+    bowl.loc[bowl['bowlType_main']=='spin','xECON'] = bowl.loc[bowl['bowlType_main']=='spin','xECON']*vrf_spin
+    bowl.loc[bowl['bowlType_main']=='pace','runs/ball'] = bowl.loc[bowl['bowlType_main']=='pace','runs/ball']*vrf_pace
+    bowl.loc[bowl['bowlType_main']=='pace','xECON'] = bowl.loc[bowl['bowlType_main']=='pace','xECON']*vrf_pace
     bowl = bowl[~bowl['bowler'].isin(not_bowling_list)]
+    
+    bat['wickets/ball'] = bat['wickets/ball']*vwf
+    #bowl['wickets/ball'] = bowl['wickets/ball']*vwf
+    bowl.loc[bowl['bowlType_main']=='spin','wickets/ball'] = bowl.loc[bowl['bowlType_main']=='spin','wickets/ball']*vwf_spin
+    bowl.loc[bowl['bowlType_main']=='pace','wickets/ball'] = bowl.loc[bowl['bowlType_main']=='pace','wickets/ball']*vwf_pace
     
     if(factor<0.75):
         #old logic for balls faced
@@ -238,6 +308,7 @@ def base_calculations(a,b,input_file1,input_file,factor,v):
         bat.loc[bat['team']==t1,'usage'] = bat.loc[bat['team']==t1,'usage'] * ut1bat
         #print(bowl.loc[bowl['team']==t1,'usage'].sum(),bowl.loc[bowl['team']==t2,'usage'].sum(),ut3,ut4)
     
+    bowl = adj_bowl_usage(t1,t2,bowl,bias_spin,bias_pace)
     bowl_t2 = (bowl.loc[bowl['team']==t2,'usage']*bowl.loc[bowl['team']==t2,'runs/ball']*factor*120).sum()
     bowl_t1 = (bowl.loc[bowl['team']==t1,'usage']*bowl.loc[bowl['team']==t1,'runs/ball']*factor*120).sum()
     bat_t2 = (bat.loc[bat['team']==t2,'usage']*bat.loc[bat['team']==t2,'runs/ball']*factor*120).sum() + (bowl.loc[bowl['team']==t1,'usage']*bowl.loc[bowl['team']==t1,'extras/ball']*factor*120).sum()
@@ -307,8 +378,8 @@ def base_calculations(a,b,input_file1,input_file,factor,v):
     
     bat_game["xSR"] = bat_game["xPts"]
     bowl_game["xECON"] = bowl_game["xPts"]
-    bat_game['wickets/ball'] = bat_game['wickets/ball']*vwf
-    bowl_game['wickets/ball'] = bowl_game['wickets/ball']*vwf
+    #bat_game['wickets/ball'] = bat_game['wickets/ball']*vwf
+    #bowl_game['wickets/ball'] = bowl_game['wickets/ball']*vwf
     #hundred has only 5 balls per over
     if(factor==(5/6)): bowl_game['ECON'] = 5*bowl_game['runs/ball']; bowl_game['xECON'] = (5/6)*bowl_game['xECON']
     else: bowl_game['ECON'] = 6*bowl_game['runs/ball']
@@ -363,7 +434,7 @@ def gw_projection(a,b,input_file1,input_file,factor,v):
     
     if(factor != 11.25):
         bowl_game['usage'] = np.minimum(bowl_game['usage'],0.2)
-        bowl_game['xPts'] = 120*factor*bowl_game['usage']*bowl_game['wickets/ball']*28
+        bowl_game['xPts'] = 120*factor*bowl_game['usage']*bowl_game['wickets/ball']*28  # 25*0.6 + 33*0.4
         
         if(factor == 1):    
             bat_game['xPts'] = bat_game['xPts'] + 6*(1-SR.cdf(170))*(1-bf.cdf(10))
@@ -600,30 +671,16 @@ def coversoff_projection(a,b,input_file1,input_file,factor,v):
     rs = get_truncated_normal(mean=bat_game['runs/ball']*bat_game['usage']*120*factor, sd=bat_game['runs/ball']*bat_game['usage']*120*factor*0.6, low=0, upp=250*factor)
     ECON = get_truncated_normal(mean=bowl_game['ECON'], sd=bowl_game['ECON']*0.36, low=0, upp=36)
     wkts = get_truncated_normal(mean=bowl_game['wickets/ball']*bowl_game['usage']*120*factor, sd=bowl_game['wickets/ball']*bowl_game['usage']*120*factor*1.6, low=0, upp=10)
-    bb = get_truncated_normal(mean=bowl_game['usage']*120*factor, sd=bowl_game['usage']*120*0.2, low=0, upp=0.2*120*factor)
+    bb = get_truncated_normal(mean=bowl_game['usage']*120*factor, sd=bowl_game['usage']*120*0.2, low=0, upp=0.2*120*factor)   
     
-    if(factor <= 1):
+    if(factor < 1):
+        bat_game['xPts'] = bat_game['usage']*bat_game['SR']
+    elif(factor == 1):
+        (bat_bonus,bowl_bonus) = coversoff_bonus(SR,bf,rs,ECON,wkts,bb,factor)
         #runs 4s and 6s have pts
-        bat_game['xPts'] = 120*factor*bat_game['usage']*(bat_game['runs/ball']+10*bat_game['6s/ball']+6*bat_game['4s/ball'])
-        #duck        
-        bat_game['xPts'] = bat_game['xPts'] - 0*rs.cdf(1)*(1-bf.cdf(6))
-        #less than x runs
-        bat_game['xPts'] = bat_game['xPts'] - 0*(rs.cdf(5)-rs.cdf(1))*(1-bf.cdf(6))
-        #run rate bonus
-        #bat_game['xPts'] = bat_game['xPts'] + 120*factor*bat_game['usage']*bat_game['runs/ball'] - (4/3)*(bat_game['usage']*factor*120)
+        bat_game['xPts'] = 120*factor*bat_game['usage']*(bat_game['runs/ball']+10*bat_game['6s/ball']+4*bat_game['4s/ball'])
         #SR bonuses
-        bat_game['xPts'] = bat_game['xPts'] + 120*(1-SR.cdf(200))*(1-rs.cdf(20))
-        bat_game['xPts'] = bat_game['xPts'] + 100*(SR.cdf(200)-SR.cdf(180))*(1-rs.cdf(20))
-        bat_game['xPts'] = bat_game['xPts'] + 80*(SR.cdf(180)-SR.cdf(160))*(1-rs.cdf(25))
-        bat_game['xPts'] = bat_game['xPts'] + 60*(SR.cdf(160)-SR.cdf(140))*(1-rs.cdf(25))
-        bat_game['xPts'] = bat_game['xPts'] - 80*(SR.cdf(130)-SR.cdf(100))*(1-bf.cdf(6))
-        bat_game['xPts'] = bat_game['xPts'] - 100*(SR.cdf(100))*(1-bf.cdf(6))
-        #milestone bonuses
-        bat_game['xPts'] = bat_game['xPts'] + 20*(rs.cdf(35)-rs.cdf(20))
-        bat_game['xPts'] = bat_game['xPts'] + 40*(rs.cdf(50)-rs.cdf(35))
-        bat_game['xPts'] = bat_game['xPts'] + 70*(rs.cdf(65)-rs.cdf(50))
-        bat_game['xPts'] = bat_game['xPts'] + 120*(rs.cdf(75)-rs.cdf(65))
-        bat_game['xPts'] = bat_game['xPts'] + 150*(1-rs.cdf(75))
+        bat_game['xPts'] += bat_bonus
     elif(factor == 2.5):
         #runs 4s and 6s have pts
         bat_game['xPts'] = 120*factor*bat_game['usage']*(bat_game['runs/ball']+3*bat_game['6s/ball']+2*bat_game['4s/ball'])
@@ -656,47 +713,15 @@ def coversoff_projection(a,b,input_file1,input_file,factor,v):
     bowl_game = bowl_game.drop(['setup usage'],axis=1)
     bowl_game = bowl_game.drop(['death usage'],axis=1)
     
-    if(factor==5/6):
+    if(factor < 1):
+        bowl_game['xPts'] = bowl_game['usage']*bowl_game['wickets/ball']*100*20
+    if(factor == 1):
         #wicket is 35 pts
         bowl_game['xPts'] = 120*factor*bowl_game['usage']*bowl_game['wickets/ball']*35
         #dot balls pts
         bowl_game['xPts'] += 120*factor*bowl_game['usage']*bowl_game['dots/ball']*5
         #ECON bonuses
-        bowl_game['xPts'] = bowl_game['xPts'] - 100*(1-ECON.cdf(8.5))*(1-bb.cdf(5))
-        bowl_game['xPts'] = bowl_game['xPts'] - 80*(ECON.cdf(8.5)-ECON.cdf(7.5))*(1-bb.cdf(5))
-        bowl_game['xPts'] = bowl_game['xPts'] - 40*(ECON.cdf(7.5)-ECON.cdf(7))*(1-bb.cdf(5))
-        bowl_game['xPts'] = bowl_game['xPts'] + 60*(ECON.cdf(7)-ECON.cdf(6))*(1-bb.cdf(5))
-        bowl_game['xPts'] = bowl_game['xPts'] + 80*(ECON.cdf(6)-ECON.cdf(5))*(1-bb.cdf(5))
-        bowl_game['xPts'] = bowl_game['xPts'] + 100*(ECON.cdf(5)-ECON.cdf(4))*(1-bb.cdf(5))
-        bowl_game['xPts'] = bowl_game['xPts'] + 120*(ECON.cdf(3))*(1-bb.cdf(5))
-        #milestone bonuses
-        #bowl_game['xPts'] = bowl_game['xPts'] + 30*(wkts.cdf(3)-wkts.cdf(2))
-        bowl_game['xPts'] = bowl_game['xPts'] + 80*(wkts.cdf(4)-wkts.cdf(3))
-        bowl_game['xPts'] = bowl_game['xPts'] + 120*(wkts.cdf(5)-wkts.cdf(4))
-        bowl_game['xPts'] = bowl_game['xPts'] + 150*(wkts.cdf(6)-wkts.cdf(5))
-        bowl_game['xPts'] = bowl_game['xPts'] + 200*(1-wkts.cdf(6))
-        #maiden over
-        bowl_game['xPts'] = bowl_game['xPts'] + 100*np.power(bowl_game['dots/ball'],5)*20*bowl_game['usage']*factor
-        
-    elif(factor == 1):
-        #wicket is 35 pts
-        bowl_game['xPts'] = 120*factor*bowl_game['usage']*bowl_game['wickets/ball']*35
-        #dot balls pts
-        bowl_game['xPts'] += 120*factor*bowl_game['usage']*bowl_game['dots/ball']*5
-        #ECON bonuses
-        bowl_game['xPts'] = bowl_game['xPts'] - 100*(1-ECON.cdf(9.5))*(1-bb.cdf(6))
-        bowl_game['xPts'] = bowl_game['xPts'] - 80*(ECON.cdf(9.5)-ECON.cdf(8.5))*(1-bb.cdf(6))
-        bowl_game['xPts'] = bowl_game['xPts'] - 40*(ECON.cdf(8.5)-ECON.cdf(8))*(1-bb.cdf(6))
-        bowl_game['xPts'] = bowl_game['xPts'] + 60*(ECON.cdf(8)-ECON.cdf(7))*(1-bb.cdf(6))
-        bowl_game['xPts'] = bowl_game['xPts'] + 80*(ECON.cdf(7)-ECON.cdf(6))*(1-bb.cdf(6))
-        bowl_game['xPts'] = bowl_game['xPts'] + 100*(ECON.cdf(6)-ECON.cdf(4))*(1-bb.cdf(6))
-        bowl_game['xPts'] = bowl_game['xPts'] + 120*(ECON.cdf(4))*(1-bb.cdf(6))
-        #milestone bonuses
-        #bowl_game['xPts'] = bowl_game['xPts'] + 30*(wkts.cdf(3)-wkts.cdf(2))
-        bowl_game['xPts'] = bowl_game['xPts'] + 80*(wkts.cdf(4)-wkts.cdf(3))
-        bowl_game['xPts'] = bowl_game['xPts'] + 120*(wkts.cdf(5)-wkts.cdf(4))
-        bowl_game['xPts'] = bowl_game['xPts'] + 150*(wkts.cdf(6)-wkts.cdf(5))
-        bowl_game['xPts'] = bowl_game['xPts'] + 200*(1-wkts.cdf(6))
+        bowl_game['xPts'] += bowl_bonus 
         #maiden over
         bowl_game['xPts'] = bowl_game['xPts'] + 100*np.power(bowl_game['dots/ball'],6)*20*bowl_game['usage']*factor
         
@@ -750,7 +775,7 @@ def final_projections(bat_game,bowl_game,runs_t1,runs_t2):
     final = pd.DataFrame(final)
     final.columns = final.iloc[0];final = final.drop(0)
     final = final.fillna(0)
-    if(coversoff == 1): final['total'] = final['bat'] + final['bowl'] + 25
+    if(coversoff == 1): final['total'] = final['bat'] + final['bowl'] #+ 25
     elif(ex22 == 1 or cricdraft == 1): final['total'] = final['bat'] + final['bowl']
     else: final['total'] = final['bat'] + final['bowl'] + 4
     final = final.sort_values(['total'], ascending=[False])
