@@ -4,17 +4,19 @@ Created on Fri Nov 25 18:35:44 2022
 @author: uttam ganti
 converting cricsheet data into league summary tables
 """
+import numpy as np
 import pandas as pd
 from sys import getsizeof
 import datetime
+from itertools import product
 pd.options.mode.chained_assignment = None  # default='warn'
 
-comp = 'blast'
+comp = 'cpl'
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
 if(comp=='hundred' or comp=='hundredw'):
     p1 = 6; p2 = 12; p3 = 17; factor = (5/6);  #hundred
-elif(comp=='odi' or comp=='odiw' or comp=='odiq' or comp=='rlc' or comp=='cwc'):
+elif(comp=='odi' or comp=='odiw' or comp=='odiq' or comp=='rlc' or comp=='cwc' or comp=='rhf'):
     p1 = 10; p2 = 26; p3 = 40; factor = 2.5;   #odi
 elif(comp=='tests' or comp == 'cc' or comp == 'shield' or comp == 'testsw'):
     p1 = 30; p2 = 55; p3 = 80; factor = 11.25; #test
@@ -24,6 +26,7 @@ else:
 input_file = f'{path}/raw/{comp}.csv'
 input_file2 = f'{path}/raw/{comp}_GP.csv'
 input_file3 = f'{path}/venues.xlsx'
+input_file4 = f'{path}/people.xlsx'
 output_file = f"{path}/summary/{comp}_summary.xlsx"
 
 def unique(list1):
@@ -290,6 +293,33 @@ print("venue average and phases data dumped")
 now = datetime.datetime.now()
 print(now.time())
 
+
+handedness = pd.read_excel(input_file4,'people')
+handedness_bat = handedness[['unique_name','batType']]
+handedness_bowl = handedness[['unique_name','bowlType']]
+file0 = file0.merge(handedness_bat, left_on='striker', right_on='unique_name')
+file0 = file0.merge(handedness_bowl, left_on='bowler', right_on='unique_name')
+file0 = file0.drop(columns=['unique_name_x', 'unique_name_y'])
+file0 = file0.merge(file000, left_on='venue', right_on='venue')
+file0['bowlType_main'] = np.where((file0['bowlType']=='Right-arm offbreak')|(file0['bowlType']=='Legbreak googly')|(file0['bowlType']=='Legbreak')|(file0['bowlType']=='Left-arm wrist-spin')|(file0['bowlType']=='Slow left-arm orthodox'),'spin', 'pace')
+
+matchups = list(product(['spin','pace'],file0['short'].unique(),file0['season'].unique()))
+matchups = pd.DataFrame(matchups, columns =['bowl_type','venue','season'])
+
+for x in matchups.values:
+    #print(x)
+    matchups.loc[(matchups['venue']==x[1])&(matchups['bowl_type']==x[0])&(matchups['season']==x[2]),'balls'] = file0.loc[(file0['season']==x[2])&(file0['short']==x[1])&(file0['bowlType_main']==x[0]),'balls_batsman'].sum()
+    matchups.loc[(matchups['venue']==x[1])&(matchups['bowl_type']==x[0])&(matchups['season']==x[2]),'runs'] = file0.loc[(file0['season']==x[2])&(file0['short']==x[1])&(file0['bowlType_main']==x[0]),'runs_off_bat'].sum()
+    matchups.loc[(matchups['venue']==x[1])&(matchups['bowl_type']==x[0])&(matchups['season']==x[2]),'wickets'] = file0.loc[(file0['season']==x[2])&(file0['short']==x[1])&(file0['bowlType_main']==x[0]),'outs_batsman'].sum()
+
+matchups['AVG'] = matchups['balls']/matchups['wickets']
+matchups['SR'] = 100*matchups['runs']/matchups['balls']
+matchups = matchups.dropna()
+
+print("venue pace/spin data dumped")
+now = datetime.datetime.now()
+print(now.time())
+
 player_bat = [["batsman","season","batting_team","RSAA","usage","balls_batsman","runs_off_bat","0s","1s","2s","3s","4s","6s","outs_batsman","powerplay","middle","setup","death","runs/ball","0s/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","wickets/ball","PP usage","mid usage","setup usage","death usage","AVG","SR","xAVG","xSR","xruns","xwickets","bf_GP"]]
 player_bowl = [["bowler","season","bowling_team","RCAA","usage","balls_bowler","runs_off_bat","0s","1s","2s","3s","4s","6s","extras","outs_bowler","powerplay","middle","setup","death","runs/ball","0s/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","wickets/ball","ECON","SR","PP usage","mid usage","setup usage","death usage","xECON","xSR","xruns","xwickets","bb_GP"]]
 
@@ -400,6 +430,7 @@ def dumps():
     lol8 = pd.DataFrame(venue_bat_phase)
     lol8.columns = lol8.iloc[0];lol8 = lol8.drop(0)
     with pd.ExcelWriter(output_file) as writer:
+        matchups.to_excel(writer, sheet_name="venue pace_spin", index=False)
         lol8.to_excel(writer, sheet_name="venue batting", index=False)
         lol7.to_excel(writer, sheet_name="venue bowling", index=False)
         lol6.to_excel(writer, sheet_name="batting seasons", index=False)
