@@ -8,17 +8,18 @@ convert stats from one league to another and create an aggregate file
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 
-base_comp = 'blast'
+base_comp = 'cpl'
 compm = ['bbl','ipl','lpl','sa20','hundred','bpl','blast','mlc','psl','ilt','t20i','cpl','odi','odiq','rlc','smat','ss','t20iq']
 lsm = [.95,1,.9,.95,1,.9,.95,.95,1,.95,.95,1,.95,.8,.8,.85,.9,.8]
-compw = ['wbbl','wpl','hundredw','t20iw','frb','odiw','wcpl','wss']
-lsw = [1,1,1,.9,.85,.9,1,.85]
+compw = ['wbbl','wpl','hundredw','t20iw','frb','odiw','wcpl','wss','cec','rhf']
+lsw = [1,1,1,.9,.85,.9,1,.85,.85,.85]
 compt = ['tests','cc','shield']
 lst = [1,.9,.9]
 
 name_changes = [['NR Sciver','NR Sciver-Brunt'],['KH Brunt','KH Sciver-Brunt'],['L Winfield','L Winfield-Hill'],
                 ['Navdeep Saini','NA Saini'],['J Brown','Josh Brown'],['Mohammad Nawaz (3)','Mohammad Nawaz'],
-                ['Arshad Khan','Arshad Khan (2)'],['Mohsin Khan (2)','Mohsin Khan'],['Steven Ryan Taylor','SR Taylor']]
+                ['Arshad Khan','Arshad Khan (2)'],['Mohsin Khan (2)','Mohsin Khan'],['Steven Ryan Taylor','SR Taylor'],
+                ['Aaron Beard','AP Beard']]
 name_changes = pd.DataFrame(name_changes, columns=['old', 'new'])
 
 if(base_comp in compw): 
@@ -47,7 +48,7 @@ i=0
 
 if(base_comp=='hundred' or base_comp=='hundredw'):
     factor = (5/6); #hundred
-elif(base_comp=='odi' or base_comp=='odiw' or base_comp=='odiq' or base_comp=='rlc'):
+elif(base_comp=='odi' or base_comp=='odiw' or base_comp=='odiq' or base_comp=='rlc' or comp=='rhf'):
     factor = 2.5;   #odi
 elif(base_comp=='tests' or base_comp=='cc' or base_comp=='shield' or base_comp=='testsw'):
     factor = 11.25; #test
@@ -77,8 +78,10 @@ bowl_all = [bowl]
 
 venue_bat = pd.read_excel(input_file,'venue batting')
 venue_bowl = pd.read_excel(input_file,'venue bowling')
+pace_spin = pd.read_excel(input_file,'venue pace_spin')
 venue_bat = [venue_bat]
 venue_bowl = [venue_bowl]
+pace_spin = [pace_spin]
 
 while i<len(comp):
     if(comp[i]!=base_comp):
@@ -96,7 +99,9 @@ while i<len(comp):
         
         comp_venue_bat = pd.read_excel(comp_file,'venue batting')
         comp_venue_bowl = pd.read_excel(comp_file,'venue bowling')
+        comp_pace_spin = pd.read_excel(comp_file,'venue pace_spin')
         print(base_comp,comp[i],"runs","wickets")
+        
         #print("SR",bat['xruns'].sum()/bat['balls_batsman'].sum(),"balls/wkt",bat['balls_batsman'].sum()/bat['outs_batsman'].sum())
         #print("SR",comp_bat['xruns'].sum()/comp_bat['balls_batsman'].sum(),"balls/wkt",comp_bat['balls_batsman'].sum()/comp_bat['outs_batsman'].sum())
         runs_f = ((bat['xruns'].sum()/bat['balls_batsman'].sum())/(comp_bat['xruns'].sum()/comp_bat['balls_batsman'].sum()))
@@ -136,6 +141,10 @@ while i<len(comp):
         comp_venue_bat['Sum of death_runs_batsman'] = comp_venue_bat['Sum of death_runs_batsman'] * runs_f * ls[i]
         comp_venue_bat['Sum of death_wickets_batsman'] = comp_venue_bat['Sum of death_wickets_batsman'] * (1/outs_f) * (1/ ls[i])
         venue_bat.append(comp_venue_bat)
+        
+        comp_pace_spin['runs'] = comp_pace_spin['runs'] * runs_f * ls[i]
+        comp_pace_spin['wickets'] = comp_pace_spin['wickets'] * (1/outs_f) * (1/ ls[i])
+        pace_spin.append(comp_pace_spin)
         
         rc_f = ((bowl['xruns'].sum()/bowl['balls_bowler'].sum())/(comp_bowl['xruns'].sum()/comp_bowl['balls_bowler'].sum()))
         wickets_f = ((bowl['balls_bowler'].sum()/bowl['outs_bowler'].sum())/(comp_bowl['balls_bowler'].sum()/comp_bowl['outs_bowler'].sum()))
@@ -182,6 +191,7 @@ bat_all = pd.concat(bat_all)
 bowl_all = pd.concat(bowl_all)
 venue_bat = pd.concat(venue_bat)
 venue_bowl = pd.concat(venue_bowl)
+pace_spin = pd.concat(pace_spin)
 
 bat_all = bat_all.groupby(['batsman','season'], as_index=False).sum()
 bat_all.insert(loc=2, column='batting_team', value='Free Agent')
@@ -201,6 +211,7 @@ for x in bowl_all.values:
         
 venue_bat = venue_bat.groupby(['Venue','Season'], as_index=False).sum()
 venue_bowl = venue_bowl.groupby(['Venue','Season'], as_index=False).sum()
+pace_spin = pace_spin.groupby(['bowl_type','venue','season'], as_index=False).sum()
 
 bat_all['runs/ball'] = bat_all['runs_off_bat']/(bat_all['balls_batsman']+0.000001)
 bat_all['0s/ball'] = bat_all['0s']/(bat_all['balls_batsman']+0.000001)
@@ -261,10 +272,10 @@ venue_bat['pp AVG'] = venue_bat['Sum of powerplay']/venue_bat['Sum of pp_wickets
 venue_bat['mid AVG'] = venue_bat['Sum of middle']/venue_bat['Sum of mid_wickets_batsman']
 venue_bat['setup AVG'] = venue_bat['Sum of setup']/venue_bat['Sum of setup_wickets_batsman']
 venue_bat['death AVG'] = venue_bat['Sum of death']/venue_bat['Sum of death_wickets_batsman']
-venue_bat['pp SR'] = venue_bat['Sum of pp_runs_batsman']/venue_bat['Sum of powerplay']
-venue_bat['mid SR'] = venue_bat['Sum of mid_runs_batsman']/venue_bat['Sum of middle']
-venue_bat['setup SR'] = venue_bat['Sum of setup_runs_batsman']/venue_bat['Sum of setup']
-venue_bat['death SR'] = venue_bat['Sum of death_runs_batsman']/venue_bat['Sum of death']
+venue_bat['pp SR'] = 100*venue_bat['Sum of pp_runs_batsman']/venue_bat['Sum of powerplay']
+venue_bat['mid SR'] = 100*venue_bat['Sum of mid_runs_batsman']/venue_bat['Sum of middle']
+venue_bat['setup SR'] = 100*venue_bat['Sum of setup_runs_batsman']/venue_bat['Sum of setup']
+venue_bat['death SR'] = 100*venue_bat['Sum of death_runs_batsman']/venue_bat['Sum of death']
 
 venue_bowl['pp SR'] = venue_bowl['Sum of powerplay']/venue_bowl['Sum of pp_wickets_bowler']
 venue_bowl['mid SR'] = venue_bowl['Sum of middle']/venue_bowl['Sum of mid_wickets_bowler']
@@ -275,6 +286,8 @@ venue_bowl['mid ECON'] = venue_bowl['Sum of mid_runs_bowler']/venue_bowl['Sum of
 venue_bowl['setup ECON'] = venue_bowl['Sum of setup_runs_bowler']/venue_bowl['Sum of setup'] * 6
 venue_bowl['death ECON'] = venue_bowl['Sum of death_runs_bowler']/venue_bowl['Sum of death'] * 6
 
+pace_spin['AVG'] = pace_spin['balls']/pace_spin['wickets']
+pace_spin['SR'] = 100*pace_spin['runs']/pace_spin['balls']
 
 def dumps():
     lol = pd.read_excel(input_file,'bowling year')
@@ -287,7 +300,9 @@ def dumps():
     #lol8 = pd.read_excel(input_file,'venue batting')
     lol7 = venue_bowl
     lol8 = venue_bat
+    lol9 = pace_spin
     with pd.ExcelWriter(output_file) as writer:
+        lol9.to_excel(writer, sheet_name="venue pace_spin", index=False)
         lol8.to_excel(writer, sheet_name="venue batting", index=False)
         lol7.to_excel(writer, sheet_name="venue bowling", index=False)
         lol6.to_excel(writer, sheet_name="batting seasons", index=False)
