@@ -39,6 +39,7 @@ def avg(bowler,file_name,item):
 def usage_corrected(bowler,file_name,values,f):
     custom_position_list = pd.read_excel(f'{path}/custom_positions.xlsx','custom positions')
     team_names = np.unique(file_name['team'].values)
+    if(bowler == 0): file_name['factor'] = 0
     if(f == 5/6): bowl_max = 100
     elif(f == 2.5): bowl_max = 300
     elif(f == 11.25): bowl_max = 1350
@@ -67,8 +68,10 @@ def usage_corrected(bowler,file_name,values,f):
                         if(x0[0]==y0[0] and y0[-1]>=(sublist['factor'].nlargest(x0[1]).iloc[-1])): 
                             sublist.loc[sublist['batsman']==y0[0],'factor'] = (sublist['factor'].nlargest(x0[1]).iloc[-1])-0.001
                 sublist = sublist.sort_values(by=['factor'],ascending=False)
+                sublist['factor'] = np.arange(len(sublist))+1
+                for x in sublist.index: file_name.loc[x,'factor'] = sublist.loc[x]['factor'].sum(); #print(sublist.loc[x]['batsman'],sublist.loc[x]['factor'])
                 #print(sublist[['batsman','factor']])
-                sublist.drop(['factor'], axis=1)
+                #sublist.drop(['factor'], axis=1)
             k = sublist.count()[0]
         
         #if(bowler == 1):
@@ -97,7 +100,8 @@ def usage_corrected(bowler,file_name,values,f):
             #if(f == 11.25): dummy = 1
             if(game_sim == 0 and dummy >= 1): file_name['usage'][y] = file_name['usage'][y]/dummy
             elif(game_sim > 0): dummy = 1
-           
+     
+    #print(file_name)
     return file_name
 
 def analyse(u,w):
