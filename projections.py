@@ -12,7 +12,7 @@ from itertools import product
 from usage import *
 pd.options.mode.chained_assignment = None  # default='warn'
 
-comp = 'cpl'
+comp = 'odi'
 proj_year = 2025  #year+1 of the season you want projections for
 aggregate = 0
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
@@ -22,7 +22,7 @@ if(comp=='hundred' or comp=='hundredw'):
 elif(comp=='odi' or comp=='odiq' or comp=='odiw' or comp=='rlc' or comp=='rhf'):
     factor = 2.5; aggregate = 1  #odi
 elif(comp=='tests' or comp == 'cc' or comp == 'shield' or comp == 'testsw'):
-    factor = 11.25; aggregate = 1 #test
+    factor = 11.25; aggregate = 0 #test
 elif(comp=='t20iq'):
     factor = 1; aggregate = 0 #international t20 qualifiers
 elif(comp=='cwc'):
