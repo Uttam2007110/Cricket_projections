@@ -21,7 +21,7 @@ home=[]; opps=[]; venue = []; team_bat_first = []; proxy = 0; custom = 0
 #date based game selection if 0, else specific gameweek or entire season
 gw = 0; write = 0
 #select teams manually
-home = ['England']; opps = ['Australia']; venue = ['Trent Bridge']; team_bat_first = ['England']
+home = ['England']; opps = ['Australia']; venue = ['Chester-le-Street']; team_bat_first = ['']
 #select custom date
 #custom = dt.datetime(2024,10,5) #year,month,date
 #type of scoring system, default dream 11
@@ -30,7 +30,7 @@ coversoff = 0; ex22 = 0; cricdraft = 0
 #frauds like ben stokes who bowl whenever they feel like it
 not_bowling_list = ['MR Marsh','SE Rutherford','R Powell','WL Madsen','J Overton']
 #frauds who suddenly decide to bat in a different position
-custom_position_list = [['KL Rahul',6],['WG Jacks',3],['JC Archer',9],['MW Short',7],['AM Hardie',8]]
+custom_position_list = [['LS Livingstone',6],['WG Jacks',3],['JC Archer',9],['AM Hardie',8]]
 
 #%% find projections for the games in question
 from usage import *
@@ -139,7 +139,7 @@ def adj_bowl_usage(t1,t2,bowl_game,bias_spin,bias_pace,factor):
     return bowl_game
 
 def toss_effects(batting,bowling,bat_first,t1,t2,factor):
-    #bat_first = "Gloucestershire"
+    
     if(bat_first==t1): 
         bat_first_runs = 120*factor*(bowling.loc[bowling['team']==t2,'usage']*bowling.loc[bowling['team']==t2,'runs/ball']).sum()
         bat_second_runs = 120*factor*(bowling.loc[bowling['team']==t1,'usage']*bowling.loc[bowling['team']==t1,'runs/ball']).sum()
@@ -149,9 +149,13 @@ def toss_effects(batting,bowling,bat_first,t1,t2,factor):
     
     #print(bat_first_runs,bat_second_runs)
     
-    if(bat_first_runs < bat_second_runs): 
+    if(bat_first_runs < bat_second_runs and bat_first == t1): 
         decay = bat_first_runs/bat_second_runs
-        new_bat_usage = decay * (batting.loc[batting['team']==bat_first,'usage'].sum())
+        #new_bat_usage = decay * (batting.loc[batting['team']==bat_first,'usage'].sum())
+        new_bat_usage = decay * (batting.loc[batting['team']==t2,'usage'].sum())
+    elif(bat_first_runs < bat_second_runs and bat_first == t2): 
+        decay = bat_first_runs/bat_second_runs
+        new_bat_usage = decay * (batting.loc[batting['team']==t1,'usage'].sum())
     else: 
         decay = 1
         new_bat_usage = batting.loc[batting['team']==bat_first,'usage'].sum()
@@ -161,6 +165,7 @@ def toss_effects(batting,bowling,bat_first,t1,t2,factor):
     if(bat_first==t2 and decay<1):
         bowling.loc[bowling['team']==t2,'usage'] = bowling.loc[bowling['team']==t2,'usage'] * decay
         while((batting.loc[batting['team']==t1,'usage']*pow(exp,-batting.loc[batting['team']==t1,'batting_order'])).sum() > new_bat_usage):
+            #print(exp,(batting.loc[batting['team']==t1,'usage']*batting.loc[batting['team']==t1,'runs/ball']).sum())
             exp += 0.001
         batting.loc[batting['team']==t1,'usage'] = batting.loc[batting['team']==t1,'usage']*pow(exp,-batting.loc[batting['team']==t1,'batting_order'])
         
