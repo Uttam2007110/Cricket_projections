@@ -5,21 +5,23 @@ convert stats from one league to another and create an aggregate file
 @author: Subramanya.Ganti
 """
 
+import numpy as np
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
+np.seterr(divide='ignore', invalid='ignore')
 
-base_comp = 'cpl'
-compm = ['bbl','ipl','lpl','sa20','hundred','bpl','blast','mlc','psl','ilt','t20i','cpl','odi','odiq','rlc','smat','ss','t20iq']
-lsm = [.95,1,.9,.95,1,.9,.95,.95,1,.95,.95,1,.95,.8,.8,.85,.9,.8]
-compw = ['wbbl','wpl','hundredw','t20iw','frb','odiw','wcpl','wss','cec','rhf']
-lsw = [1,1,1,.9,.85,.9,1,.85,.85,.85]
+base_comp = 't20i'
+compm = ['bbl','ipl','lpl','sa20','hundred','bpl','blast','mlc','psl','ilt','t20i','cpl','odi','odiq','rlc','smat','ss','t20iq','ctc']
+lsm = [.95,1,.9,.95,1,.9,.95,.95,1,.95,.95,1,.95,.8,.8,.85,.9,.8,.9]
+compw = ['wbbl','wpl','hundredw','t20iw','frb','odiw','wcpl','wss','cec','rhf','t20iwq']
+lsw = [1,1,1,.9,.85,.9,1,.85,.85,.85,.7]
 compt = ['tests','cc','shield']
 lst = [1,.9,.9]
 
 name_changes = [['NR Sciver','NR Sciver-Brunt'],['KH Brunt','KH Sciver-Brunt'],['L Winfield','L Winfield-Hill'],
                 ['Navdeep Saini','NA Saini'],['J Brown','Josh Brown'],['Mohammad Nawaz (3)','Mohammad Nawaz'],
                 ['Arshad Khan','Arshad Khan (2)'],['Mohsin Khan (2)','Mohsin Khan'],['Steven Ryan Taylor','SR Taylor'],
-                ['Aaron Beard','AP Beard']]
+                ['Aaron Beard','AP Beard'],['A Aitken','A Aitken-Drummond']]
 name_changes = pd.DataFrame(name_changes, columns=['old', 'new'])
 
 if(base_comp in compw): 
