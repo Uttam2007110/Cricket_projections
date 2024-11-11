@@ -8,6 +8,7 @@ Generating fantasy xPts for dream 11 based on projections
 import pandas as pd
 import numpy as np
 from scipy.stats import truncnorm
+from pulp import LpMaximize, LpProblem, lpSum, LpVariable, GLPK
 import datetime as dt
 from openpyxl import load_workbook
 import random
@@ -15,22 +16,25 @@ from collections import Counter
 pd.options.mode.chained_assignment = None  # default='warn'
 np.seterr(all='ignore')
 
-comp = 'odi'; year = '24'; unique_combos = 4
+comp = 't20i'; year = '24'; unique_combos = 11
 #if another league data is used as a proxy then set 1
 home=[]; opps=[]; venue = []; team_bat_first = []; proxy = 0; custom = 0
 #date based game selection if 0, else specific gameweek or entire season
 gw = 0; write = 0
 #select teams manually
-home = ['England']; opps = ['Australia']; venue = ['Chester-le-Street']; team_bat_first = ['']
+home = ['South Africa']; opps = ['India']; venue = ["Centurion"]; team_bat_first = ['']
 #select custom date
-#custom = dt.datetime(2024,10,5) #year,month,date
+#custom = dt.datetime(2024,11,6) #year,month,date
 #type of scoring system, default dream 11
 coversoff = 0; ex22 = 0; cricdraft = 0
 
 #frauds like ben stokes who bowl whenever they feel like it
-not_bowling_list = ['MR Marsh','SE Rutherford','R Powell','WL Madsen','J Overton']
+not_bowling_list = ['SIR Dunkley','GM Harris','D Ferreira','RK Singh','RR Hendricks','Tilak Varma','T Stubbs']
 #frauds who suddenly decide to bat in a different position
-custom_position_list = [['LS Livingstone',6],['WG Jacks',3],['JC Archer',9],['AM Hardie',8]]
+custom_position_list = [['D Hemalatha',3],['C Piparo',6],['A King',7],['L Harris',4],['JL Jonassen',5],
+                        ['SV Samson',2],['SA Yadav',3],['CV Varun',11],['Arshdeep Singh',8],['T Stubbs',5]]
+#players classified as wicketkeepers
+keeper_list = ['SV Samson','H Klaasen','RD Rickelton','JM Sharma']
 
 #%% find projections for the games in question
 from usage import *
@@ -341,19 +345,16 @@ def base_calculations(a,b,input_file1,input_file,factor,v,tbf):
     if(factor==(5/6)): bowl_game['ECON'] = 5*bowl_game['runs/ball']; bowl_game['xECON'] = (5/6)*bowl_game['xECON']
     else: bowl_game['ECON'] = 6*bowl_game['runs/ball']
     
-    #print(w1,w2,w1_bowl,w2_bowl,ut3,ut4)
+    #print(w1,w2,w1_bowl,w2_bowl,ut3,ut4,w_avg)
     if(factor == 11.25):
-        w1_bowl = min(w1_bowl/ut3,20)
-        w2 = min(w2/ut3,20)
-        w2_bowl = min(w2_bowl/ut4,20)
-        w1 = min(w1/ut4,20)
-        w_avg = w_avg * (bat_game['usage'].sum()/2)
         bat_game.loc[bat_game['team'] == t1, 'wickets/ball'] = bat_game.loc[bat_game['team'] == t1, 'wickets/ball']*(w2_bowl+0.7)/w_avg
         bat_game.loc[bat_game['team'] == t2, 'wickets/ball'] = bat_game.loc[bat_game['team'] == t2, 'wickets/ball']*(w1_bowl+0.7)/w_avg
         bat_game['balls/wkt'] = 1/bat_game['wickets/ball']
         bowl_game.loc[bowl_game['team'] == t1, 'wickets/ball'] = bowl_game.loc[bowl_game['team'] == t1, 'wickets/ball']*(w2-0.7)/w_avg
         bowl_game.loc[bowl_game['team'] == t2, 'wickets/ball'] = bowl_game.loc[bowl_game['team'] == t2, 'wickets/ball']*(w1-0.7)/w_avg
+        #proj_wkts = (bowl_game['usage']*bowl_game['wickets/ball']*f*120).sum()
     else:
+        #number of wickets that would fall in the full quota of overs, not applicable in tests because theres no upper limit for how long you can bat
         w1_bowl = min(w1_bowl/ut3,10)
         w2 = min(w2/ut3,10)
         w2_bowl = min(w2_bowl/ut4,10)
@@ -831,7 +832,7 @@ def final_projections(bat_game,bowl_game,runs_t1,runs_t2):
     if(coversoff == 1): final['total'] = final['bat'] + final['bowl'] #+ 25
     elif(ex22 == 1 or cricdraft == 1): final['total'] = final['bat'] + final['bowl']
     else: final['total'] = final['bat'] + final['bowl'] + 4
-    final = final.sort_values(['total'], ascending=[False])
+    #final = final.sort_values(['total'], ascending=[False])
     
     for x in names:
         final.loc[final['player']==x,'bat +/-'] = 1.2*f*bat_game.loc[bat_game['batsman']==x,'usage'].sum()*(bat_game.loc[bat_game['batsman']==x,'SR'].sum()-bat_game.loc[bat_game['batsman']==x,'xSR'].sum())
@@ -891,108 +892,104 @@ a_final,a_table,bat_game,bowl_game = execute_projections()
 #a_final['balls faced'] = a_final['balls faced']*120*f
 #a_final['overs bowled'] = a_final['overs bowled']*20*f
 #a_final['overs bowled'] = (a_final['overs bowled'] - (a_final['overs bowled'] % 1)) + ((a_final['overs bowled'] % 1)*0.6)
+bat_game['runs']=(bat_game['usage']*bat_game['runs/ball']*f*120)
+bowl_game['wickets']=(bowl_game['usage']*bowl_game['wickets/ball']*f*120)
 
 #%% create a dsitribution of players
-def player_iters(a_final):
-    delta = 1; k=0
-    a_final['iters'] = pow(a_final['total'],3)
-    tot = a_final['iters'].sum()
-    a_final['iters'] = a_final['iters']/tot
-    a_final['iters'] = a_final['iters']*10*unique_combos
-    a_final['iters'] = round(np.minimum(a_final['iters'],unique_combos))
-    delta = a_final['iters'].sum() - 10*unique_combos
-    while(delta>0):
-        a_final['iters'][len(a_final)-k] = a_final['iters'][len(a_final)-k] - 1
-        delta = a_final['iters'].sum() - 10*unique_combos
-        k+=1
-    return a_final
-
-#a_final = player_iters(a_final)
-
-#%% generate n unique combos
-def random_partition(seq, k):
-    cnts = Counter(seq)
-    # as long as there are enough items to "sample" take a random sample
-    while len(cnts) >= k:
-        sample = random.sample(list(cnts), k)
-        cnts -= Counter(sample)
-        yield sample
-
-    # Fewer different items than the sample size, just return the unique
-    # items until the Counter is empty
-    while cnts:
-        sample = list(cnts)
-        cnts -= Counter(sample)
-        yield sample
-
-def distributer(a_projection,home,opps,unique_teams):
-    team = [["1","2","3","4","5","6","7","8","9","10","11"]]; length = 0
-    p_list = a_projection.reindex(a_projection.index.repeat(a_projection.iters))
-    p_list = p_list['player'].tolist()
-    #print(list(random_partition(p_list,10)))
-    while(length != unique_teams):
-        master_list = list(random_partition(p_list,10))
-        length = len(master_list)
-    for x in master_list:
-        team.append(x)
-    team = pd.DataFrame(team)
-    team.columns = team.iloc[0];team = team.drop(0)
-    team = team.T
-    team = team.fillna("")
-    return team
-
-def randomizer(a_projection,home,opps,unique_teams):
-    team = [["1","2","3","4","5","6","7","8","9","10","total"]]; i=0; j=0;
-    players = a_projection.loc[(a_projection['team'] == home) | (a_projection['team'] == opps)]
-    p = pow(players['total'],3).tolist()
-    players = players['player'].tolist()
-    sum_p = sum(p)
-    p = [x/sum_p for x in p]
+def solver(f_points):
+    duplicate = f_points.copy()
+    dummy_team = duplicate['team'][0]
+    duplicate['dummy_team'] = np.where(duplicate['team']==dummy_team,1,0)
+    duplicate['WK'] = np.where(duplicate['Pos']==1,1,0)
+    duplicate['BAT'] = np.where(duplicate['Pos']==2,1,0)
+    duplicate['ALL'] = np.where(duplicate['Pos']==3,1,0)
+    duplicate['BOWL'] = np.where(duplicate['Pos']==4,1,0)
+    duplicate['UC'] = np.where(duplicate['Pos']==5,1,0)
+    duplicate['Sel'] = 0
+    model = LpProblem(name="resource-allocation", sense=LpMaximize)
     
-    while i<unique_teams:
-        h=0; o=0;
-        combo = np.random.choice(players, 10, p=p, replace=False)
-        combo = combo.tolist()
-        combo = sorted(combo)
-        while j<10:
-            t = a_projection.loc[a_projection['player'] == combo[j], 'team'].values[0]
-            if(t==home): h+=1
-            if(t==opps): o+=1
-            j+=1
-        if(h>10 or o>10): i=i-1
-        else:
-            cap = a_projection[a_projection.player.isin(combo)]
-            pts = sum(cap['total'])
-            p2 = pow(cap['total'],4).tolist()
-            cap = cap['player'].tolist()
-            sum_p2 = sum(p2)
-            p2 = [x/sum_p2 for x in p2]
-            y = np.random.choice(cap, 2, p=p2, replace=False)
-            y = y.tolist()        
-            #pts += a_projection.loc[(a_projection['player']==y[0]),'total'].sum() + (a_projection.loc[(a_projection['player']==y[1]),'total'].sum()/2)
-            #combo += y + [pts]
-            combo += [pts]
-            team.append(combo)
-            
-        i +=1; j=0
-        
-    team = pd.DataFrame(team)
-    team.columns = team.iloc[0];team = team.drop(0)
-    team = team.T
-    return team
+    # Define the decision variables
+    x = {i: LpVariable(name=f"x{i}", cat="Binary") for i in range (0, len(duplicate))}
+    c = {i: LpVariable(name=f"c{i}", cat="Binary") for i in range (0, len(duplicate))}
+    vc = {i: LpVariable(name=f"vc{i}", cat="Binary") for i in range (0, len(duplicate))}
+    
+    # Add constraints
+    model += (lpSum(x.values()) == 11, "total players in team")
+    model += (lpSum(c.values()) == 1, "captain")
+    model += (lpSum(vc.values()) == 1, "vice captain")
+    model += (lpSum( x[k] * duplicate['cost'][k] for k in range (0, len(duplicate))) <= 100, "cost")
+    model += (lpSum( x[k] * duplicate['WK'][k] for k in range (0, len(duplicate))) >= 1, "WK")
+    #model += (lpSum( x[k] * duplicate['BAT'][k] for k in range (0, len(duplicate))) >= 1, "BAT")
+    #model += (lpSum( x[k] * duplicate['ALL'][k] for k in range (0, len(duplicate))) >= 1, "ALL")
+    #model += (lpSum( x[k] * duplicate['BOWL'][k] for k in range (0, len(duplicate))) >= 1, "BOWL")
+    model += (lpSum( x[k] * duplicate['UC'][k] for k in range (0, len(duplicate))) >= 1, "UC")
+    model += (lpSum( x[k] * duplicate['dummy_team'][k] for k in range (0, len(duplicate))) >= 1, "Team min")
+    model += (lpSum( x[k] * duplicate['dummy_team'][k] for k in range (0, len(duplicate))) <= 10, "Team max")
+    
+    for k in range (0, len(duplicate)): model += (x[k]-c[k]-vc[k] >= 0,f"unique C-VC {k}")
+    
+    # Set objective
+    model += lpSum( (x[k]+c[k]+0.5*vc[k]) * duplicate['total'][k] for k in range (0, len(duplicate)))
+    
+    # Solve the optimization problem
+    status = model.solve(solver=GLPK(msg=False))    
+    #print(f"{LpStatus[model.status]}, xPts {model.objective.value()}")
+    xpts = model.objective.value()
+    
+    #for var in model.variables(): print(var.name,var.value())
+    for name, constraint in model.constraints.items():
+        if(name == 'cost'): cost = 100+constraint.value()
+        #print(f"{name}: {constraint.value()}")   
+    for k in range (0, len(duplicate)): duplicate['Sel'][k] = x[k].value() + c[k].value() + 0.5*vc[k].value()
+    
+    return duplicate,xpts,cost
 
-a_final['count'] = 0
-#if(ex22 == 0 and coversoff == 0):
-if(False):
-    c=0;combinations=[];
-    while c<len(home):
-        if(gw>0): co = randomizer(a_final,home[c],opps[c],unique_combos)
-        else: co = randomizer(a_final,home[c],opps[c],unique_combos)
-        combinations.append(co)
-        for x in a_final['player'].values:
-            a_final.loc[a_final['player']==x,'count'] = (co == x).values.sum()
-        c+=1
-a_final.drop('count', axis=1, inplace=True)
+def iterator(f_points,n,f):
+    f_points.reset_index(drop=True, inplace=True)
+    a_team = [["1","2","3","4","5","6","7","8",'9','10','11',"C","VC","xPts",'Cost']];
+    k=1
+    while(k<n+1):      
+        #random noise introduced in mins/efficiency
+        f_points_copy = f_points.copy()
+        if(k>1):
+            XP = get_truncated_normal(mean=f_points['total'],sd=f_points['total'], low=0, upp=300)
+            f_points_copy['total'] = XP.rvs()
+            #print(f_points_copy[['player','total']])
+        solution,xPts,cost = solver(f_points_copy)
+        solution = solution.sort_values(by=['Pos'],ascending=True)
+        names = solution.loc[solution['Sel'] >= 1, 'player']
+        names = names.to_list()
+        
+        xPts=0; #xmins=0
+        for j in names:
+            #xmins += f_points.loc[f_points['Name'] == j, 'MIN'].values[0]
+            xPts += f_points.loc[f_points['player'] == j, 'total'].values[0]
+        cap = solution.loc[solution['Sel'] == 2, 'player']
+        cap = cap.to_list()
+        vice = solution.loc[solution['Sel'] == 1.5, 'player']
+        vice = vice.to_list()
+        #print(solution)
+        xPts += f_points.loc[f_points['player'] == cap[0], 'total'].values[0] + (f_points.loc[f_points['player'] == vice[0], 'total'].values[0])/2
+        #xmins = round(xmins,2)
+        names = names + cap + vice + [xPts] + [cost]
+        a_team.append(names)
+        #print(f"solution {k} found")
+        k = k + 1   
+    return a_team
+
+a_final['cost'] = 1.0
+a_final['Pos'] = 5
+a_final.loc[a_final['player'].isin(keeper_list), 'Pos'] = 1
+a_team = iterator(a_final,unique_combos,f)
+a_team = pd.DataFrame(a_team)
+a_team.columns = a_team.iloc[0];a_team = a_team.drop(0)
+a_team = a_team.apply(pd.to_numeric, errors='ignore')
+a_team.drop('Cost', axis=1, inplace=True)
+a_team = a_team.sort_values(['xPts'], ascending=[False])
+
+a_final.drop('cost', axis=1, inplace=True)
+a_final.drop('Pos', axis=1, inplace=True)
+a_final = a_final.sort_values(['total'], ascending=[False])
 
 #%% dump projections to the desired file
 date = now.strftime("%m-%d-%y")
