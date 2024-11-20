@@ -1005,6 +1005,25 @@ def iterator(f_points,n,f):
         k = k + 1   
     return a_team
 
+def maximizer(f_points,sims):
+    f_points.reset_index(drop=True, inplace=True)
+    a_leader = f_points[['player','team','total']]
+    a_leader['iterations'] = 0
+    k=0
+    while(k<sims):      
+        #random noise introduced in mins/efficiency
+        f_points_copy = f_points.copy()
+        if(k>0):
+            XP = get_truncated_normal(mean=f_points['total'],sd=f_points['total'], low=0, upp=300)
+            f_points_copy['total'] = XP.rvs()
+            
+        max_guy = f_points_copy.loc[f_points_copy['total'] == max(f_points_copy['total']),'player'].values[0]
+        a_leader.loc[a_leader['player']==max_guy,'iterations'] += 1
+        k+=1
+    a_leader['iterations'] = a_leader['iterations']/sims
+    a_leader['break even'] = 0.75/a_leader['iterations']
+    return a_leader
+    
 if(gw == 0):
     a_final['cost'] = 1.0
     a_final['Pos'] = 5
@@ -1017,8 +1036,11 @@ if(gw == 0):
     a_team = a_team.sort_values(['xPts'], ascending=[False])
     a_final.drop('cost', axis=1, inplace=True)
     a_final.drop('Pos', axis=1, inplace=True)
-
+    
 a_final = a_final.sort_values(['total'], ascending=[False])
+
+if(ex22 == 1):
+    a_leader = maximizer(a_final,10000)
 
 #%% dump projections to the desired file
 date = now.strftime("%m-%d-%y")
