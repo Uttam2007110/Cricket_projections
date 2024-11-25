@@ -23,8 +23,8 @@ home=[]; opps=[]; venue = []; team_bat_first = []; proxy = 0; custom = 0
 #date based game selection if 0, else specific gameweek or entire season
 gw = 0; write = 0
 #select teams manually
-home = ['Australia']; opps = ['India']; venue = ["Adelaide Oval"]; team_bat_first = ['India']
-#home = ['Hobart Hurricanes']; opps = ['Melbourne Renegades']; venue = ["Bellerive Oval"]; team_bat_first = ['Hobart Hurricanes']
+home = ['Australia']; opps = ['India']; venue = ["Adelaide Oval"]; team_bat_first = ['']
+#home = ['Zimbabwe']; opps = ['Pakistan']; venue = ["Queens Sports Club"]; team_bat_first = ['']
 #select custom date
 #custom = dt.datetime(2024,11,6) #year,month,date
 #type of scoring system, default dream 11
@@ -35,13 +35,11 @@ reduced_length = 1
 #frauds like ben stokes who bowl whenever they feel like it
 not_bowling_list = ['H Klaasen','SIR Dunkley','GM Harris','D Ferreira','RK Singh','RR Hendricks','Tilak Varma','T Stubbs','SA Yadav',
                     'Abhishek Sharma','TH David','WG Jacks','N Pooran','JG Bethell','SE Rutherford','MNK Fernando','C Webb','SW Bates',
-                    'JI Rodrigues','R McKenna']
+                    'JI Rodrigues','R McKenna','HJ Armitage']
 #frauds who suddenly decide to bat in a different position
-custom_position_list = [['KE Bryce',6],['G Wareham',5],['DJS Dottin',4],['SW Bates',5],['N de Klerk',7],['L Harris',5],['A Sutherland',2],
-                        ['S Reid',1],['R McKenna',6],['IY Mckeon',5],['T Flintoff',7],
-                        ['KL Rahul',1],['NA McSweeney',2],['Nithish Kumar Reddy',8],['SPD Smith',4],['NM Lyon',10],['Dhruv Jurel',6],['RR Pant',5]]
+custom_position_list = [['KL Rahul',6],['NA McSweeney',2],['Nithish Kumar Reddy',8],['SPD Smith',4],['NM Lyon',10],['V Kohli',4]]
 #designated wicketkeeper in a game
-designated_keeper_list = ['AT Carey','RR Pant']
+designated_keeper_list = ['AT Carey','RR Pant','T Marumani','Mohammad Rizwan']
 
 #%% find projections for the games in question
 from usage import *
@@ -370,6 +368,11 @@ def base_calculations(a,b,input_file1,input_file,factor,v,tbf,reduced_length):
     bat_game = bat_game.apply(pd.to_numeric, errors='ignore')
     bowl_game = bowl_game.apply(pd.to_numeric, errors='ignore')
     
+    global game_avg,t_runs_t1,t_runs_t2
+    t_runs_t1 = (bowl_game.loc[bowl_game['team'] == t2, 'runs/ball'] * bowl_game.loc[bowl_game['team'] == t2, 'usage']).sum() * 120 * factor
+    t_runs_t2 = (bowl_game.loc[bowl_game['team'] == t1, 'runs/ball'] * bowl_game.loc[bowl_game['team'] == t1, 'usage']).sum() * 120 * factor
+    game_avg.append(round((t_runs_t1+t_runs_t2)/2,2))
+    
     bat_game["xSR"] = bat_game["xPts"]
     bowl_game["xECON"] = bowl_game["xPts"]
     #bat_game['wickets/ball'] = bat_game['wickets/ball']*vwf
@@ -579,8 +582,6 @@ def gw_projection(a,b,input_file1,input_file,factor,v,tbf,reduced_length):
         bowl_game['xPts'] = bowl_game['xPts'] + 8*(1-wkts.cdf(5))
     
     runs_t1,runs_t2 = game_results(bat_game,factor,t1,t2,s1,s2,c1,c2,league_avg,summary,reduced_length)
-    global game_avg
-    game_avg.append((runs_t1+runs_t2)/2)
     return (bat_game,bowl_game,field_game,summary,runs_t1,runs_t2)
 
 def cricdraft_projection(a,b,input_file1,input_file,factor,v,tbf,reduced_length):
@@ -657,8 +658,6 @@ def cricdraft_projection(a,b,input_file1,input_file,factor,v,tbf,reduced_length)
         bowl_game['xPts'] = bowl_game['xPts'] + 8*(1-wkts.cdf(5))
     
     runs_t1,runs_t2 = game_results(bat_game,factor,t1,t2,s1,s2,c1,c2,league_avg,summary,reduced_length)
-    global game_avg
-    game_avg.append((runs_t1+runs_t2)/2)
     return (bat_game,bowl_game,field_game,summary,runs_t1,runs_t2)
 
 def ex22_projection(a,b,input_file1,input_file,factor,v,tbf,reduced_length):
@@ -719,8 +718,6 @@ def ex22_projection(a,b,input_file1,input_file,factor,v,tbf,reduced_length):
         bowl_game['xPts'] += 1*np.power(bowl_game['dots/ball'],6)*20*bowl_game['usage']*factor
      
     runs_t1,runs_t2 = game_results(bat_game,factor,t1,t2,s1,s2,c1,c2,league_avg,summary,reduced_length)
-    global game_avg
-    game_avg.append((runs_t1+runs_t2)/2)
     return (bat_game,bowl_game,field_game,summary,runs_t1,runs_t2)
 
 def coversoff_projection(a,b,input_file1,input_file,factor,v,tbf,reduced_length):
@@ -816,27 +813,26 @@ def coversoff_projection(a,b,input_file1,input_file,factor,v,tbf,reduced_length)
     
 
     runs_t1,runs_t2 = game_results(bat_game,factor,t1,t2,s1,s2,c1,c2,league_avg,summary,reduced_length)
-    global game_avg
-    game_avg.append((runs_t1+runs_t2)/2)
     return (bat_game,bowl_game,field_game,summary,runs_t1,runs_t2)
 
-def game_results(bat_game,factor,t1,t2,s1,s2,c1,c2,league_avg,summary,reduced_length):    
+def game_results(bat_game,factor,t1,t2,s1,s2,c1,c2,league_avg,summary,reduced_length):
+    wickets_t1 = round((bat_game.loc[bat_game['team']==t1,'usage']*bat_game.loc[bat_game['team']==t1,'wickets/ball']).sum()*120*factor,1)
+    wickets_t2 = round((bat_game.loc[bat_game['team']==t2,'usage']*bat_game.loc[bat_game['team']==t2,'wickets/ball']).sum()*120*factor,1)
     if(factor == 5/6): factor = 1
     runs_t1 = round(s1*c2*league_avg*(bat_game.loc[bat_game['team']==t1,'usage'].sum()),2)
     runs_t2 = round(s2*c1*league_avg*(bat_game.loc[bat_game['team']==t2,'usage'].sum()),2)
-    win_t1 = round(pow(runs_t1,15.5/factor)/(pow(runs_t1,15.5/factor)+pow(runs_t2,15.5/factor)),3)
-    win_t2 = round(pow(runs_t2,15.5/factor)/(pow(runs_t1,15.5/factor)+pow(runs_t2,15.5/factor)),3)
-    if(factor<11.25):
-        print(t1,runs_t1,"runs in",round(20*reduced_length*factor*bat_game.loc[bat_game['team']==t1,'usage'].sum(),2),"overs")
-        print(t2,runs_t2,"runs in",round(20*reduced_length*factor*bat_game.loc[bat_game['team']==t2,'usage'].sum(),2),"overs")
-        #print("P(win) :-",t1,win_t1,"-",win_t2,t2)
-        global home_win
-        home_win.append(win_t1)
-    else:
-        print(t1,"1st",round(runs_t1*0.6,2),"runs in",round(0.6*20*reduced_length*factor*bat_game.loc[bat_game['team']==t1,'usage'].sum(),2),"overs")
-        print(t2,"1st",round(runs_t2*0.6,2),"runs in",round(0.6*20*reduced_length*factor*bat_game.loc[bat_game['team']==t2,'usage'].sum(),2),"overs")
-        print(t1,"2nd",round(runs_t1*0.4,2),"runs in",round(0.4*20*reduced_length*factor*bat_game.loc[bat_game['team']==t1,'usage'].sum(),2),"overs")
-        print(t2,"2nd",round(runs_t2*0.4,2),"runs in",round(0.4*20*reduced_length*factor*bat_game.loc[bat_game['team']==t2,'usage'].sum(),2),"overs")
+    
+    gamma = 1
+    if(factor == 11.25): gamma = 1
+    elif(factor == 2.5): gamma = 4.8
+    else: gamma = 6.4
+    win_t1 = pow(t_runs_t1,gamma)/(pow(t_runs_t1,gamma)+pow(t_runs_t2,gamma))
+    win_t2 = pow(t_runs_t2,gamma)/(pow(t_runs_t1,gamma)+pow(t_runs_t2,gamma))
+    print(t1,runs_t1,"runs for",wickets_t1,"wickets in",round(20*reduced_length*factor*bat_game.loc[bat_game['team']==t1,'usage'].sum(),2),"overs")
+    print(t2,runs_t2,"runs for",wickets_t2,"wickets in",round(20*reduced_length*factor*bat_game.loc[bat_game['team']==t2,'usage'].sum(),2),"overs")
+    if(factor != 11.25): print("P(win) :-",t1,round(win_t1,3),"-",round(win_t2,3),t2)
+    global home_win
+    home_win.append(win_t1)
     print(" ")
     return (runs_t1,runs_t2)
 
@@ -999,9 +995,10 @@ bowl_game['wickets']=(bowl_game['usage']*bowl_game['wickets/ball']*f*120*reduced
 
 #%% create a distribution of players
 #players classified as wicketkeepers by dream 11
-d11_keeper_eligibility = ['SV Samson','H Klaasen','RD Rickelton','JM Sharma','RR Pant','DP Conway','TA Blundell','BKG Mendis','S Samarawickrama','MJ Hay',
-               'JP Inglis','Mohammad Rizwan','Usman Khan','Haseebullah Khan','YH Bhatia','N Faltum','JC Buttler','PD Salt','MS Pepper',
-               'SD Hope','N Pooran','KNM Fernando','AT Carey','KL Rahul','Dhruv Jurel','G Redmayne','S Reid','L Lee']
+d11_keeper_eligibility = ['SV Samson','H Klaasen','RD Rickelton','JM Sharma','RR Pant','DP Conway','TA Blundell','BKG Mendis',
+                          'S Samarawickrama','MJ Hay','JP Inglis','Mohammad Rizwan','Usman Khan','Haseebullah Khan','YH Bhatia',
+                          'N Faltum','JC Buttler','PD Salt','MS Pepper','SD Hope','N Pooran','KNM Fernando','AT Carey','KL Rahul',
+                          'Dhruv Jurel','G Redmayne','S Reid','L Lee','SJ Bryce','L Winfield-Hill','J Gumbie','T Marumani']
 
 def solver(f_points):
     duplicate = f_points.copy()
