@@ -278,6 +278,11 @@ def calc_agg(f_bat,f_bowl,factor):
     extras= (f_bowl['usage']*f_bowl['extras/ball']*120*factor).sum()/f_bowl['usage'].sum()
     team_names = np.unique(f_bowl['team'].values)
     
+    gamma = 1
+    if(factor == 11.25): gamma = 1
+    elif(factor == 2.5): gamma = 4.8
+    else: gamma = 6.4
+    
     for x in team_names:
         try:
             runs_bat = ((f_bat.loc[(f_bat['team']==x),'usage']*f_bat.loc[(f_bat['team']==x),'runs/ball']).sum()*120*factor)/(f_bat.loc[(f_bat['team']==x),'usage'].sum()) 
@@ -285,7 +290,7 @@ def calc_agg(f_bat,f_bowl,factor):
             runs_bowl = ((f_bowl.loc[(f_bowl['team']==x),'usage']*f_bowl.loc[(f_bowl['team']==x),'runs/ball']).sum()*120*factor)/(f_bowl.loc[(f_bowl['team']==x),'usage'].sum())
             lg_runs_bowl = ((f_bowl.loc[(f_bowl['team']==x),'usage']*f_bowl.loc[(f_bowl['team']==x),'xECON']).sum()*20*factor)/(f_bowl.loc[(f_bowl['team']==x),'usage'].sum())
             adj_runs = runs_bat + extras
-            wins = (adj_runs**15.5)/((adj_runs**15.5)+(runs_bowl**15.5))
+            wins = (adj_runs**gamma)/((adj_runs**gamma)+(runs_bowl**gamma))
             summary.append([x,adj_runs,runs_bowl,(adj_runs-runs_bowl)/(20*factor),wins])
         except ZeroDivisionError:
             print("No data for team",x)
