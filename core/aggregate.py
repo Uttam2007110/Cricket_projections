@@ -10,18 +10,20 @@ import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 np.seterr(divide='ignore', invalid='ignore')
 
-base_comp = 't20i'
+base_comp = 't20iw'
 compm = ['bbl','ipl','lpl','sa20','hundred','bpl','blast','mlc','psl','ilt','t20i','cpl','odi','odiq','rlc','smat','ss','t20iq','ctc']
 lsm = [.95,1,.9,.95,1,.9,.95,.95,1,.95,.95,1,.95,.8,.8,.85,.9,.8,.9]
 compw = ['wbbl','wpl','hundredw','t20iw','frb','odiw','wcpl','wss','cec','rhf','t20iwq']
 lsw = [1,1,1,.9,.85,.9,1,.85,.85,.85,.7]
-compt = ['tests','cc','shield']
-lst = [1,.9,.9]
+#compt = ['tests','cc','shield','pks']
+#lst = [1,.9,.9,.85]
+compt = ['tests'] + compm
+lst = [.95] + lsm
 
 name_changes = [['NR Sciver','NR Sciver-Brunt'],['KH Brunt','KH Sciver-Brunt'],['L Winfield','L Winfield-Hill'],
                 ['Navdeep Saini','NA Saini'],['J Brown','Josh Brown'],['Mohammad Nawaz (3)','Mohammad Nawaz'],
                 ['Arshad Khan','Arshad Khan (2)'],['Mohsin Khan (2)','Mohsin Khan'],['Steven Ryan Taylor','SR Taylor'],
-                ['Aaron Beard','AP Beard'],['A Aitken','A Aitken-Drummond']]
+                ['Aaron Beard','AP Beard'],['A Aitken','A Aitken-Drummond'],['Duan Jansen','D Jansen']]
 name_changes = pd.DataFrame(name_changes, columns=['old', 'new'])
 
 if(base_comp in compw): 
@@ -146,7 +148,7 @@ while i<len(comp):
         
         comp_pace_spin['runs'] = comp_pace_spin['runs'] * runs_f * ls[i]
         comp_pace_spin['wickets'] = comp_pace_spin['wickets'] * (1/outs_f) * (1/ ls[i])
-        pace_spin.append(comp_pace_spin)
+        if(factor != 11.25): pace_spin.append(comp_pace_spin)
         
         rc_f = ((bowl['xruns'].sum()/bowl['balls_bowler'].sum())/(comp_bowl['xruns'].sum()/comp_bowl['balls_bowler'].sum()))
         wickets_f = ((bowl['balls_bowler'].sum()/bowl['outs_bowler'].sum())/(comp_bowl['balls_bowler'].sum()/comp_bowl['outs_bowler'].sum()))
