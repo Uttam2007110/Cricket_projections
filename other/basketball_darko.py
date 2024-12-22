@@ -15,7 +15,8 @@ from scipy.stats import zscore
 from scipy.stats import multivariate_normal
 pd.options.mode.chained_assignment = None  # default='warn'
 
-teams = ['Indiana Pacers','New Orleans Pelicans']
+teams = ['Sacramento Kings','Indiana Pacers']
+teams = ['New Orleans Pelicans','Denver Nuggets']
 n = 11
 file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
 
@@ -23,7 +24,7 @@ correlation = pd.read_excel('C:/Users/GF63/Desktop/cricket/barttorvik/nba_roles.
 correlation.set_index('role', inplace=True)
 
 # %%  initialize functions
-def projected_minutes(teams):
+def projected_minutes(file,teams):
     DARKO = pd.read_html('https://spreadsheets.google.com/tq?tqx=out:html&tq=&key=1mhwOLqPu2F9026EQiVxFPIN1t9RGafGpl-dokaIsm9c&gid=284274620')[0]
     DARKO = header_first_row(DARKO)
     
@@ -53,11 +54,11 @@ def projected_minutes(teams):
     dataset['sum'] = dataset['c']+dataset['pf']+dataset['sf'] +dataset['sg']+dataset['pg']
     dataset[['c','pf','sf','sg','pg']] = dataset.loc[:,"c":"pg"].div(dataset["sum"], axis=0)
     
-    dataset.loc[dataset['position']=='c','c'] += 1
-    dataset.loc[dataset['position']=='pf','pf'] += 1
-    dataset.loc[dataset['position']=='sf','sf'] += 1
-    dataset.loc[dataset['position']=='sg','sg'] += 1
-    dataset.loc[dataset['position']=='pg','pg'] += 1
+    dataset.loc[dataset['x_position']=='c_pos','c'] += 1
+    dataset.loc[dataset['x_position']=='pf_pos','pf'] += 1
+    dataset.loc[dataset['x_position']=='sf_pos','sf'] += 1
+    dataset.loc[dataset['x_position']=='sg_pos','sg'] += 1
+    dataset.loc[dataset['x_position']=='pg_pos','pg'] += 1
     dataset['sum'] = dataset['c']+dataset['pf']+dataset['sf'] +dataset['sg']+dataset['pg']
     dataset[['c','pf','sf','sg','pg']] = dataset.loc[:,"c":"pg"].div(dataset["sum"], axis=0)
     
@@ -109,13 +110,16 @@ def projected_minutes(teams):
     pbp_net.loc[:,"PG%":"C%"] = pbp_net.loc[:,"PG%":"C%"].div(pbp_net["sum"], axis=0)
     pbp_net = pbp_net.apply(pd.to_numeric, errors='ignore')
     
-    for p in dataset['player_name'].values:
+    mapping = pd.read_excel(file,'mapping')
+
+    for p in dataset['player_name'].values:  
         try: 
-            dataset.loc[dataset['player_name']==p,'c'] = pbp_net.loc[pbp_net['Player']==p,'C%'].values[0]
-            dataset.loc[dataset['player_name']==p,'pf'] = pbp_net.loc[pbp_net['Player']==p,'PF%'].values[0]
-            dataset.loc[dataset['player_name']==p,'sf'] = pbp_net.loc[pbp_net['Player']==p,'SF%'].values[0]
-            dataset.loc[dataset['player_name']==p,'sg'] = pbp_net.loc[pbp_net['Player']==p,'SG%'].values[0]
-            dataset.loc[dataset['player_name']==p,'pg'] = pbp_net.loc[pbp_net['Player']==p,'PG%'].values[0]
+            p2 = mapping.loc[mapping['player_name']==p,'bbref_name'].values[0]
+            dataset.loc[dataset['player_name']==p,'c'] = pbp_net.loc[pbp_net['Player']==p2,'C%'].values[0]
+            dataset.loc[dataset['player_name']==p,'pf'] = pbp_net.loc[pbp_net['Player']==p2,'PF%'].values[0]
+            dataset.loc[dataset['player_name']==p,'sf'] = pbp_net.loc[pbp_net['Player']==p2,'SF%'].values[0]
+            dataset.loc[dataset['player_name']==p,'sg'] = pbp_net.loc[pbp_net['Player']==p2,'SG%'].values[0]
+            dataset.loc[dataset['player_name']==p,'pg'] = pbp_net.loc[pbp_net['Player']==p2,'PG%'].values[0]
         except: 
             dataset
             
@@ -179,8 +183,8 @@ def game_model(box_talent,teams):
     ortg_t1_adj = game_ortg + (t1_offsense_adj + t1_defense_adj)
     ortg_t2_adj = game_ortg - (t1_offsense_adj + t1_defense_adj)
 
-    adj_pts_t1 = (ortg_t1_adj * game_pace / league_pace) + 1.5
-    adj_pts_t2 = (ortg_t2_adj * game_pace / league_pace) - 1.5
+    adj_pts_t1 = (ortg_t1_adj * game_pace / league_pace) + 1
+    adj_pts_t2 = (ortg_t2_adj * game_pace / league_pace) - 1
 
     factor_t1 = adj_pts_t1/raw_pts_t1
     factor_t2 = adj_pts_t2/raw_pts_t2
@@ -461,7 +465,7 @@ def iterator(f_points,n,teams):
         k = k + 1   
     return a_team
 
-DARKO,p_mins = projected_minutes(teams)
+DARKO,p_mins = projected_minutes(file,teams)
 
 # %%  set custom player minutes
 p_mins = aggregate_mins(p_mins,teams,['c','pf','sf','sg','pg'])
