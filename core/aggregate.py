@@ -10,15 +10,13 @@ import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 np.seterr(divide='ignore', invalid='ignore')
 
-base_comp = 't20iw'
+base_comp = 'tests'
 compm = ['bbl','ipl','lpl','sa20','hundred','bpl','blast','mlc','psl','ilt','t20i','cpl','odi','odiq','rlc','smat','ss','t20iq','ctc']
 lsm = [.95,1,.9,.95,1,.9,.95,.95,1,.95,.95,1,.95,.8,.8,.85,.9,.8,.9]
 compw = ['wbbl','wpl','hundredw','t20iw','frb','odiw','wcpl','wss','cec','rhf','t20iwq']
 lsw = [1,1,1,.9,.85,.9,1,.85,.85,.85,.7]
-#compt = ['tests','cc','shield','pks']
-#lst = [1,.9,.9,.85]
-compt = ['tests'] + compm
-lst = [.95] + lsm
+compt = ['tests','cc','shield','pks'] #+ compm
+lst = [1,.8,.8,.75] #+ np.asarray(lsm) * 0.9
 
 name_changes = [['NR Sciver','NR Sciver-Brunt'],['KH Brunt','KH Sciver-Brunt'],['L Winfield','L Winfield-Hill'],
                 ['Navdeep Saini','NA Saini'],['J Brown','Josh Brown'],['Mohammad Nawaz (3)','Mohammad Nawaz'],
@@ -54,7 +52,7 @@ if(base_comp=='hundred' or base_comp=='hundredw'):
     factor = (5/6); #hundred
 elif(base_comp=='odi' or base_comp=='odiw' or base_comp=='odiq' or base_comp=='rlc' or comp=='rhf'):
     factor = 2.5;   #odi
-elif(base_comp=='tests' or base_comp=='cc' or base_comp=='shield' or base_comp=='testsw'):
+elif(base_comp=='tests' or base_comp=='cc' or base_comp=='shield' or base_comp=='pks' or base_comp=='testsw'):
     factor = 11.25; #test
 else:
     factor = 1;     #assume its a t20 by default
@@ -198,7 +196,8 @@ venue_bowl = pd.concat(venue_bowl)
 pace_spin = pd.concat(pace_spin)
 
 bat_all = bat_all.groupby(['batsman','season'], as_index=False).sum()
-bat_all.insert(loc=2, column='batting_team', value='Free Agent')
+#bat_all.insert(loc=2, column='batting_team', value='Free Agent')
+bat_all['batting_team'] = 'Free Agent'
 for x in bat_all.values:
     try:
         bat_all.loc[(bat_all['batsman']==x[0])&(bat_all['season']==x[1]),'batting_team'] = team.loc[(team['player']==x[0])&(team['season']==x[1]),'team'].values[0]
@@ -206,7 +205,8 @@ for x in bat_all.values:
         bat_all.loc[(bat_all['batsman']==x[0])&(bat_all['season']==x[1]),'batting_team'] = "Free Agent"
     
 bowl_all = bowl_all.groupby(['bowler','season'], as_index=False).sum()
-bowl_all.insert(loc=2, column='bowling_team', value='Free Agent')
+#bowl_all.insert(loc=2, column='bowling_team', value='Free Agent')
+bowl_all['bowling_team'] = 'Free Agent'
 for x in bowl_all.values:
     try:
         bowl_all.loc[(bowl_all['bowler']==x[0])&(bowl_all['season']==x[1]),'bowling_team'] = team.loc[(team['player']==x[0])&(team['season']==x[1]),'team'].values[0]
@@ -239,7 +239,7 @@ bat_all['AVG'] = 1/bat_all['wickets/ball']
 bat_all['SR'] = 100*bat_all['runs/ball']
 bat_all['xAVG'] = bat_all['balls_batsman']/bat_all['xwickets']
 bat_all['xSR'] = 100*bat_all['xruns']/(bat_all['balls_batsman']+0.000001)
-bat_all.loc[bat_all['AVG']>bat_all['runs_off_bat'],'AVG']=bat_all['runs_off_bat']
+bat_all.loc[bat_all['AVG']>bat_all['balls_batsman'],'AVG']=bat_all['balls_batsman']
 bat_all.loc[bat_all['xSR']>600,'xSR']=600
 bat_all['usage'] =bat_all['bf_GP']/(120*factor)
 bat_all['RSAA'] = 1.2*(bat_all['SR']-bat_all['xSR'])*bat_all['usage']*factor
