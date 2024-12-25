@@ -1,445 +1,329 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Nov 25 18:35:44 2022
-@author: uttam ganti
+Created on Fri Dec 13 18:00:04 2024
 converting cricsheet data into league summary tables
+updated version of generate.py
+@author: Subramanya.Ganti
 """
 import numpy as np
 import pandas as pd
 from sys import getsizeof
 import datetime
-from itertools import product
 pd.options.mode.chained_assignment = None  # default='warn'
+np.seterr(divide='ignore', invalid='ignore')
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
-comp = 'cpl'
+comp = 'tests'
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
 if(comp=='hundred' or comp=='hundredw'):
     p1 = 6; p2 = 12; p3 = 17; factor = (5/6);  #hundred
 elif(comp=='odi' or comp=='odiw' or comp=='odiq' or comp=='rlc' or comp=='cwc' or comp=='rhf'):
     p1 = 10; p2 = 26; p3 = 40; factor = 2.5;   #odi
-elif(comp=='tests' or comp == 'cc' or comp == 'shield' or comp == 'testsw'):
+elif(comp=='tests' or comp == 'cc' or comp == 'shield' or comp == 'pks' or comp == 'testsw'):
     p1 = 30; p2 = 55; p3 = 80; factor = 11.25; #test
 else:
     p1 = 6; p2 = 12; p3 = 17; factor = 1;      #assume its a t20 by default
 
-input_file = f'{path}/raw/{comp}.csv'
-input_file2 = f'{path}/raw/{comp}_GP.csv'
-input_file3 = f'{path}/venues.xlsx'
-input_file4 = f'{path}/people.xlsx'
+file0 = f'{path}/raw/{comp}.csv'
+games_played = f'{path}/raw/{comp}_GP.csv'
+venues = f'{path}/venues.xlsx'
+people = f'{path}/people.xlsx'
 output_file = f"{path}/summary/{comp}_summary.xlsx"
 
-def unique(list1):
-    # initialize a null list
-    unique_list = []
-    # traverse for all elements
-    for x in list1:
-        # check if exists in unique_list or not
-        if x not in unique_list:
-            unique_list.append(x)
-    # print list
-    return unique_list
-
-file0 = pd.read_csv(input_file,sep=',',low_memory=False)
-file00 = pd.read_csv(input_file2,sep=',',low_memory=False)
-file000 = pd.read_excel(input_file3,'Sheet1')
+file0 = pd.read_csv(file0,sep=',',low_memory=False)
+games_played = pd.read_csv(games_played,sep=',',low_memory=False)
+venues = pd.read_excel(venues,'Sheet1')
 file0 = file0.fillna(0)
 now = datetime.datetime.now()
 print(now.time())
 start_size = getsizeof(file0)/(1024.0**2)
 print('Dataframe size: %2.2f MB'%start_size)
-#print(file0.columns.values)
 
-c = 0
-player_season = []
-venues_season = []
-balls_bowler = []
-balls_batsman = []
-dots = []
-ones = []
-twos = []
-threes = []
-fours = []
-sixes = []
-outs_batsman = []
-outs_ns = []
-outs_bowler = []
-batting_team_season = []
-bowling_team_season = []
+file0['balls_batsman'] = 1
+file0['balls_bowler'] = 1
+file0['dots'] = 0
+file0['ones'] = 0
+file0['twos'] = 0
+file0['threes'] = 0
+file0['fours'] = 0
+file0['sixes'] = 0
+file0['outs_batsman'] = 0
+file0['outs_ns'] = 0
+file0['outs_bowler'] = 0
+file0['powerplay'] = 0
+file0['middle'] = 0
+file0['setup'] = 0
+file0['death'] = 0
 
-for x in file0['bowler'].values:
-    if(True):
-        player_season.append(file0['bowler'][c] +";"+ str(file0['season'][c]))
-        player_season.append(file0['striker'][c] +";"+ str(file0['season'][c]))
-        venues_season.append(file0['venue'][c] +";"+ str(file0['season'][c]))
-        batting_team_season.append(file0['batting_team'][c] +";"+ str(file0['season'][c]))
-        bowling_team_season.append(file0['bowling_team'][c] +";"+ str(file0['season'][c]))
-    
-        if(file0['wides'][c] > 0): balls_batsman.append(0)
-        else : balls_batsman.append(1)
-    
-        if(file0['wides'][c] > 0 or file0['noballs'][c] > 0): balls_bowler.append(0)
-        else : balls_bowler.append(1)
-    
-        if(file0['runs_off_bat'][c] == 0 and file0['noballs'][c] ==0 and file0['wides'][c] == 0): dots.append(1)
-        else : dots.append(0)
-    
-        if(file0['runs_off_bat'][c] == 1): ones.append(1)
-        else : ones.append(0)
-    
-        if(file0['runs_off_bat'][c] == 2): twos.append(1)
-        else : twos.append(0)
-    
-        if(file0['runs_off_bat'][c] == 3): threes.append(1)
-        else : threes.append(0)
-    
-        if(file0['runs_off_bat'][c] == 4): fours.append(1)
-        else : fours.append(0)
-    
-        if(file0['runs_off_bat'][c] == 6): sixes.append(1)
-        else : sixes.append(0)
-    
-        if(file0['striker'][c] == file0['player_dismissed'][c]): outs_batsman.append(1)
-        else : outs_batsman.append(0)
-    
-        if(file0['non_striker'][c] == file0['player_dismissed'][c]): outs_ns.append(1)
-        else : outs_ns.append(0)
-    
-        if(file0['striker'][c] == file0['player_dismissed'][c]):
-            if(file0['wicket_type'][c] == "run out" or file0['wicket_type'][c] == "retired hurt" or file0['wicket_type'][c] == "retired out" or file0['wicket_type'][c] == "obstructing the field"): 
-                outs_bowler.append(0)
-            else:
-                outs_bowler.append(1)
-        else : outs_bowler.append(0)
-    
-    c = c + 1
-    
-file0['balls_batsman'] = balls_batsman
-file0['balls_bowler'] = balls_bowler
-file0['dots'] = dots
-file0['ones'] = ones
-file0['twos'] = twos
-file0['threes'] = threes
-file0['fours'] = fours
-file0['sixes'] = sixes
-file0['outs_batsman'] = outs_batsman
-file0['outs_ns'] = outs_ns
-file0['outs_bowler'] = outs_bowler
+file0.loc[file0['wides']>0,'balls_batsman'] = 0
+file0.loc[(file0['wides']>0)|(file0['noballs']>0),'balls_bowler'] = 0
+file0.loc[(file0['runs_off_bat']==0)&(file0['noballs']==0)&(file0['wides']==0),'dots'] = 1
+file0.loc[file0['runs_off_bat']==1,'ones'] = 1
+file0.loc[file0['runs_off_bat']==2,'twos'] = 1
+file0.loc[file0['runs_off_bat']==3,'threes'] = 1
+file0.loc[file0['runs_off_bat']==4,'fours'] = 1
+file0.loc[file0['runs_off_bat']==6,'sixes'] = 1
+file0.loc[file0['striker']==file0['player_dismissed'],'outs_batsman'] = 1
+file0.loc[file0['non_striker']==file0['player_dismissed'],'outs_ns'] = 1
+file0.loc[(file0['striker']==file0['player_dismissed'])&(file0['wicket_type']!='run out')&(file0['wicket_type']!='retired hurt')&(file0['wicket_type']!='retired out')&(file0['wicket_type']!='obstructing the field'),'outs_bowler'] = 1
 
-venues_season = unique(venues_season)
-unique_seasons = unique(file0['season'].values)
-player_season = unique(player_season)
-batting_team_season = unique(batting_team_season)
-bowling_team_season = unique(bowling_team_season)
+file0.loc[file0['ball']<p1,'powerplay'] = 1
+file0.loc[(file0['ball']>=p1)&(file0['ball']<p2),'middle'] = 1
+file0.loc[(file0['ball']>=p2)&(file0['ball']<p3),'setup'] = 1
+file0.loc[file0['ball']>=p3,'death'] = 1
 
-print(unique_seasons)
-now = datetime.datetime.now()
-print(now.time())
-venue = unique(file0['venue'].values)
+file0['balls_batsman_powerplay'] = file0['balls_batsman'] * file0['powerplay']
+file0['runs_off_bat_powerplay'] = file0['runs_off_bat'] * file0['powerplay']
+file0['outs_batsman_powerplay'] = (file0['outs_batsman']+file0['outs_ns']) * file0['powerplay']
+file0['balls_batsman_middle'] = file0['balls_batsman'] * file0['middle']
+file0['runs_off_bat_middle'] = file0['runs_off_bat'] * file0['middle']
+file0['outs_batsman_middle'] = (file0['outs_batsman']+file0['outs_ns']) * file0['middle']
+file0['balls_batsman_setup'] = file0['balls_batsman'] * file0['setup']
+file0['runs_off_bat_setup'] = file0['runs_off_bat'] * file0['setup']
+file0['outs_batsman_setup'] = (file0['outs_batsman']+file0['outs_ns']) * file0['setup']
+file0['balls_batsman_death'] = file0['balls_batsman'] * file0['death']
+file0['runs_off_bat_death'] = file0['runs_off_bat'] * file0['death']
+file0['outs_batsman_death'] = (file0['outs_batsman']+file0['outs_ns']) * file0['death']
 
-c = 0
-year_bat = [["Season","Sum of balls_batsman","Sum of runs_off_bat","Sum of 0s","Sum of 1s","Sum of 2s","Sum of 3s","Sum of 4s","Sum of 6s","Sum of outs_batsman","Sum of powerplay","Sum of middle","Sum of setup","Sum of death","runs/ball","0s/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","wickets/ball","powerplay/ball","middle/ball","setup/ball","death/ball"]]
-year_bowl = [["Season","Sum of balls_bowler","Sum of runs_off_bat","Sum of 0s","Sum of 1s","Sum of 2s","Sum of 3s","Sum of 4s","Sum of 6s","Sum of extras","Sum of outs_bowler","Sum of powerplay","Sum of middle","Sum of setup","Sum of death","runs/ball","0s/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","wickets/ball","powerplay/ball","middle/ball","setup/ball","death/ball"]]
-year_bat_phase = [["Season","Sum of powerplay","Sum of pp_runs_batsman","Sum of pp_wickets_batsman","Sum of middle","Sum of mid_runs_batsman","Sum of mid_wickets_batsman","Sum of setup","Sum of setup_runs_batsman","Sum of setup_wickets_batsman","Sum of death","Sum of death_runs_batsman","Sum of death_wickets_batsman","pp AVG","mid AVG","setup AVG","death AVG","pp SR","mid SR","setup SR","death SR"]]
-year_bowl_phase = [["Season","Sum of powerplay","Sum of pp_runs_bowler","Sum of pp_wickets_bowler","Sum of middle","Sum of mid_runs_bowler","Sum of mid_wickets_bowler","Sum of setup","Sum of setup_runs_bowler","Sum of setup_wickets_bowler","Sum of death","Sum of death_runs_bowler","Sum of death_wickets_bowler","pp ECON","mid ECON","setup ECON","death ECON","pp SR","mid SR","setup SR","death SR"]]
-batting_team_balls_season = []; bowling_team_balls_season = []
-venue_bat_phase = [["Venue","Season","Sum of powerplay","Sum of pp_runs_batsman","Sum of pp_wickets_batsman","Sum of middle","Sum of mid_runs_batsman","Sum of mid_wickets_batsman","Sum of setup","Sum of setup_runs_batsman","Sum of setup_wickets_batsman","Sum of death","Sum of death_runs_batsman","Sum of death_wickets_batsman","pp AVG","mid AVG","setup AVG","death AVG","pp SR","mid SR","setup SR","death SR"]]
-venue_bowl_phase = [["Venue","Season","Sum of powerplay","Sum of pp_runs_bowler","Sum of pp_wickets_bowler","Sum of middle","Sum of mid_runs_bowler","Sum of mid_wickets_bowler","Sum of setup","Sum of setup_runs_bowler","Sum of setup_wickets_bowler","Sum of death","Sum of death_runs_bowler","Sum of death_wickets_bowler","pp ECON","mid ECON","setup ECON","death ECON","pp SR","mid SR","setup SR","death SR"]]
-
-
-for r in batting_team_season:
-    c7 = 0; vals1 = 0; vals2 = 0
-    #vals1 = file0['balls_batsman'].sum()
-    a = r.split(";")[0]
-    b = int(r.split(";")[1])
-    vals1 = file0.loc[(file0['batting_team']==a)&(file0['season']==b),'balls_batsman'].sum()
-    vals2 = file0.loc[(file0['bowling_team']==a)&(file0['season']==b),'balls_bowler'].sum()
-    batting_team_balls_season.append([a,b,vals1])
-    bowling_team_balls_season.append([a,b,vals2])
-    now = datetime.datetime.now()
-    #print(a,b,now.time())
+file0['balls_bowler_powerplay'] = file0['balls_bowler'] * file0['powerplay']
+file0['runs_bowl_powerplay'] = (file0['runs_off_bat']+file0['extras']) * file0['powerplay']
+file0['outs_bowler_powerplay'] = file0['outs_bowler'] * file0['powerplay']
+file0['balls_bowler_middle'] = file0['balls_bowler'] * file0['middle']
+file0['runs_bowl_middle'] = (file0['runs_off_bat']+file0['extras']) * file0['middle']
+file0['outs_bowler_middle'] = file0['outs_bowler'] * file0['middle']
+file0['balls_bowler_setup'] = file0['balls_bowler'] * file0['setup']
+file0['runs_bowl_setup'] = (file0['runs_off_bat']+file0['extras']) * file0['setup']
+file0['outs_bowler_setup'] = file0['outs_bowler'] * file0['setup']
+file0['balls_bowler_death'] = file0['balls_bowler'] * file0['death']
+file0['runs_bowl_death'] = (file0['runs_off_bat']+file0['extras']) * file0['death']
+file0['outs_bowler_death'] = file0['outs_bowler'] * file0['death']
 
 print("team balls faced dumped")
 now = datetime.datetime.now()
 print(now.time())
 
-for x in unique_seasons:
-    
-    year_balls_bowl = file0.loc[(file0['season']==x),'balls_bowler'].sum()
-    year_runs_bowl = file0.loc[(file0['season']==x),'runs_off_bat'].sum() + file0.loc[(file0['season']==x),'extras'].sum()
-    year_zeros_bowl = file0.loc[(file0['season']==x),'dots'].sum()
-    year_ones_bowl = file0.loc[(file0['season']==x),'ones'].sum()
-    year_twos_bowl = file0.loc[(file0['season']==x),'twos'].sum()
-    year_threes_bowl = file0.loc[(file0['season']==x),'threes'].sum()
-    year_fours_bowl = file0.loc[(file0['season']==x),'fours'].sum()
-    year_sixes_bowl = file0.loc[(file0['season']==x),'sixes'].sum()
-    year_extras_bowl = file0.loc[(file0['season']==x),'extras'].sum()
-    year_wickets_bowl = file0.loc[(file0['season']==x),'outs_bowler'].sum()
-    
-    year_pp_bowl = file0.loc[(file0['season']==x)&(file0['ball']<p1),'balls_bowler'].sum()
-    year_ppr_bowl = file0.loc[(file0['season']==x)&(file0['ball']<p1),'runs_off_bat'].sum() + file0.loc[(file0['season']==x)&(file0['ball']<p1),'extras'].sum()
-    year_ppw_bowl = file0.loc[(file0['season']==x)&(file0['ball']<p1),'outs_bowler'].sum()   
-    year_mid_bowl = file0.loc[(file0['season']==x)&(file0['ball']>p1)&(file0['ball']<p2),'balls_bowler'].sum()
-    year_midr_bowl = file0.loc[(file0['season']==x)&(file0['ball']>p1)&(file0['ball']<p2),'runs_off_bat'].sum() + file0.loc[(file0['season']==x)&(file0['ball']>p1)&(file0['ball']<p2),'extras'].sum()
-    year_midw_bowl = file0.loc[(file0['season']==x)&(file0['ball']>p1)&(file0['ball']<p2),'outs_bowler'].sum()   
-    year_setup_bowl = file0.loc[(file0['season']==x)&(file0['ball']>p2)&(file0['ball']<p3),'balls_bowler'].sum()
-    year_setupr_bowl = file0.loc[(file0['season']==x)&(file0['ball']>p2)&(file0['ball']<p3),'runs_off_bat'].sum() + file0.loc[(file0['season']==x)&(file0['ball']>p2)&(file0['ball']<p3),'extras'].sum()
-    year_setupw_bowl = file0.loc[(file0['season']==x)&(file0['ball']>p2)&(file0['ball']<p3),'outs_bowler'].sum()    
-    year_death_bowl = file0.loc[(file0['season']==x)&(file0['ball']>p3),'balls_bowler'].sum()
-    year_deathr_bowl = file0.loc[(file0['season']==x)&(file0['ball']>p3),'runs_off_bat'].sum() + file0.loc[(file0['season']==x)&(file0['ball']>p3),'extras'].sum()
-    year_deathw_bowl = file0.loc[(file0['season']==x)&(file0['ball']>p3),'outs_bowler'].sum()
-    
-    year_balls_bat = file0.loc[(file0['season']==x),'balls_batsman'].sum()
-    year_runs_bat = file0.loc[(file0['season']==x),'runs_off_bat'].sum()
-    year_zeros_bat = file0.loc[(file0['season']==x),'dots'].sum()
-    year_ones_bat = file0.loc[(file0['season']==x),'ones'].sum()
-    year_twos_bat = file0.loc[(file0['season']==x),'twos'].sum()
-    year_threes_bat = file0.loc[(file0['season']==x),'threes'].sum()
-    year_fours_bat = file0.loc[(file0['season']==x),'fours'].sum()
-    year_sixes_bat = file0.loc[(file0['season']==x),'sixes'].sum()
-    year_extras_bat = file0.loc[(file0['season']==x),'extras'].sum()
-    year_wickets_bat = file0.loc[(file0['season']==x),'outs_batsman'].sum() + file0.loc[(file0['season']==x),'outs_ns'].sum()
-    
-    year_pp_bat = file0.loc[(file0['season']==x)&(file0['ball']<p1),'balls_batsman'].sum()
-    year_ppr_bat = file0.loc[(file0['season']==x)&(file0['ball']<p1),'runs_off_bat'].sum()
-    year_ppw_bat = file0.loc[(file0['season']==x)&(file0['ball']<p1),'outs_batsman'].sum() + file0.loc[(file0['season']==x)&(file0['ball']<p1),'outs_ns'].sum()  
-    year_mid_bat = file0.loc[(file0['season']==x)&(file0['ball']>p1)&(file0['ball']<p2),'balls_batsman'].sum()
-    year_midr_bat = file0.loc[(file0['season']==x)&(file0['ball']>p1)&(file0['ball']<p2),'runs_off_bat'].sum()
-    year_midw_bat = file0.loc[(file0['season']==x)&(file0['ball']>p1)&(file0['ball']<p2),'outs_batsman'].sum() + file0.loc[(file0['season']==x)&(file0['ball']>p1)&(file0['ball']<p2),'outs_ns'].sum()   
-    year_setup_bat = file0.loc[(file0['season']==x)&(file0['ball']>p2)&(file0['ball']<p3),'balls_batsman'].sum()
-    year_setupr_bat = file0.loc[(file0['season']==x)&(file0['ball']>p2)&(file0['ball']<p3),'runs_off_bat'].sum()
-    year_setupw_bat = file0.loc[(file0['season']==x)&(file0['ball']>p2)&(file0['ball']<p3),'outs_batsman'].sum() + file0.loc[(file0['season']==x)&(file0['ball']>p2)&(file0['ball']<p3),'outs_ns'].sum()   
-    year_death_bat = file0.loc[(file0['season']==x)&(file0['ball']>p3),'balls_batsman'].sum()
-    year_deathr_bat = file0.loc[(file0['season']==x)&(file0['ball']>p3),'runs_off_bat'].sum()
-    year_deathw_bat = file0.loc[(file0['season']==x)&(file0['ball']>p3),'outs_batsman'].sum() + file0.loc[(file0['season']==x)&(file0['ball']>p3),'outs_ns'].sum()
-   
-    year_bowl.append([x,year_balls_bowl,year_runs_bowl,year_zeros_bowl,year_ones_bowl,year_twos_bowl,year_threes_bowl,year_fours_bowl,year_sixes_bowl,year_extras_bowl,year_wickets_bowl,year_pp_bowl,year_mid_bowl,year_setup_bowl,year_death_bowl,year_runs_bowl/year_balls_bowl,year_zeros_bowl/year_balls_bowl,year_ones_bowl/year_balls_bowl,year_twos_bowl/year_balls_bowl,year_threes_bowl/year_balls_bowl,year_fours_bowl/year_balls_bowl,year_sixes_bowl/year_balls_bowl,year_extras_bowl/year_balls_bowl,year_wickets_bowl/year_balls_bowl,year_pp_bowl/year_balls_bowl,year_mid_bowl/year_balls_bowl,year_setup_bowl/year_balls_bowl,year_death_bowl/year_balls_bowl])
-    year_bat.append([x,year_balls_bat,year_runs_bat,year_zeros_bat,year_ones_bat,year_twos_bat,year_threes_bat,year_fours_bat,year_sixes_bat,year_wickets_bat,year_pp_bat,year_mid_bat,year_setup_bat,year_death_bat,year_runs_bat/year_balls_bat,year_zeros_bat/year_balls_bat,year_ones_bat/year_balls_bat,year_twos_bat/year_balls_bat,year_threes_bat/year_balls_bat,year_fours_bat/year_balls_bat,year_sixes_bat/year_balls_bat,year_wickets_bat/year_balls_bat,year_pp_bat/year_balls_bat,year_mid_bat/year_balls_bat,year_setup_bat/year_balls_bat,year_death_bat/year_balls_bat])
-    year_bat_phase.append([x,year_pp_bat,year_ppr_bat,year_ppw_bat,year_mid_bat,year_midr_bat,year_midw_bat,year_setup_bat,year_setupr_bat,year_setupw_bat,year_death_bat,year_deathr_bat,year_deathw_bat,year_pp_bat/year_ppw_bat,year_mid_bat/year_midw_bat,year_setup_bat/year_setupw_bat,year_death_bat/year_deathw_bat,100*year_ppr_bat/year_pp_bat,100*year_midr_bat/year_mid_bat,100*year_setupr_bat/year_setup_bat,100*year_deathr_bat/year_death_bat])
-    year_bowl_phase.append([x,year_pp_bowl,year_ppr_bowl,year_ppw_bowl,year_mid_bowl,year_midr_bowl,year_midw_bowl,year_setup_bowl,year_setupr_bowl,year_setupw_bowl,year_death_bowl,year_deathr_bowl,year_deathw_bowl,6*year_ppr_bowl/year_pp_bowl,6*year_midr_bowl/year_mid_bowl,6*year_setupr_bowl/year_setup_bowl,6*year_deathr_bowl/year_death_bowl,year_pp_bowl/year_ppw_bowl,year_mid_bowl/year_midw_bowl,year_setup_bowl/year_setupw_bowl,year_death_bowl/year_deathw_bowl])
+year_bat = pd.pivot_table(file0,values=['balls_batsman','runs_off_bat','dots','ones','twos','threes','fours','sixes','outs_batsman','outs_ns','balls_batsman_powerplay','balls_batsman_middle','balls_batsman_setup','balls_batsman_death'],index=['season'],aggfunc=np.sum)
+year_bat['outs'] = year_bat['outs_batsman'] + year_bat['outs_ns']
+year_bat = year_bat.reset_index()
+year_bat.rename(columns = {'season':'Season', 'balls_batsman':'Sum of balls_batsman', 'runs_off_bat':'Sum of runs_off_bat', 'outs':'Sum of outs_batsman', 'dots':'Sum of 0s', 'ones':'Sum of 1s', 
+                           'twos':'Sum of 2s', 'threes':'Sum of 3s', 'fours':'Sum of 4s', 'sixes':'Sum of 6s', 'balls_batsman_powerplay':'Sum of powerplay', 'balls_batsman_middle':'Sum of middle',
+                           'balls_batsman_setup':'Sum of setup', 'balls_batsman_death':'Sum of death'}, inplace = True)
+
+year_bat = year_bat[["Season","Sum of balls_batsman","Sum of runs_off_bat","Sum of 0s","Sum of 1s","Sum of 2s","Sum of 3s","Sum of 4s","Sum of 6s","Sum of outs_batsman","Sum of powerplay","Sum of middle","Sum of setup","Sum of death"]]
+year_bat['runs/ball'] = year_bat['Sum of runs_off_bat']/year_bat['Sum of balls_batsman']
+year_bat['0s/ball'] = year_bat['Sum of 0s']/year_bat['Sum of balls_batsman']
+year_bat['1s/ball'] = year_bat['Sum of 1s']/year_bat['Sum of balls_batsman']
+year_bat['2s/ball'] = year_bat['Sum of 2s']/year_bat['Sum of balls_batsman']
+year_bat['3s/ball'] = year_bat['Sum of 3s']/year_bat['Sum of balls_batsman']
+year_bat['4s/ball'] = year_bat['Sum of 4s']/year_bat['Sum of balls_batsman']
+year_bat['6s/ball'] = year_bat['Sum of 6s']/year_bat['Sum of balls_batsman']
+year_bat['wickets/ball'] = year_bat['Sum of outs_batsman']/year_bat['Sum of balls_batsman']
+year_bat['powerplay/ball'] = year_bat['Sum of powerplay']/year_bat['Sum of balls_batsman']
+year_bat['middle/ball'] = year_bat['Sum of middle']/year_bat['Sum of balls_batsman']
+year_bat['setup/ball'] = year_bat['Sum of setup']/year_bat['Sum of balls_batsman']
+year_bat['death/ball'] = year_bat['Sum of death']/year_bat['Sum of balls_batsman']
+
+
+year_bowl = pd.pivot_table(file0,values=['balls_bowler','runs_off_bat','extras','dots','ones','twos','threes','fours','sixes','outs_bowler','balls_bowler_powerplay','balls_bowler_middle','balls_bowler_setup','balls_bowler_death'],index=['season'],aggfunc=np.sum)
+year_bowl['runs_off_bowl'] = year_bowl['runs_off_bat'] + year_bowl['extras']
+year_bowl = year_bowl.reset_index()
+year_bowl.rename(columns = {'season':'Season', 'balls_bowler':'Sum of balls_bowler', 'runs_off_bat':'Sum of runs_off_bat', 'outs_bowler':'Sum of outs_bowler', 'dots':'Sum of 0s', 'ones':'Sum of 1s', 
+                           'twos':'Sum of 2s', 'threes':'Sum of 3s', 'fours':'Sum of 4s', 'sixes':'Sum of 6s', 'balls_bowler_powerplay':'Sum of powerplay', 'balls_bowler_middle':'Sum of middle',
+                           'balls_bowler_setup':'Sum of setup', 'balls_bowler_death':'Sum of death', 'extras':'Sum of extras'}, inplace = True)
+year_bowl = year_bowl[["Season","Sum of balls_bowler","Sum of runs_off_bat","Sum of 0s","Sum of 1s","Sum of 2s","Sum of 3s","Sum of 4s","Sum of 6s","Sum of extras","Sum of outs_bowler","Sum of powerplay","Sum of middle","Sum of setup","Sum of death"]]
+year_bowl['runs/ball'] = year_bowl['Sum of runs_off_bat']/year_bowl['Sum of balls_bowler']
+year_bowl['0s/ball'] = year_bowl['Sum of 0s']/year_bowl['Sum of balls_bowler']
+year_bowl['1s/ball'] = year_bowl['Sum of 1s']/year_bowl['Sum of balls_bowler']
+year_bowl['2s/ball'] = year_bowl['Sum of 2s']/year_bowl['Sum of balls_bowler']
+year_bowl['3s/ball'] = year_bowl['Sum of 3s']/year_bowl['Sum of balls_bowler']
+year_bowl['4s/ball'] = year_bowl['Sum of 4s']/year_bowl['Sum of balls_bowler']
+year_bowl['6s/ball'] = year_bowl['Sum of 6s']/year_bowl['Sum of balls_bowler']
+year_bowl['extras/ball'] = year_bowl['Sum of extras']/year_bowl['Sum of balls_bowler']
+year_bowl['wickets/ball'] = year_bowl['Sum of outs_bowler']/year_bowl['Sum of balls_bowler']
+year_bowl['powerplay/ball'] = year_bowl['Sum of powerplay']/year_bowl['Sum of balls_bowler']
+year_bowl['middle/ball'] = year_bowl['Sum of middle']/year_bowl['Sum of balls_bowler']
+year_bowl['setup/ball'] = year_bowl['Sum of setup']/year_bowl['Sum of balls_bowler']
+year_bowl['death/ball'] = year_bowl['Sum of death']/year_bowl['Sum of balls_bowler']
+
+year_bat_phase = pd.pivot_table(file0,values=['balls_batsman_powerplay','runs_off_bat_powerplay','outs_batsman_powerplay','balls_batsman_middle','runs_off_bat_middle','outs_batsman_middle','balls_batsman_setup','runs_off_bat_setup','outs_batsman_setup','balls_batsman_death','runs_off_bat_death','outs_batsman_death'],index=['season'],aggfunc=np.sum)
+year_bat_phase = year_bat_phase.reset_index()
+year_bat_phase.rename(columns = {'season':'Season', 'balls_batsman_powerplay':'Sum of powerplay', 'runs_off_bat_powerplay':'Sum of pp_runs_batsman', 'outs_batsman_powerplay':'Sum of pp_wickets_batsman',
+                                 'balls_batsman_middle':'Sum of middle', 'runs_off_bat_middle':'Sum of mid_runs_batsman', 'outs_batsman_middle':'Sum of mid_wickets_batsman',
+                                 'balls_batsman_setup':'Sum of setup', 'runs_off_bat_setup':'Sum of setup_runs_batsman', 'outs_batsman_setup':'Sum of setup_wickets_batsman',
+                                 'balls_batsman_death':'Sum of death', 'runs_off_bat_death':'Sum of death_runs_batsman', 'outs_batsman_death':'Sum of death_wickets_batsman',}, inplace = True)
+year_bat_phase = year_bat_phase[["Season","Sum of powerplay","Sum of pp_runs_batsman","Sum of pp_wickets_batsman","Sum of middle","Sum of mid_runs_batsman","Sum of mid_wickets_batsman","Sum of setup","Sum of setup_runs_batsman","Sum of setup_wickets_batsman","Sum of death","Sum of death_runs_batsman","Sum of death_wickets_batsman"]]
+year_bat_phase['pp AVG'] = year_bat_phase['Sum of powerplay']/year_bat_phase['Sum of pp_wickets_batsman']
+year_bat_phase['mid AVG'] = year_bat_phase['Sum of middle']/year_bat_phase['Sum of mid_wickets_batsman']
+year_bat_phase['setup AVG'] = year_bat_phase['Sum of setup']/year_bat_phase['Sum of setup_wickets_batsman']
+year_bat_phase['death AVG'] = year_bat_phase['Sum of death']/year_bat_phase['Sum of death_wickets_batsman']
+year_bat_phase['pp SR'] = 100*year_bat_phase['Sum of pp_runs_batsman']/year_bat_phase['Sum of powerplay']
+year_bat_phase['mid SR'] = 100*year_bat_phase['Sum of mid_runs_batsman']/year_bat_phase['Sum of middle']
+year_bat_phase['setup SR'] = 100*year_bat_phase['Sum of setup_runs_batsman']/year_bat_phase['Sum of setup']
+year_bat_phase['death SR'] = 100*year_bat_phase['Sum of death_runs_batsman']/year_bat_phase['Sum of death']
+
+year_bowl_phase = pd.pivot_table(file0,values=['balls_bowler_powerplay','runs_bowl_powerplay','outs_bowler_powerplay','balls_bowler_middle','runs_bowl_middle','outs_bowler_middle','balls_bowler_setup','runs_bowl_setup','outs_bowler_setup','balls_bowler_death','runs_bowl_death','outs_bowler_death'],index=['season'],aggfunc=np.sum)
+year_bowl_phase = year_bowl_phase.reset_index()
+year_bowl_phase.rename(columns = {'season':'Season', 'balls_bowler_powerplay':'Sum of powerplay', 'runs_bowl_powerplay':'Sum of pp_runs_bowler', 'outs_bowler_powerplay':'Sum of pp_wickets_bowler',
+                                 'balls_bowler_middle':'Sum of middle', 'runs_bowl_middle':'Sum of mid_runs_bowler', 'outs_bowler_middle':'Sum of mid_wickets_bowler',
+                                 'balls_bowler_setup':'Sum of setup', 'runs_bowl_setup':'Sum of setup_runs_bowler', 'outs_bowler_setup':'Sum of setup_wickets_bowler',
+                                 'balls_bowler_death':'Sum of death', 'runs_bowl_death':'Sum of death_runs_bowler', 'outs_bowler_death':'Sum of death_wickets_bowler',}, inplace = True)
+year_bowl_phase = year_bowl_phase[["Season","Sum of powerplay","Sum of pp_runs_bowler","Sum of pp_wickets_bowler","Sum of middle","Sum of mid_runs_bowler","Sum of mid_wickets_bowler","Sum of setup","Sum of setup_runs_bowler","Sum of setup_wickets_bowler","Sum of death","Sum of death_runs_bowler","Sum of death_wickets_bowler"]]
+year_bowl_phase['pp ECON'] = 6*year_bowl_phase['Sum of pp_runs_bowler']/year_bowl_phase['Sum of powerplay']
+year_bowl_phase['mid ECON'] = 6*year_bowl_phase['Sum of mid_runs_bowler']/year_bowl_phase['Sum of middle']
+year_bowl_phase['setup ECON'] = 6*year_bowl_phase['Sum of setup_runs_bowler']/year_bowl_phase['Sum of setup']
+year_bowl_phase['death ECON'] = 6*year_bowl_phase['Sum of death_runs_bowler']/year_bowl_phase['Sum of death']
+year_bowl_phase['pp SR'] = year_bowl_phase['Sum of powerplay']/year_bowl_phase['Sum of pp_wickets_bowler']
+year_bowl_phase['mid SR'] = year_bowl_phase['Sum of middle']/year_bowl_phase['Sum of mid_wickets_bowler']
+year_bowl_phase['setup SR'] = year_bowl_phase['Sum of setup']/year_bowl_phase['Sum of setup_wickets_bowler']
+year_bowl_phase['death SR'] = year_bowl_phase['Sum of death']/year_bowl_phase['Sum of death_wickets_bowler']
+
 
 print("league average and phases data dumped")
 now = datetime.datetime.now()
 print(now.time())
 
-for x in venues_season:
-    a = x.split(";")[0]         #venue
-    b = int(x.split(";")[1])    #season
-    try:
-        a2 = file000.loc[file000['venue']==a,'short'].values[0]
-    except IndexError:
-        a2 = a
-    
-    year_pp_bowl = file0.loc[(file0['season']==b)&(file0['ball']<p1),'balls_bowler'].sum()
-    year_ppr_bowl = file0.loc[(file0['season']==b)&(file0['ball']<p1),'runs_off_bat'].sum() + file0.loc[(file0['season']==b)&(file0['ball']<p1),'extras'].sum()
-    year_ppw_bowl = file0.loc[(file0['season']==b)&(file0['ball']<p1),'outs_bowler'].sum()   
-    year_mid_bowl = file0.loc[(file0['season']==b)&(file0['ball']>p1)&(file0['ball']<p2),'balls_bowler'].sum()
-    year_midr_bowl = file0.loc[(file0['season']==b)&(file0['ball']>p1)&(file0['ball']<p2),'runs_off_bat'].sum() + file0.loc[(file0['season']==b)&(file0['ball']>p1)&(file0['ball']<p2),'extras'].sum()
-    year_midw_bowl = file0.loc[(file0['season']==b)&(file0['ball']>p1)&(file0['ball']<p2),'outs_bowler'].sum()   
-    year_setup_bowl = file0.loc[(file0['season']==b)&(file0['ball']>p2)&(file0['ball']<p3),'balls_bowler'].sum()
-    year_setupr_bowl = file0.loc[(file0['season']==b)&(file0['ball']>p2)&(file0['ball']<p3),'runs_off_bat'].sum() + file0.loc[(file0['season']==b)&(file0['ball']>p2)&(file0['ball']<p3),'extras'].sum()
-    year_setupw_bowl = file0.loc[(file0['season']==b)&(file0['ball']>p2)&(file0['ball']<p3),'outs_bowler'].sum()    
-    year_death_bowl = file0.loc[(file0['season']==b)&(file0['ball']>p3),'balls_bowler'].sum()
-    year_deathr_bowl = file0.loc[(file0['season']==b)&(file0['ball']>p3),'runs_off_bat'].sum() + file0.loc[(file0['season']==b)&(file0['ball']>p3),'extras'].sum()
-    year_deathw_bowl = file0.loc[(file0['season']==b)&(file0['ball']>p3),'outs_bowler'].sum()
-    
-    venue_pp_bowl = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']<p1),'balls_bowler'].sum()
-    venue_ppr_bowl = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']<p1),'runs_off_bat'].sum() + file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']<p1),'extras'].sum()
-    venue_ppw_bowl = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']<p1),'outs_bowler'].sum()
-    venue_mid_bowl = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p1)&(file0['ball']<p2),'balls_bowler'].sum()
-    venue_midr_bowl = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p1)&(file0['ball']<p2),'runs_off_bat'].sum() + file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p1)&(file0['ball']<p2),'extras'].sum()
-    venue_midw_bowl = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p1)&(file0['ball']<p2),'outs_bowler'].sum()
-    venue_setup_bowl = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p2)&(file0['ball']<p3),'balls_bowler'].sum()
-    venue_setupr_bowl = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p2)&(file0['ball']<p3),'runs_off_bat'].sum() + file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p2)&(file0['ball']<p3),'extras'].sum()
-    venue_setupw_bowl = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p2)&(file0['ball']<p3),'outs_bowler'].sum()    
-    venue_death_bowl = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p3),'balls_bowler'].sum()
-    venue_deathr_bowl = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p3),'runs_off_bat'].sum() + file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p3),'extras'].sum()
-    venue_deathw_bowl = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p3),'outs_bowler'].sum()
-    
-    year_pp_bat = file0.loc[(file0['season']==b)&(file0['ball']<p1),'balls_batsman'].sum()
-    year_ppr_bat = file0.loc[(file0['season']==b)&(file0['ball']<p1),'runs_off_bat'].sum()
-    year_ppw_bat = file0.loc[(file0['season']==b)&(file0['ball']<p1),'outs_batsman'].sum() + file0.loc[(file0['season']==b)&(file0['ball']<p1),'outs_ns'].sum()  
-    year_mid_bat = file0.loc[(file0['season']==b)&(file0['ball']>p1)&(file0['ball']<p2),'balls_batsman'].sum()
-    year_midr_bat = file0.loc[(file0['season']==b)&(file0['ball']>p1)&(file0['ball']<p2),'runs_off_bat'].sum()
-    year_midw_bat = file0.loc[(file0['season']==b)&(file0['ball']>p1)&(file0['ball']<p2),'outs_batsman'].sum() + file0.loc[(file0['season']==b)&(file0['ball']>p1)&(file0['ball']<p2),'outs_ns'].sum()   
-    year_setup_bat = file0.loc[(file0['season']==b)&(file0['ball']>p2)&(file0['ball']<p3),'balls_batsman'].sum()
-    year_setupr_bat = file0.loc[(file0['season']==b)&(file0['ball']>p2)&(file0['ball']<p3),'runs_off_bat'].sum()
-    year_setupw_bat = file0.loc[(file0['season']==b)&(file0['ball']>p2)&(file0['ball']<p3),'outs_batsman'].sum() + file0.loc[(file0['season']==b)&(file0['ball']>p2)&(file0['ball']<p3),'outs_ns'].sum()   
-    year_death_bat = file0.loc[(file0['season']==b)&(file0['ball']>p3),'balls_batsman'].sum()
-    year_deathr_bat = file0.loc[(file0['season']==b)&(file0['ball']>p3),'runs_off_bat'].sum()
-    year_deathw_bat = file0.loc[(file0['season']==b)&(file0['ball']>p3),'outs_batsman'].sum() + file0.loc[(file0['season']==b)&(file0['ball']>p3),'outs_ns'].sum()
+#venues_season = file0[['venue','season']]
+#venues_season = venues_season.drop_duplicates()
+file0 = file0.merge(venues, left_on='venue', right_on='venue')
 
-    venue_pp_bat = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']<p1),'balls_batsman'].sum()
-    venue_ppr_bat = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']<p1),'runs_off_bat'].sum()
-    venue_ppw_bat = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']<p1),'outs_batsman'].sum() + file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']<p1),'outs_ns'].sum()    
-    venue_mid_bat = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p1)&(file0['ball']<p2),'balls_batsman'].sum()
-    venue_midr_bat = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p1)&(file0['ball']<p2),'runs_off_bat'].sum()
-    venue_midw_bat = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p1)&(file0['ball']<p2),'outs_batsman'].sum() + file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p1)&(file0['ball']<p2),'outs_ns'].sum()
-    venue_setup_bat = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p2)&(file0['ball']<p3),'balls_batsman'].sum()
-    venue_setupr_bat = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p2)&(file0['ball']<p3),'runs_off_bat'].sum()
-    venue_setupw_bat = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p2)&(file0['ball']<p3),'outs_batsman'].sum() + file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p2)&(file0['ball']<p3),'outs_ns'].sum()
-    venue_death_bat = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p3),'balls_batsman'].sum()
-    venue_deathr_bat = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p3),'runs_off_bat'].sum()
-    venue_deathw_bat = file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p3),'outs_batsman'].sum() + file0.loc[(file0['season']==b)&(file0['venue']==a)&(file0['ball']>p3),'outs_ns'].sum()
-    
-    #now = datetime.datetime.now()
-    #print(a,b,now.time())
-    #venue_bowl.append([a,b,venue_balls_bowl,venue_runs_bowl,venue_zeros_bowl,venue_ones_bowl,venue_twos_bowl,venue_threes_bowl,venue_fours_bowl,venue_sixes_bowl,venue_extras_bowl,venue_wickets_bowl,venue_pp_bowl,venue_mid_bowl,venue_setup_bowl,venue_death_bowl,venue_runs_bowl/venue_balls_bowl,venue_zeros_bowl/venue_balls_bowl,venue_ones_bowl/venue_balls_bowl,venue_twos_bowl/venue_balls_bowl,venue_threes_bowl/venue_balls_bowl,venue_fours_bowl/venue_balls_bowl,venue_sixes_bowl/venue_balls_bowl,venue_extras_bowl/venue_balls_bowl,venue_wickets_bowl/venue_balls_bowl,venue_pp_bowl/venue_balls_bowl,venue_mid_bowl/venue_balls_bowl,venue_setup_bowl/venue_balls_bowl,venue_death_bowl/venue_balls_bowl])
-    #venue_bat.append([a,b,venue_balls_bat,venue_runs_bat,venue_zeros_bat,venue_ones_bat,venue_twos_bat,venue_threes_bat,venue_fours_bat,venue_sixes_bat,venue_wickets_bat,venue_pp_bat,venue_mid_bat,venue_setup_bat,venue_death_bat,venue_runs_bat/venue_balls_bat,venue_zeros_bat/venue_balls_bat,venue_ones_bat/venue_balls_bat,venue_twos_bat/venue_balls_bat,venue_threes_bat/venue_balls_bat,venue_fours_bat/venue_balls_bat,venue_sixes_bat/venue_balls_bat,venue_wickets_bat/venue_balls_bat,venue_pp_bat/venue_balls_bat,venue_mid_bat/venue_balls_bat,venue_setup_bat/venue_balls_bat,venue_death_bat/venue_balls_bat])
-    venue_bat_phase.append([a2,b,venue_pp_bat,venue_ppr_bat,venue_ppw_bat,venue_mid_bat,venue_midr_bat,venue_midw_bat,venue_setup_bat,venue_setupr_bat,venue_setupw_bat,venue_death_bat,venue_deathr_bat,venue_deathw_bat,venue_pp_bat/venue_ppw_bat,venue_mid_bat/venue_midw_bat,venue_setup_bat/venue_setupw_bat,venue_death_bat/venue_deathw_bat,100*venue_ppr_bat/venue_pp_bat,100*venue_midr_bat/venue_mid_bat,100*venue_setupr_bat/venue_setup_bat,100*venue_deathr_bat/venue_death_bat])
-    venue_bowl_phase.append([a2,b,venue_pp_bowl,venue_ppr_bowl,venue_ppw_bowl,venue_mid_bowl,venue_midr_bowl,venue_midw_bowl,venue_setup_bowl,venue_setupr_bowl,venue_setupw_bowl,venue_death_bowl,venue_deathr_bowl,venue_deathw_bowl,6*venue_ppr_bowl/venue_pp_bowl,6*venue_midr_bowl/venue_mid_bowl,6*venue_setupr_bowl/venue_setup_bowl,6*venue_deathr_bowl/venue_death_bowl,venue_pp_bowl/venue_ppw_bowl,venue_mid_bowl/venue_midw_bowl,venue_setup_bowl/venue_setupw_bowl,venue_death_bowl/venue_deathw_bowl])
+venue_bat_phase = [["Venue","Season","Sum of powerplay","Sum of pp_runs_batsman","Sum of pp_wickets_batsman","Sum of middle","Sum of mid_runs_batsman","Sum of mid_wickets_batsman","Sum of setup","Sum of setup_runs_batsman","Sum of setup_wickets_batsman","Sum of death","Sum of death_runs_batsman","Sum of death_wickets_batsman","pp AVG","mid AVG","setup AVG","death AVG","pp SR","mid SR","setup SR","death SR"]]
+venue_bowl_phase = [["Venue","Season","Sum of powerplay","Sum of pp_runs_bowler","Sum of pp_wickets_bowler","Sum of middle","Sum of mid_runs_bowler","Sum of mid_wickets_bowler","Sum of setup","Sum of setup_runs_bowler","Sum of setup_wickets_bowler","Sum of death","Sum of death_runs_bowler","Sum of death_wickets_bowler","pp ECON","mid ECON","setup ECON","death ECON","pp SR","mid SR","setup SR","death SR"]]
+
+venue_bat_phase = pd.pivot_table(file0,values=['balls_batsman_powerplay','runs_off_bat_powerplay','outs_batsman_powerplay','balls_batsman_middle','runs_off_bat_middle','outs_batsman_middle','balls_batsman_setup','runs_off_bat_setup','outs_batsman_setup','balls_batsman_death','runs_off_bat_death','outs_batsman_death'],index=['short','season'],aggfunc=np.sum)
+venue_bat_phase = venue_bat_phase.reset_index()
+venue_bat_phase.rename(columns = {'short':'Venue','season':'Season', 'balls_batsman_powerplay':'Sum of powerplay', 'runs_off_bat_powerplay':'Sum of pp_runs_batsman', 'outs_batsman_powerplay':'Sum of pp_wickets_batsman',
+                                 'balls_batsman_middle':'Sum of middle', 'runs_off_bat_middle':'Sum of mid_runs_batsman', 'outs_batsman_middle':'Sum of mid_wickets_batsman',
+                                 'balls_batsman_setup':'Sum of setup', 'runs_off_bat_setup':'Sum of setup_runs_batsman', 'outs_batsman_setup':'Sum of setup_wickets_batsman',
+                                 'balls_batsman_death':'Sum of death', 'runs_off_bat_death':'Sum of death_runs_batsman', 'outs_batsman_death':'Sum of death_wickets_batsman',}, inplace = True)
+venue_bat_phase = venue_bat_phase[["Venue","Season","Sum of powerplay","Sum of pp_runs_batsman","Sum of pp_wickets_batsman","Sum of middle","Sum of mid_runs_batsman","Sum of mid_wickets_batsman","Sum of setup","Sum of setup_runs_batsman","Sum of setup_wickets_batsman","Sum of death","Sum of death_runs_batsman","Sum of death_wickets_batsman"]]
+venue_bat_phase['pp AVG'] = venue_bat_phase['Sum of powerplay']/venue_bat_phase['Sum of pp_wickets_batsman']
+venue_bat_phase['mid AVG'] = venue_bat_phase['Sum of middle']/venue_bat_phase['Sum of mid_wickets_batsman']
+venue_bat_phase['setup AVG'] = venue_bat_phase['Sum of setup']/venue_bat_phase['Sum of setup_wickets_batsman']
+venue_bat_phase['death AVG'] = venue_bat_phase['Sum of death']/venue_bat_phase['Sum of death_wickets_batsman']
+venue_bat_phase['pp SR'] = 100*venue_bat_phase['Sum of pp_runs_batsman']/venue_bat_phase['Sum of powerplay']
+venue_bat_phase['mid SR'] = 100*venue_bat_phase['Sum of mid_runs_batsman']/venue_bat_phase['Sum of middle']
+venue_bat_phase['setup SR'] = 100*venue_bat_phase['Sum of setup_runs_batsman']/venue_bat_phase['Sum of setup']
+venue_bat_phase['death SR'] = 100*venue_bat_phase['Sum of death_runs_batsman']/venue_bat_phase['Sum of death']
+
+venue_bowl_phase = pd.pivot_table(file0,values=['balls_bowler_powerplay','runs_bowl_powerplay','outs_bowler_powerplay','balls_bowler_middle','runs_bowl_middle','outs_bowler_middle','balls_bowler_setup','runs_bowl_setup','outs_bowler_setup','balls_bowler_death','runs_bowl_death','outs_bowler_death'],index=['short','season'],aggfunc=np.sum)
+venue_bowl_phase = venue_bowl_phase.reset_index()
+venue_bowl_phase.rename(columns = {'short':'Venue','season':'Season', 'balls_bowler_powerplay':'Sum of powerplay', 'runs_bowl_powerplay':'Sum of pp_runs_bowler', 'outs_bowler_powerplay':'Sum of pp_wickets_bowler',
+                                 'balls_bowler_middle':'Sum of middle', 'runs_bowl_middle':'Sum of mid_runs_bowler', 'outs_bowler_middle':'Sum of mid_wickets_bowler',
+                                 'balls_bowler_setup':'Sum of setup', 'runs_bowl_setup':'Sum of setup_runs_bowler', 'outs_bowler_setup':'Sum of setup_wickets_bowler',
+                                 'balls_bowler_death':'Sum of death', 'runs_bowl_death':'Sum of death_runs_bowler', 'outs_bowler_death':'Sum of death_wickets_bowler',}, inplace = True)
+venue_bowl_phase = venue_bowl_phase[["Venue","Season","Sum of powerplay","Sum of pp_runs_bowler","Sum of pp_wickets_bowler","Sum of middle","Sum of mid_runs_bowler","Sum of mid_wickets_bowler","Sum of setup","Sum of setup_runs_bowler","Sum of setup_wickets_bowler","Sum of death","Sum of death_runs_bowler","Sum of death_wickets_bowler"]]
+venue_bowl_phase['pp ECON'] = 6*venue_bowl_phase['Sum of pp_runs_bowler']/venue_bowl_phase['Sum of powerplay']
+venue_bowl_phase['mid ECON'] = 6*venue_bowl_phase['Sum of mid_runs_bowler']/venue_bowl_phase['Sum of middle']
+venue_bowl_phase['setup ECON'] = 6*venue_bowl_phase['Sum of setup_runs_bowler']/venue_bowl_phase['Sum of setup']
+venue_bowl_phase['death ECON'] = 6*venue_bowl_phase['Sum of death_runs_bowler']/venue_bowl_phase['Sum of death']
+venue_bowl_phase['pp SR'] = venue_bowl_phase['Sum of powerplay']/venue_bowl_phase['Sum of pp_wickets_bowler']
+venue_bowl_phase['mid SR'] = venue_bowl_phase['Sum of middle']/venue_bowl_phase['Sum of mid_wickets_bowler']
+venue_bowl_phase['setup SR'] = venue_bowl_phase['Sum of setup']/venue_bowl_phase['Sum of setup_wickets_bowler']
+venue_bowl_phase['death SR'] = venue_bowl_phase['Sum of death']/venue_bowl_phase['Sum of death_wickets_bowler']
 
 print("venue average and phases data dumped")
 now = datetime.datetime.now()
 print(now.time())
 
-
-handedness = pd.read_excel(input_file4,'people')
+handedness = pd.read_excel(people,'people')
 handedness_bat = handedness[['unique_name','batType']]
 handedness_bowl = handedness[['unique_name','bowlType']]
+
 file0 = file0.merge(handedness_bat, left_on='striker', right_on='unique_name')
 file0 = file0.merge(handedness_bowl, left_on='bowler', right_on='unique_name')
 file0 = file0.drop(columns=['unique_name_x', 'unique_name_y'])
-file0 = file0.merge(file000, left_on='venue', right_on='venue')
+file0 = file0.drop_duplicates()
 file0['bowlType_main'] = np.where((file0['bowlType']=='Right-arm offbreak')|(file0['bowlType']=='Legbreak googly')|(file0['bowlType']=='Legbreak')|(file0['bowlType']=='Left-arm wrist-spin')|(file0['bowlType']=='Slow left-arm orthodox'),'spin', 'pace')
 
-matchups = list(product(['spin','pace'],file0['short'].unique(),file0['season'].unique()))
-matchups = pd.DataFrame(matchups, columns =['bowl_type','venue','season'])
-
-for x in matchups.values:
-    #print(x)
-    matchups.loc[(matchups['venue']==x[1])&(matchups['bowl_type']==x[0])&(matchups['season']==x[2]),'balls'] = file0.loc[(file0['season']==x[2])&(file0['short']==x[1])&(file0['bowlType_main']==x[0]),'balls_batsman'].sum()
-    matchups.loc[(matchups['venue']==x[1])&(matchups['bowl_type']==x[0])&(matchups['season']==x[2]),'runs'] = file0.loc[(file0['season']==x[2])&(file0['short']==x[1])&(file0['bowlType_main']==x[0]),'runs_off_bat'].sum()
-    matchups.loc[(matchups['venue']==x[1])&(matchups['bowl_type']==x[0])&(matchups['season']==x[2]),'wickets'] = file0.loc[(file0['season']==x[2])&(file0['short']==x[1])&(file0['bowlType_main']==x[0]),'outs_batsman'].sum()
-
+matchups = pd.pivot_table(file0,values=['balls_batsman','runs_off_bat','outs_batsman'],index=['bowlType_main','short','season'],aggfunc=np.sum)
+matchups = matchups.reset_index()
+matchups.rename(columns = {'bowlType_main':'bowl_type', 'short':'venue', 'balls_batsman':'balls', 'outs_batsman':'wickets', 'runs_off_bat':'runs'}, inplace = True)
 matchups['AVG'] = matchups['balls']/matchups['wickets']
 matchups['SR'] = 100*matchups['runs']/matchups['balls']
+matchups = matchups[['bowl_type','venue','season','balls','runs','wickets','AVG','SR']]
 matchups = matchups.dropna()
 
 print("venue pace/spin data dumped")
 now = datetime.datetime.now()
 print(now.time())
 
-player_bat = [["batsman","season","batting_team","RSAA","usage","balls_batsman","runs_off_bat","0s","1s","2s","3s","4s","6s","outs_batsman","powerplay","middle","setup","death","runs/ball","0s/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","wickets/ball","PP usage","mid usage","setup usage","death usage","AVG","SR","xAVG","xSR","xruns","xwickets","bf_GP"]]
-player_bowl = [["bowler","season","bowling_team","RCAA","usage","balls_bowler","runs_off_bat","0s","1s","2s","3s","4s","6s","extras","outs_bowler","powerplay","middle","setup","death","runs/ball","0s/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","wickets/ball","ECON","SR","PP usage","mid usage","setup usage","death usage","xECON","xSR","xruns","xwickets","bb_GP"]]
+player_bat = pd.pivot_table(file0,values=['balls_batsman','runs_off_bat','dots','ones', 'twos', 'threes', 'fours', 'sixes','outs_batsman', 'balls_batsman_powerplay', 'balls_batsman_middle', 'balls_batsman_setup', 'balls_batsman_death',],index=['striker','season','batting_team'],aggfunc=np.sum)
+player_bat = player_bat.reset_index()
+player_bat.rename(columns = {'striker':'batsman','dots':'0s', 'ones':'1s', 'twos':'2s', 'threes':'3s', 'fours':'4s', 'sixes':'6s',
+                             'balls_batsman_powerplay':'powerplay', 'balls_batsman_middle':'middle', 'balls_batsman_setup':'setup', 'balls_batsman_death':'death'}, inplace = True)
+player_bat['runs/ball'] = player_bat['runs_off_bat']/player_bat['balls_batsman']
+player_bat['0s/ball'] = player_bat['0s']/player_bat['balls_batsman']
+player_bat['1s/ball'] = player_bat['1s']/player_bat['balls_batsman']
+player_bat['2s/ball'] = player_bat['2s']/player_bat['balls_batsman']
+player_bat['3s/ball'] = player_bat['3s']/player_bat['balls_batsman']
+player_bat['4s/ball'] = player_bat['4s']/player_bat['balls_batsman']
+player_bat['6s/ball'] = player_bat['6s']/player_bat['balls_batsman']
+player_bat['wickets/ball'] = player_bat['outs_batsman']/player_bat['balls_batsman']
+player_bat['PP usage'] = player_bat['powerplay']/player_bat['balls_batsman']
+player_bat['mid usage'] = player_bat['middle']/player_bat['balls_batsman']
+player_bat['setup usage'] = player_bat['setup']/player_bat['balls_batsman']
+player_bat['death usage'] = player_bat['death']/player_bat['balls_batsman']
+player_bat['AVG'] = player_bat['balls_batsman']/player_bat['outs_batsman']
+player_bat.loc[player_bat['AVG']>player_bat['balls_batsman'],'AVG']=player_bat['balls_batsman']
+player_bat['SR'] = 100*player_bat['runs_off_bat']/player_bat['balls_batsman']
+player_bat = player_bat.merge(games_played, left_on=['batsman','season'], right_on=['player','season'])
+player_bat['bf_GP'] = player_bat['balls_batsman']/player_bat['GP']
+player_bat['usage'] = player_bat['balls_batsman']/(player_bat['GP']*120*factor)
+player_bat = pd.merge(player_bat,year_bat_phase[['Season','pp AVG', 'mid AVG', 'setup AVG','death AVG', 'pp SR', 'mid SR', 'setup SR', 'death SR']],left_on='season', right_on='Season')
+player_bat['xAVG'] = player_bat['PP usage']*player_bat['pp AVG'] + player_bat['mid usage']*player_bat['mid AVG'] + player_bat['setup usage']*player_bat['setup AVG'] + player_bat['death usage']*player_bat['death AVG']
+player_bat['xSR'] = player_bat['PP usage']*player_bat['pp SR'] + player_bat['mid usage']*player_bat['mid SR'] + player_bat['setup usage']*player_bat['setup SR'] + player_bat['death usage']*player_bat['death SR']
+player_bat['xruns'] = player_bat['xSR'] * player_bat['balls_batsman']/100
+player_bat['xwickets'] = player_bat['balls_batsman']/player_bat['xAVG']
+player_bat['RSAA'] = 1.2*(player_bat['SR']-player_bat['xSR'])*player_bat['usage']*factor
+player_bat = player_bat[["batsman","season","batting_team","RSAA","usage","balls_batsman","runs_off_bat","0s","1s","2s","3s","4s","6s","outs_batsman","powerplay","middle","setup","death","runs/ball","0s/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","wickets/ball","PP usage","mid usage","setup usage","death usage","AVG","SR","xAVG","xSR","xruns","xwickets","bf_GP"]]
 
-def league_stats(sssss,pp,mid,setup,death,bowl_sr,bowl_econ,bat_sr,bat_avg):
-    c8 = 0; v = 0
-    for b in year_bat_phase:
-        if(year_bat_phase[c8][0] == sssss and bat_sr == 1): 
-            v = year_bat_phase[c8][17]*pp + year_bat_phase[c8][18]*mid + year_bat_phase[c8][19]*setup + year_bat_phase[c8][20]*death
-        if(year_bat_phase[c8][0] == sssss and bat_avg == 1): 
-            v = year_bat_phase[c8][13]*pp + year_bat_phase[c8][14]*mid + year_bat_phase[c8][15]*setup + year_bat_phase[c8][16]*death    
-        if(year_bowl_phase[c8][0] == sssss and bowl_econ == 1): 
-            v = year_bowl_phase[c8][13]*pp + year_bowl_phase[c8][14]*mid + year_bowl_phase[c8][15]*setup + year_bowl_phase[c8][16]*death
-        if(year_bowl_phase[c8][0] == sssss and bowl_sr == 1): 
-            v = year_bowl_phase[c8][17]*pp + year_bowl_phase[c8][18]*mid + year_bowl_phase[c8][19]*setup + year_bowl_phase[c8][20]*death
-        c8 = c8 + 1
-    return v
-
-print("individual season data started")
-
-for x in player_season:
-    a = x.split(";")[0]
-    b = int(x.split(";")[1])
-    
-    year_gp = file00.loc[(file00['season']==b)&(file00['player']==a),'GP'].sum()
-    year_balls_bowl = file0.loc[(file0['season']==b)&(file0['bowler']==a),'balls_bowler'].sum() + 0.00000000001
-    year_runs_bowl = file0.loc[(file0['season']==b)&(file0['bowler']==a),'runs_off_bat'].sum() + file0.loc[(file0['season']==b)&(file0['bowler']==a),'extras'].sum()
-    year_zeros_bowl = file0.loc[(file0['season']==b)&(file0['bowler']==a),'dots'].sum()
-    year_ones_bowl = file0.loc[(file0['season']==b)&(file0['bowler']==a),'ones'].sum()
-    year_twos_bowl = file0.loc[(file0['season']==b)&(file0['bowler']==a),'twos'].sum()
-    year_threes_bowl = file0.loc[(file0['season']==b)&(file0['bowler']==a),'threes'].sum()
-    year_fours_bowl = file0.loc[(file0['season']==b)&(file0['bowler']==a),'fours'].sum()
-    year_sixes_bowl = file0.loc[(file0['season']==b)&(file0['bowler']==a),'sixes'].sum()
-    year_extras_bowl = file0.loc[(file0['season']==b)&(file0['bowler']==a),'extras'].sum()
-    year_wickets_bowl = file0.loc[(file0['season']==b)&(file0['bowler']==a),'outs_bowler'].sum()
-    
-    year_pp_bowl = file0.loc[(file0['season']==b)&(file0['ball']<p1)&(file0['bowler']==a),'balls_bowler'].sum()
-    year_mid_bowl = file0.loc[(file0['season']==b)&(file0['ball']>p1)&(file0['ball']<p2)&(file0['bowler']==a),'balls_bowler'].sum()
-    year_setup_bowl = file0.loc[(file0['season']==b)&(file0['ball']>p2)&(file0['ball']<p3)&(file0['bowler']==a),'balls_bowler'].sum()
-    year_death_bowl = file0.loc[(file0['season']==b)&(file0['ball']>p3)&(file0['bowler']==a),'balls_bowler'].sum()
-    
-    try : team0 = file0[(file0.season==b)&(file0.bowler==a)].iloc[0][7]
-    except IndexError: team0 = "Free Agent"
-    usage_bowl = year_balls_bowl/(0.0000001+file0.loc[(file0['bowling_team']==team0)&(file0['season']==b),'balls_bowler'].sum())
-    usage_bowl = year_balls_bowl/(0.0000001+(file00.loc[(file00['player']==team0)&(file00['season']==b),'GP']*120*factor).sum())
-    ECON = 6*year_runs_bowl/(year_balls_bowl)
-    if(year_wickets_bowl >= 1):SR_bowl = year_balls_bowl/year_wickets_bowl
-    else: SR_bowl = year_balls_bowl
-    xECON = league_stats(b,year_pp_bowl/year_balls_bowl,year_mid_bowl/year_balls_bowl,year_setup_bowl/year_balls_bowl,year_death_bowl/year_balls_bowl,0,1,0,0)
-    xSR_bowl = league_stats(b,year_pp_bowl/year_balls_bowl,year_mid_bowl/year_balls_bowl,year_setup_bowl/year_balls_bowl,year_death_bowl/year_balls_bowl,1,0,0,0)
-    xruns_bowl = (xECON * year_balls_bowl)/6
-    xwickets_bowl = year_balls_bowl/xSR_bowl
-    RCAA = 20*(ECON-xECON)*usage_bowl*factor
-    
-    year_balls_bat = file0.loc[(file0['season']==b)&(file0['striker']==a),'balls_batsman'].sum() + 0.000000000001
-    year_runs_bat = file0.loc[(file0['season']==b)&(file0['striker']==a),'runs_off_bat'].sum()
-    year_zeros_bat = file0.loc[(file0['season']==b)&(file0['striker']==a),'dots'].sum()
-    year_ones_bat = file0.loc[(file0['season']==b)&(file0['striker']==a),'ones'].sum()
-    year_twos_bat = file0.loc[(file0['season']==b)&(file0['striker']==a),'twos'].sum()
-    year_threes_bat = file0.loc[(file0['season']==b)&(file0['striker']==a),'threes'].sum()
-    year_fours_bat = file0.loc[(file0['season']==b)&(file0['striker']==a),'fours'].sum()
-    year_sixes_bat = file0.loc[(file0['season']==b)&(file0['striker']==a),'sixes'].sum()
-    year_extras_bat = file0.loc[(file0['season']==b)&(file0['striker']==a),'extras'].sum()
-    year_wickets_bat = file0.loc[(file0['season']==b)&(file0['striker']==a),'outs_batsman'].sum() + file0.loc[(file0['season']==b)&(file0['non_striker']==a),'outs_ns'].sum()
-    
-    year_pp_bat = file0.loc[(file0['season']==b)&(file0['ball']<p1)&(file0['striker']==a),'balls_batsman'].sum()
-    year_mid_bat = file0.loc[(file0['season']==b)&(file0['ball']>p1)&(file0['ball']<p2)&(file0['striker']==a),'balls_batsman'].sum()
-    year_setup_bat = file0.loc[(file0['season']==b)&(file0['ball']>p2)&(file0['ball']<p3)&(file0['striker']==a),'balls_batsman'].sum()
-    year_death_bat = file0.loc[(file0['season']==b)&(file0['ball']>p3)&(file0['striker']==a),'balls_batsman'].sum()
-   
-    try : team1 = file0[(file0.season==b)&(file0.striker==a)].iloc[0][6]
-    except IndexError: team1 = "Free Agent"
-    usage = year_balls_bat/(0.00000001+file0.loc[(file0['batting_team']==team1)&(file0['season']==b),'balls_batsman'].sum())
-    usage = year_balls_bat/(0.00000001+(file00.loc[(file00['player']==team1)&(file00['season']==b),'GP']*120*factor).sum())
-    SR = 100*year_runs_bat/(year_balls_bat)
-    if(year_wickets_bat >= 1): AVG = year_balls_bat/year_wickets_bat 
-    else: AVG = year_balls_bat
-    xAVG = league_stats(b,year_pp_bat/year_balls_bat,year_mid_bat/year_balls_bat,year_setup_bat/year_balls_bat,year_death_bat/year_balls_bat,0,0,0,1)
-    xSR = league_stats(b,year_pp_bat/year_balls_bat,year_mid_bat/year_balls_bat,year_setup_bat/year_balls_bat,year_death_bat/year_balls_bat,0,0,1,0)
-    xruns = year_balls_bat*xSR/100
-    xwickets = year_balls_bat/xAVG
-    RSAA = 1.2*(SR-xSR)*usage*factor
-    
-    if(year_balls_bowl >= 1): player_bowl.append([a,b,team0,RCAA,usage_bowl,year_balls_bowl,year_runs_bowl,year_zeros_bowl,year_ones_bowl,year_twos_bowl,year_threes_bowl,year_fours_bowl,year_sixes_bowl,year_extras_bowl,year_wickets_bowl,year_pp_bowl,year_mid_bowl,year_setup_bowl,year_death_bowl,year_runs_bowl/year_balls_bowl,year_zeros_bowl/year_balls_bowl,year_ones_bowl/year_balls_bowl,year_twos_bowl/year_balls_bowl,year_threes_bowl/year_balls_bowl,year_fours_bowl/year_balls_bowl,year_sixes_bowl/year_balls_bowl,year_extras_bowl/year_balls_bowl,year_wickets_bowl/year_balls_bowl,ECON,SR_bowl,year_pp_bowl/year_balls_bowl,year_mid_bowl/year_balls_bowl,year_setup_bowl/year_balls_bowl,year_death_bowl/year_balls_bowl,xECON,xSR_bowl,xruns_bowl,xwickets_bowl,year_balls_bowl/year_gp])
-    if(year_balls_bat >= 1): player_bat.append([a,b,team1,RSAA,usage,year_balls_bat,year_runs_bat,year_zeros_bat,year_ones_bat,year_twos_bat,year_threes_bat,year_fours_bat,year_sixes_bat,year_wickets_bat,year_pp_bat,year_mid_bat,year_setup_bat,year_death_bat,year_runs_bat/year_balls_bat,year_zeros_bat/year_balls_bat,year_ones_bat/year_balls_bat,year_twos_bat/year_balls_bat,year_threes_bat/year_balls_bat,year_fours_bat/year_balls_bat,year_sixes_bat/year_balls_bat,year_wickets_bat/year_balls_bat,year_pp_bat/year_balls_bat,year_mid_bat/year_balls_bat,year_setup_bat/year_balls_bat,year_death_bat/year_balls_bat,AVG,SR,xAVG,xSR,xruns,xwickets,year_balls_bat/year_gp])
-    now = datetime.datetime.now()
-    
-    print(b,a,now.time())
+player_bowl = pd.pivot_table(file0,values=['balls_bowler','runs_off_bat','dots','ones', 'twos', 'threes', 'fours', 'sixes','extras','outs_bowler', 'balls_bowler_powerplay', 'balls_bowler_middle', 'balls_bowler_setup', 'balls_bowler_death',],index=['bowler','season','bowling_team'],aggfunc=np.sum)
+player_bowl = player_bowl.reset_index()
+player_bowl.rename(columns = {'dots':'0s', 'ones':'1s', 'twos':'2s', 'threes':'3s', 'fours':'4s', 'sixes':'6s',
+                             'balls_bowler_powerplay':'powerplay', 'balls_bowler_middle':'middle', 'balls_bowler_setup':'setup', 'balls_bowler_death':'death'}, inplace = True)
+player_bowl['runs/ball'] = (player_bowl['runs_off_bat'] + player_bowl['extras'])/player_bowl['balls_bowler']
+player_bowl['0s/ball'] = player_bowl['0s']/player_bowl['balls_bowler']
+player_bowl['1s/ball'] = player_bowl['1s']/player_bowl['balls_bowler']
+player_bowl['2s/ball'] = player_bowl['2s']/player_bowl['balls_bowler']
+player_bowl['3s/ball'] = player_bowl['3s']/player_bowl['balls_bowler']
+player_bowl['4s/ball'] = player_bowl['4s']/player_bowl['balls_bowler']
+player_bowl['6s/ball'] = player_bowl['6s']/player_bowl['balls_bowler']
+player_bowl['extras/ball'] = player_bowl['extras']/player_bowl['balls_bowler']
+player_bowl['wickets/ball'] = player_bowl['outs_bowler']/player_bowl['balls_bowler']
+player_bowl['PP usage'] = player_bowl['powerplay']/player_bowl['balls_bowler']
+player_bowl['mid usage'] = player_bowl['middle']/player_bowl['balls_bowler']
+player_bowl['setup usage'] = player_bowl['setup']/player_bowl['balls_bowler']
+player_bowl['death usage'] = player_bowl['death']/player_bowl['balls_bowler']
+player_bowl['SR'] = player_bowl['balls_bowler']/player_bowl['outs_bowler']
+player_bowl.loc[player_bowl['SR']>player_bowl['balls_bowler'],'SR']=player_bowl['balls_bowler']
+player_bowl['ECON'] = 6*player_bowl['runs/ball']
+player_bowl = player_bowl.merge(games_played, left_on=['bowler','season'], right_on=['player','season'])
+player_bowl['bb_GP'] = player_bowl['balls_bowler']/player_bowl['GP']
+player_bowl['usage'] = player_bowl['balls_bowler']/(player_bowl['GP']*120*factor)
+player_bowl = pd.merge(player_bowl,year_bowl_phase[['Season','pp ECON','mid ECON', 'setup ECON', 'death ECON', 'pp SR', 'mid SR', 'setup SR','death SR']],left_on='season', right_on='Season')
+player_bowl['xECON'] = player_bowl['PP usage']*player_bowl['pp ECON'] + player_bowl['mid usage']*player_bowl['mid ECON'] + player_bowl['setup usage']*player_bowl['setup ECON'] + player_bowl['death usage']*player_bowl['death ECON']
+player_bowl['xSR'] = player_bowl['PP usage']*player_bowl['pp SR'] + player_bowl['mid usage']*player_bowl['mid SR'] + player_bowl['setup usage']*player_bowl['setup SR'] + player_bowl['death usage']*player_bowl['death SR']
+player_bowl['xruns'] = player_bowl['xECON'] * player_bowl['balls_bowler']/6
+player_bowl['xwickets'] = player_bowl['balls_bowler']/player_bowl['xSR']
+player_bowl['WTAA'] = factor*120*((1/player_bowl['SR'])-(1/player_bowl['xSR']))*player_bowl['usage']
+player_bowl['RCAA'] = 20*(player_bowl['ECON']-player_bowl['xECON'])*player_bowl['usage']*factor - 6*player_bowl['WTAA']*factor
+player_bowl = player_bowl[["bowler","season","bowling_team","RCAA","usage","balls_bowler","runs_off_bat","0s","1s","2s","3s","4s","6s","extras","outs_bowler","powerplay","middle","setup","death","runs/ball","0s/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","wickets/ball","ECON","SR","PP usage","mid usage","setup usage","death usage","xECON","xSR","xruns","xwickets","bb_GP"]]
 
 print("individual season data dumped")
 now = datetime.datetime.now()
 print(now.time())
 
-def dumps():
-    lol = pd.DataFrame(year_bowl)
-    lol.columns = lol.iloc[0];lol = lol.drop(0)
-    lol2 = pd.DataFrame(year_bat)
-    lol2.columns = lol2.iloc[0];lol2 = lol2.drop(0)
-    lol3 = pd.DataFrame(year_bowl_phase)
-    lol3.columns = lol3.iloc[0];lol3 = lol3.drop(0)
-    lol4 = pd.DataFrame(year_bat_phase)
-    lol4.columns = lol4.iloc[0];lol4 = lol4.drop(0)
-    lol5 = pd.DataFrame(player_bowl)
-    lol5.columns = lol5.iloc[0];lol5 = lol5.drop(0)
-    lol6 = pd.DataFrame(player_bat)
-    lol6.columns = lol6.iloc[0];lol6 = lol6.drop(0)
-    lol7 = pd.DataFrame(venue_bowl_phase)
-    lol7.columns = lol7.iloc[0];lol7 = lol7.drop(0)
-    lol8 = pd.DataFrame(venue_bat_phase)
-    lol8.columns = lol8.iloc[0];lol8 = lol8.drop(0)
-    with pd.ExcelWriter(output_file) as writer:
-        matchups.to_excel(writer, sheet_name="venue pace_spin", index=False)
-        lol8.to_excel(writer, sheet_name="venue batting", index=False)
-        lol7.to_excel(writer, sheet_name="venue bowling", index=False)
-        lol6.to_excel(writer, sheet_name="batting seasons", index=False)
-        lol5.to_excel(writer, sheet_name="bowling seasons", index=False)
-        lol4.to_excel(writer, sheet_name="batting phases", index=False)
-        lol3.to_excel(writer, sheet_name="bowling phases", index=False)
-        lol2.to_excel(writer, sheet_name="batting year", index=False)
-        lol.to_excel(writer, sheet_name="bowling year", index=False)
-        
-    print("all data dumped to the desired excel file, run aggregate if you want to then run projections")
-        
-dumps()
+with pd.ExcelWriter(output_file) as writer:
+    matchups.to_excel(writer, sheet_name="venue pace_spin", index=False)
+    venue_bat_phase.to_excel(writer, sheet_name="venue batting", index=False)
+    venue_bowl_phase.to_excel(writer, sheet_name="venue bowling", index=False)
+    player_bat.to_excel(writer, sheet_name="batting seasons", index=False)
+    player_bowl.to_excel(writer, sheet_name="bowling seasons", index=False)
+    year_bat_phase.to_excel(writer, sheet_name="batting phases", index=False)
+    year_bowl_phase.to_excel(writer, sheet_name="bowling phases", index=False)
+    year_bat.to_excel(writer, sheet_name="batting year", index=False)
+    year_bowl.to_excel(writer, sheet_name="bowling year", index=False)
+    
+print("all data dumped to the desired excel file, run aggregate (if you want to) then run projections")
