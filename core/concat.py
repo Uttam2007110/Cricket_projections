@@ -9,7 +9,7 @@ import glob
 import pandas as pd
 from datetime import datetime
  
-comp = 'smat'
+comp = 'tests'
 if(comp == 'odiq'):
     path = "C:/Users/Subramanya.Ganti/Downloads/cricket/raw/odi"
 elif(comp == 't20iq'):
@@ -20,7 +20,7 @@ else:
     path = f"C:/Users/Subramanya.Ganti/Downloads/cricket/raw/{comp}"
 output = f'C:/Users/Subramanya.Ganti/Downloads/cricket/raw/{comp}.csv'
 output2 = f'C:/Users/Subramanya.Ganti/Downloads/cricket/raw/{comp}_GP.csv'
-db_start = 2018
+db_start = 1
 db_end = 2100
 league = 0; check = 0
 col_names = ["col1", "col2", "team", "player","id"]
