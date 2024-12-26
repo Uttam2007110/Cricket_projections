@@ -15,8 +15,8 @@ compm = ['bbl','ipl','lpl','sa20','hundred','bpl','blast','mlc','psl','ilt','t20
 lsm = [.95,1,.9,.95,1,.9,.95,.95,1,.95,.95,1,.95,.8,.8,.85,.9,.8,.9]
 compw = ['wbbl','wpl','hundredw','t20iw','frb','odiw','wcpl','wss','cec','rhf','t20iwq']
 lsw = [1,1,1,.9,.85,.9,1,.85,.85,.85,.7]
-compt = ['tests','cc','shield','pks'] #+ compm
-lst = [1,.8,.8,.75] #+ np.asarray(lsm) * 0.9
+compt = ['tests','cc','shield','pks'] + compm
+lst = [1,.9,.9,.85] + lsm
 
 name_changes = [['NR Sciver','NR Sciver-Brunt'],['KH Brunt','KH Sciver-Brunt'],['L Winfield','L Winfield-Hill'],
                 ['Navdeep Saini','NA Saini'],['J Brown','Josh Brown'],['Mohammad Nawaz (3)','Mohammad Nawaz'],
@@ -50,7 +50,7 @@ i=0
 
 if(base_comp=='hundred' or base_comp=='hundredw'):
     factor = (5/6); #hundred
-elif(base_comp=='odi' or base_comp=='odiw' or base_comp=='odiq' or base_comp=='rlc' or comp=='rhf'):
+elif(base_comp=='odi' or base_comp=='odiw' or base_comp=='odiq' or base_comp=='rlc' or base_comp=='rhf'):
     factor = 2.5;   #odi
 elif(base_comp=='tests' or base_comp=='cc' or base_comp=='shield' or base_comp=='pks' or base_comp=='testsw'):
     factor = 11.25; #test
@@ -85,7 +85,7 @@ venue_bat = [venue_bat]
 venue_bowl = [venue_bowl]
 pace_spin = [pace_spin]
 
-while i<len(comp):
+while i<len(comp):    
     if(comp[i]!=base_comp):
         comp_file = f'{path}/summary/{comp[i]}_summary.xlsx'
         comp_bowl = pd.read_excel(comp_file,'bowling seasons')
@@ -103,6 +103,15 @@ while i<len(comp):
         comp_venue_bowl = pd.read_excel(comp_file,'venue bowling')
         comp_pace_spin = pd.read_excel(comp_file,'venue pace_spin')
         print(base_comp,comp[i],"runs","wickets")
+        
+        if(comp[i]=='hundred' or comp[i]=='hundredw'):
+            comp_factor = (5/6); #hundred
+        elif(comp[i]=='odi' or comp[i]=='odiw' or comp[i]=='odiq' or comp[i]=='rlc' or comp[i]=='rhf'):
+            comp_factor = 2.5;   #odi
+        elif(comp[i]=='tests' or comp[i]=='cc' or comp[i]=='shield' or comp[i]=='pks' or comp[i]=='testsw'):
+            comp_factor = 11.25; #test
+        else:
+            comp_factor = 1;     #assume its a t20 by default
         
         #print("SR",bat['xruns'].sum()/bat['balls_batsman'].sum(),"balls/wkt",bat['balls_batsman'].sum()/bat['outs_batsman'].sum())
         #print("SR",comp_bat['xruns'].sum()/comp_bat['balls_batsman'].sum(),"balls/wkt",comp_bat['balls_batsman'].sum()/comp_bat['outs_batsman'].sum())
@@ -128,10 +137,11 @@ while i<len(comp):
         comp_bat['bf_GP'] = comp_bat['balls_batsman']/comp_bat['bf_GP']
         comp_bat['0s'] = comp_bat['balls_batsman'] - (comp_bat['1s']+comp_bat['2s']+comp_bat['3s']+comp_bat['4s']+comp_bat['6s']+comp_bat['outs_batsman'])
         comp_bat.loc[comp_bat['0s']<0,'0s']=0
-        if(comp[i]=='hundred' or comp[i]=='hundredw'): comp_bat['bf_GP'] = comp_bat['bf_GP'] * (5/6)
-        if(base_comp=='hundred' or base_comp=='hundredw'): comp_bat['bf_GP'] = comp_bat['bf_GP'] / (5/6)
-        if(comp[i]=='odi' or comp[i]=='odiq' or comp[i]=='odiw' or comp[i] =='rlc'): comp_bat['bf_GP'] = comp_bat['bf_GP'] * (2.5)
-        if(base_comp=='odi' or base_comp=='odiq' or base_comp=='odiw' or base_comp =='rlc'): comp_bat['bf_GP'] = comp_bat['bf_GP'] / (2.5)
+        comp_bat['bf_GP'] = comp_bat['bf_GP'] * (comp_factor/factor)
+        #if(comp[i]=='hundred' or comp[i]=='hundredw'): comp_bat['bf_GP'] = comp_bat['bf_GP'] * (5/6)
+        #if(base_comp=='hundred' or base_comp=='hundredw'): comp_bat['bf_GP'] = comp_bat['bf_GP'] / (5/6)
+        #if(comp[i]=='odi' or comp[i]=='odiq' or comp[i]=='odiw' or comp[i] =='rlc'): comp_bat['bf_GP'] = comp_bat['bf_GP'] * (2.5)
+        #if(base_comp=='odi' or base_comp=='odiq' or base_comp=='odiw' or base_comp =='rlc'): comp_bat['bf_GP'] = comp_bat['bf_GP'] / (2.5)
         bat_all.append(comp_bat)
         
         comp_venue_bat['Sum of pp_runs_batsman'] = comp_venue_bat['Sum of pp_runs_batsman'] * runs_f * ls[i]
@@ -168,13 +178,14 @@ while i<len(comp):
         comp_bowl['6s'] = comp_bowl['6s'] * rc_f / ls[i]
         comp_bowl['extras'] = comp_bowl['extras'] * rc_f
         comp_bowl['balls_bowler'] = comp_bowl['runs_off_bat']/(comp_bowl['runs/ball']+0.0000001)
-        comp_bowl['bb_GP'] = (comp_bowl['balls_bowler']/comp_bowl['bb_GP']) * rc_f  #review this !!!
+        comp_bowl['bb_GP'] = (comp_bowl['balls_bowler']/comp_bowl['bb_GP'])  #review this !!!
         comp_bowl['0s'] = comp_bowl['balls_bowler'] - (comp_bowl['1s']+comp_bowl['2s']+comp_bowl['3s']+comp_bowl['4s']+comp_bowl['6s']+comp_bowl['outs_bowler'])
         comp_bowl.loc[comp_bowl['0s']<0,'0s']=0
-        if(comp[i]=='hundred' or comp[i]=='hundredw'): comp_bowl['bb_GP'] = comp_bowl['bb_GP'] *(5/6)
-        if(base_comp=='hundred' or base_comp=='hundredw'): comp_bowl['bb_GP'] = comp_bowl['bb_GP'] / (5/6)
-        if(comp[i]=='odi' or comp[i]=='odiq' or comp[i]=='odiw' or comp[i] =='rlc'): comp_bowl['bb_GP'] = comp_bowl['bb_GP'] * (2.5)
-        if(base_comp=='odi' or base_comp=='odiq' or base_comp=='odiw' or base_comp =='rlc'): comp_bowl['bb_GP'] = comp_bowl['bb_GP'] / (2.5)
+        comp_bowl['bb_GP'] = comp_bowl['bb_GP'] * (comp_factor/factor)
+        #if(comp[i]=='hundred' or comp[i]=='hundredw'): comp_bowl['bb_GP'] = comp_bowl['bb_GP'] *(5/6)
+        #if(base_comp=='hundred' or base_comp=='hundredw'): comp_bowl['bb_GP'] = comp_bowl['bb_GP'] / (5/6)
+        #if(comp[i]=='odi' or comp[i]=='odiq' or comp[i]=='odiw' or comp[i] =='rlc'): comp_bowl['bb_GP'] = comp_bowl['bb_GP'] * (2.5)
+        #if(base_comp=='odi' or base_comp=='odiq' or base_comp=='odiw' or base_comp =='rlc'): comp_bowl['bb_GP'] = comp_bowl['bb_GP'] / (2.5)
         bowl_all.append(comp_bowl)
         
         comp_venue_bowl['Sum of pp_runs_bowler'] = comp_venue_bowl['Sum of pp_runs_bowler'] * rc_f * ls[i]
