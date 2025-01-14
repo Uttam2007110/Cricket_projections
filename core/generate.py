@@ -14,7 +14,7 @@ np.seterr(divide='ignore', invalid='ignore')
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-comp = 'tests'
+comp = 'ilt'
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
 if(comp=='hundred' or comp=='hundredw'):
@@ -28,8 +28,8 @@ else:
 
 file0 = f'{path}/raw/{comp}.csv'
 games_played = f'{path}/raw/{comp}_GP.csv'
-venues = f'{path}/venues.xlsx'
-people = f'{path}/people.xlsx'
+venues = f'{path}/excel/venues.xlsx'
+people = f'{path}/excel/people.xlsx'
 output_file = f"{path}/summary/{comp}_summary.xlsx"
 
 file0 = pd.read_csv(file0,sep=',',low_memory=False)
@@ -39,7 +39,7 @@ file0 = file0.fillna(0)
 now = datetime.datetime.now()
 print(now.time())
 start_size = getsizeof(file0)/(1024.0**2)
-print('Dataframe size: %2.2f MB'%start_size)
+print(comp,'Dataframe size: %2.2f MB'%start_size)
 
 file0['balls_batsman'] = 1
 file0['balls_bowler'] = 1
@@ -278,6 +278,8 @@ player_bat['xruns'] = player_bat['xSR'] * player_bat['balls_batsman']/100
 player_bat['xwickets'] = player_bat['balls_batsman']/player_bat['xAVG']
 player_bat['RSAA'] = 1.2*(player_bat['SR']-player_bat['xSR'])*player_bat['usage']*factor
 player_bat = player_bat[["batsman","season","batting_team","RSAA","usage","balls_batsman","runs_off_bat","0s","1s","2s","3s","4s","6s","outs_batsman","powerplay","middle","setup","death","runs/ball","0s/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","wickets/ball","PP usage","mid usage","setup usage","death usage","AVG","SR","xAVG","xSR","xruns","xwickets","bf_GP"]]
+player_bat = player_bat.dropna()
+
 
 player_bowl = pd.pivot_table(file0,values=['balls_bowler','runs_off_bat','dots','ones', 'twos', 'threes', 'fours', 'sixes','extras','outs_bowler', 'balls_bowler_powerplay', 'balls_bowler_middle', 'balls_bowler_setup', 'balls_bowler_death',],index=['bowler','season','bowling_team'],aggfunc=np.sum)
 player_bowl = player_bowl.reset_index()
@@ -310,6 +312,7 @@ player_bowl['xwickets'] = player_bowl['balls_bowler']/player_bowl['xSR']
 player_bowl['WTAA'] = factor*120*((1/player_bowl['SR'])-(1/player_bowl['xSR']))*player_bowl['usage']
 player_bowl['RCAA'] = 20*(player_bowl['ECON']-player_bowl['xECON'])*player_bowl['usage']*factor - 6*player_bowl['WTAA']*factor
 player_bowl = player_bowl[["bowler","season","bowling_team","RCAA","usage","balls_bowler","runs_off_bat","0s","1s","2s","3s","4s","6s","extras","outs_bowler","powerplay","middle","setup","death","runs/ball","0s/ball","1s/ball","2s/ball","3s/ball","4s/ball","6s/ball","extras/ball","wickets/ball","ECON","SR","PP usage","mid usage","setup usage","death usage","xECON","xSR","xruns","xwickets","bb_GP"]]
+player_bowl = player_bowl.dropna()
 
 print("individual season data dumped")
 now = datetime.datetime.now()
