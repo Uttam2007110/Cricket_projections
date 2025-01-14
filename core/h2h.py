@@ -4,7 +4,7 @@ Created on Tue Apr 18 16:46:51 2023
 Generating fantasy xPts for dream 11 based on projections
 @author: Subramanya.Ganti
 """
-#%% choose the teams which are playing
+#%% define imports
 import pandas as pd
 import numpy as np
 from scipy.stats import truncnorm
@@ -17,35 +17,34 @@ np.seterr(divide='ignore', invalid='ignore')
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-comp = 'tests'; year = '24'; unique_combos = 11
+#%% choose the teams which are playing
+comp = 'sa20'; year = '25'; unique_combos = 11
 #if another league data is used as a proxy then set 1
-home=[]; opps=[]; venue = []; team_bat_first = ['']; proxy = 0; custom = 0
+home=[]; opps=[]; venue = []; team_bat_first = [""]; proxy = 0; custom = 0
 #date based game selection if 0, else specific gameweek or entire season
 gw = 0; write = 0
 #select teams manually
-#home = ['Australia']; opps = ['India']; venue = ["MCG"]; team_bat_first = ['']
-home = ['South Africa']; opps = ['Pakistan']; venue = ["Centurion"]; team_bat_first = ['']
+#home = ['Abu Dhabi Knight Riders']; opps = ['Desert Vipers']; venue = ["Abu Dhabi"]; team_bat_first = ['']
 #select custom date
-#custom = dt.datetime(2024,12,19) #year,month,date
+#custom = dt.datetime(2025,1,9) #year,month,date
 #type of scoring system, default dream 11
 coversoff = 0; ex22 = 0; cricdraft = 0
 #the length of the reduced game due to rain or other factors, full game is 1
 reduced_length = 1
 
 #frauds like ben stokes who bowl whenever they feel like it
-not_bowling_list = ['H Klaasen','SIR Dunkley','GM Harris','RK Singh','RR Hendricks','Tilak Varma','SA Yadav','TH David',
-                    'N Pooran','MNK Fernando','C Webb','SW Bates','JI Rodrigues','R McKenna','M Mangru','S Gajnabi','H Kaur','S Mandhana',
-                    'HJ Armitage','G Voll','BKG Mendis','TA Blundell','ME Bouchier','DN Wyatt','HC Knight','Liton Das','HE van der Dussen',
-                    'KK Jennings','JM Vince']
+not_bowling_list = ['H Klaasen','SIR Dunkley','GM Harris','RK Singh','RR Hendricks','Tilak Varma','SA Yadav','TH David','KK Jennings','JM Vince',
+                    'N Pooran','MNK Fernando','C Webb','SW Bates','JI Rodrigues','R McKenna','S Gajnabi','H Kaur','S Mandhana','G Voll','MJ Owen',
+                    'BKG Mendis','TA Blundell','ME Bouchier','DN Wyatt','HC Knight','Liton Das','HE van der Dussen','DJM Short','HJ Armitage',
+                    'AM Hardie','FH Allen','D Brevis','CA Ingram']
 #frauds who suddenly decide to bat in a different position
-custom_position_list = [['SM Boland',11],['NM Lyon',10],['SPD Smith',3],['PJ Cummins',8],['AT Carey',7],['KL Rahul',1],['Mohammad Abbas',11],
-                        ['RA Jadeja',7],['TM Head',5],['RG Sharma',3],['Khurram Shahzad',10],['DG Bedingham',6],['Nithish Kumar Reddy',7],
-                        ['C Connolly',3],['DJM Short',3],['MJ Owen',2],['MS Wade',1],['MP Stoinis',5],['GJ Maxwell',4],
-                        ['H McKenzie',8],['FH Allen',1],['NR Hobson',6],['JM Vince',3],['J Edwards',6],['JA Chohan',8],['M Gilkes',2],
-                        ['T Sangha',11],['JA Davies',7],['J Fraser-McGurk',1],['JG Bethell',4],['SD Hope',4]]
+custom_position_list = [['M Jansen',7],['AK Markram',4],['B Swanepoel',10],['HE van der Dussen',3],['Azmatullah Omarzai',7],['T Stubbs',5],
+                        ['PWA Mulder',6],['MJ Ackerman',6],['M Van Buuren',3],['JE Root',2],['Dayyaan Galiem',7],['D Brevis',5],
+                        ['B Stanlake',10],['BR McDermott',3],['CJ Green',6],['HD Weibgen',5],['M Spoors',7],['AM Hardie',3],['M Kelly',11]]
 #designated wicketkeeper in a game
-designated_keeper_list = ['AT Carey','RR Pant','K Verreynne','Mohammad Rizwan',
-                          'OJ Pope','JJ Peirson','MS Wade','TL Seifert','SB Harper','MF Hurst','JR Philippe','SW Billings']
+designated_keeper_list = ['OJ Pope','JJ Peirson','MS Wade','TL Seifert','SB Harper','FH Allen','JR Philippe','SW Billings',
+                          'RD Rickelton','T Stubbs','Q de Kock','K Verreynne','D Ferreira','KD Karthik',
+                          'SD Hope','N Pooran','T Suri','PD Salt','OG Robinson','J Charles']
 
 #%% find projections for the games in question
 from usage import *
@@ -59,7 +58,7 @@ home_win = []
 
 custom_position_list = pd.DataFrame(custom_position_list, columns=['player', 'position'])
 custom_position_list = custom_position_list.sort_values(by=['position'],ascending=True)
-with pd.ExcelWriter(f'{path}/custom_positions.xlsx') as writer:
+with pd.ExcelWriter(f'{path}/excel/custom_positions.xlsx') as writer:
     custom_position_list.to_excel(writer, sheet_name="custom positions", index=False)
 
 if(comp=='hundred' or comp=='hundredw'):
@@ -72,9 +71,9 @@ else:
     f = 1;     #assume its a t20 by default
     
 def fixtures_file(now,comp,gw):
-    fixtures = f"{path}/schedule.xlsx"
-    if(comp == 'hundredw'): fixtures = pd.read_excel(fixtures,f'hundred {year}')
-    else: fixtures = pd.read_excel(fixtures,f'{comp} {year}')
+    fixtures = f"{path}/excel/schedule.xlsx"
+    if(comp == 'hundredw'): fixtures = pd.read_excel(fixtures,f'hundred')
+    else: fixtures = pd.read_excel(fixtures,f'{comp}')
     temp = dt.datetime(1899, 12, 30)    # Note, not 31st Dec but 30th!
     delta = now - temp
     now = float(delta.days)
@@ -252,7 +251,7 @@ def base_calculations(a,b,input_file1,input_file,factor,v,tbf,reduced_length):
     (summary,bat,bowl) = h2h_alt(input_file1,input_file,1,factor)
     rain_wkts,rain_runs = rain_effects(reduced_length,factor)
     
-    people = pd.read_excel(f"{path}/people.xlsx",'people')
+    people = pd.read_excel(f"{path}/excel/people.xlsx",'people')
     handedness_bowl = people[['unique_name','bowlType']]
     bowl = bowl.merge(handedness_bowl, left_on='bowler', right_on='unique_name')
     bowl = bowl.drop(columns=['unique_name'])
@@ -754,6 +753,13 @@ def coversoff_projection(a,b,input_file1,input_file,factor,v,tbf,reduced_length)
     ECON = get_truncated_normal(mean=bowl_game['ECON'], sd=bowl_game['ECON']*0.36, low=0, upp=36)
     wkts = get_truncated_normal(mean=bowl_game['wickets/ball']*bowl_game['usage']*120*reduced_length*factor, sd=bowl_game['wickets/ball']*bowl_game['usage']*120*reduced_length*factor*1.6, low=0, upp=10)
     bb = get_truncated_normal(mean=bowl_game['usage']*120*reduced_length*factor, sd=bowl_game['usage']*120*reduced_length*0.2, low=0, upp=0.2*120*reduced_length*factor)   
+    catches = get_truncated_normal(mean=field_game['catches'], sd=field_game['catches'], low=0, upp=10)
+    
+    field_game['xPts'] = 10*field_game['catches'] + 10*field_game['stumpings'] + 20*field_game['run outs']
+    if(factor <= 1):
+        field_game['xPts'] += 15*(1-catches.cdf(3))
+    elif(factor == 2.5):
+        field_game['xPts'] += 10*(1-catches.cdf(3))
     
     if(factor < 1):
         bat_game['xPts'] = bat_game['usage']*bat_game['SR']
@@ -1014,14 +1020,14 @@ a_final.loc[a_final['batting order']==0,'batting order'] = 12
 
 #%% create a distribution of players
 #players classified as wicketkeepers by dream 11
-d11_keeper_eligibility = ['SV Samson','H Klaasen','RD Rickelton','JM Sharma','RR Pant','DP Conway','TA Blundell','BKG Mendis',
-                          'S Samarawickrama','MJ Hay','JP Inglis','Mohammad Rizwan','Usman Khan','Haseebullah Khan','YH Bhatia',
-                          'N Faltum','JC Buttler','PD Salt','MS Pepper','SD Hope','N Pooran','KNM Fernando','AT Carey','KL Rahul',
-                          'Dhruv Jurel','G Redmayne','S Reid','L Lee','SJ Bryce','L Winfield-Hill','J Gumbie','T Marumani','T Wilson',
-                          'AE Jones','S Jafta','K Verreynne','LD Chandimal','AM Rossington','Muhammad Akhlaq','OJ Pope',
-                          'C Madande','F Tunnicliffe','Liton Das','Jaker Ali','J Da Silva','BL Mooney','U Chetry','M De Ridder',
-                          'D Ferreira','MF Hurst','SB Harper','JM Clarke','FH Allen','JR Philippe','TL Seifert','LJ Evans','HJ Nielsen',
-                          'SW Billings','CT Bancroft','M Mangru','RM Ghosh','T Stubbs','SA Campbelle','MS Wade']
+d11_keeper_eligibility = ['SV Samson','H Klaasen','RD Rickelton','JM Sharma','RR Pant','DP Conway','TA Blundell','BKG Mendis','S Samarawickrama',
+                          'MJ Hay','JP Inglis','Mohammad Rizwan','Usman Khan','Haseebullah Khan','YH Bhatia','N Faltum','JC Buttler','PD Salt',
+                          'MS Pepper','SD Hope','N Pooran','KNM Fernando','AT Carey','KL Rahul','Dhruv Jurel','G Redmayne','S Reid','L Lee',
+                          'SJ Bryce','L Winfield-Hill','J Gumbie','T Marumani','T Wilson','AE Jones','S Jafta','K Verreynne','LD Chandimal',
+                          'AM Rossington','Muhammad Akhlaq','OJ Pope','Q de Kock','C Madande','F Tunnicliffe','Liton Das','Jaker Ali','J Da Silva',
+                          'BL Mooney','U Chetry','M De Ridder','D Ferreira','MF Hurst','SB Harper','JM Clarke','FH Allen','JR Philippe','TL Seifert',
+                          'LJ Evans','HJ Nielsen','SW Billings','CT Bancroft','M Mangru','RM Ghosh','T Stubbs','SA Campbelle','MS Wade','KD Karthik'
+                          'BR McDermott','LG Pretorius','C Esterhuizen','MP Breetzke','Rahmanullah Gurbaz','M Gilkes','T Suri','FH Allen']
 
 def solver(f_points):
     duplicate = f_points.copy()
