@@ -5,7 +5,7 @@ finding the effects of aging on player skill
 @author: Subramanya.Ganti
 """
 
-#%% read the relevant files
+#%% import libraries
 import pandas as pd
 import numpy as np
 import urllib.request, json
@@ -15,6 +15,8 @@ from scipy import stats
 pd.options.mode.chained_assignment = None  # default='warn'
 
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
+
+#%% read the relevant files
 file_name = f'{path}/summary/full/blast_summary_full.xlsx'
 batting_blast = pd.read_excel(file_name,'batting seasons')
 batting_blast = batting_blast.fillna(0)
@@ -43,28 +45,32 @@ def age(key,start):
     p_age = 0; dob = datetime(1,1,1); bat_type = ''; bowl_type = ''
     try:
         with urllib.request.urlopen(f'http://core.espnuk.org/v2/sports/cricket/athletes/{key}') as url:
-            data = json.load(url)
             try:
-                name = data['battingName']
-                dob = data['dateOfBirth']
-                dob = dob.replace('T00:00Z','')
+                data = json.load(url)
                 try:
-                    dob = datetime.strptime(dob, '%Y-%m-%d')
-                    p_age = int((start - dob).days/365)    #start is in this format datetime(2023,4,1)
-                    print(name,p_age,dob)
-                except ValueError:
-                    print(name,"issue with dob",dob)
+                    name = data['battingName']
+                    dob = data['dateOfBirth']
+                    dob = dob.replace('T00:00Z','')
+                    try:
+                        dob = datetime.strptime(dob, '%Y-%m-%d')
+                        p_age = int((start - dob).days/365)    #start is in this format datetime(2023,4,1)
+                        print(name,p_age,dob)
+                    except ValueError:
+                        print(name,"issue with dob",dob)
+                        p_age = 100
+                    try:
+                        bat_type = data['style'][0]['description']
+                    except IndexError:
+                        bat_type = 'NA'
+                    try:
+                        bowl_type = data['style'][1]['description']
+                    except IndexError:
+                        bowl_type = 'NA'
+                except KeyError:
+                    print(key,"API label mismatch")
                     p_age = 100
-                try:
-                    bat_type = data['style'][0]['description']
-                except IndexError:
-                    bat_type = 'NA'
-                try:
-                    bowl_type = data['style'][1]['description']
-                except IndexError:
-                    bowl_type = 'NA'
-            except KeyError:
-                print(key,"API label mismatch")
+            except:
+                print(key,"JSONDecodeError: Invalid control character at")
                 p_age = 100
     except HTTPError:
         print(key,"id not in cricinfo")
@@ -88,7 +94,7 @@ def names_list(batting,bowling,reference):
     return df
 
 def names_list_full(sheet):
-    reference = pd.read_excel(f'{path}/people.xlsx',f'{sheet}')
+    reference = pd.read_excel(f'{path}/excel/people.xlsx',f'{sheet}')
     #reference['batType'] = ''
     #reference['bowlType'] = ''
     #reference = reference.fillna(0)
@@ -102,7 +108,7 @@ def names_list_full(sheet):
     return reference
 
 #names = names_list(batting_bbl,bowling_bbl,reference)
-names = names_list_full('people')
+names = names_list_full('new')
 
 #%% season age calculation for every player 
 batting_blast['Age'] = 0
