@@ -10,7 +10,7 @@ import pandas as pd
 from openpyxl import load_workbook
 
 path = "C:/Users/Subramanya.Ganti/Downloads/cricket/summary"
-input_file = 'C:/Users/Subramanya.Ganti/Downloads/cricket/venues.xlsx'
+input_file = 'C:/Users/Subramanya.Ganti/Downloads/cricket/excel/venues.xlsx'
 venues = pd.read_excel(input_file,'Sheet1')
 
 def venue_aggregate(venue_list,venues,path):
@@ -25,7 +25,8 @@ def venue_aggregate(venue_list,venues,path):
     venue_list = list(dict.fromkeys(venue_list))
     for x in venue_list:
         existing = venues['venue'].tolist()
-        if(x not in existing):
+        existing_short = venues['short'].tolist()
+        if((x not in existing) and (x not in existing_short)):
             venues.loc[len(venues.index)] = [x,'']
             
     return venues
