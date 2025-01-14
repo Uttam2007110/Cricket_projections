@@ -11,9 +11,12 @@ from datetime import datetime
 from itertools import product
 from usage import *
 pd.options.mode.chained_assignment = None  # default='warn'
+np.seterr(divide='ignore', invalid='ignore')
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
-comp = 'odi'
-proj_year = 2025  #year+1 of the season you want projections for
+comp = 'ilt'
+proj_year = 2026   #year+1 of the season you want projections for
 aggregate = 0
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
@@ -21,8 +24,8 @@ if(comp=='hundred' or comp=='hundredw'):
     factor = (5/6); aggregate = 1 #hundred
 elif(comp=='odi' or comp=='odiq' or comp=='odiw' or comp=='rlc' or comp=='rhf'):
     factor = 2.5; aggregate = 1  #odi
-elif(comp=='tests' or comp == 'cc' or comp == 'shield' or comp == 'testsw'):
-    factor = 11.25; aggregate = 0 #test
+elif(comp=='tests' or comp == 'cc' or comp == 'shield' or comp == 'pks' or comp == 'testsw'):
+    factor = 11.25; aggregate = 1 #test
 elif(comp=='t20iq'):
     factor = 1; aggregate = 0 #international t20 qualifiers
 elif(comp=='cwc'):
@@ -69,13 +72,15 @@ unique_names2 = unique(name00)
 
 def player_aging(batting,bowling,proj_year):
     missing = []
-    #reference = pd.read_csv(f'{path}/people.csv',sep=',',low_memory=False,encoding='latin-1')
-    reference = pd.read_excel(f'{path}/people.xlsx','people')
+    #reference = pd.read_csv(f'{path}/excel/people.csv',sep=',',low_memory=False,encoding='latin-1')
+    reference = pd.read_excel(f'{path}/excel/people.xlsx','people')
     print("Player DOBs collected")
     for y0 in batting.values:
-        p_dob = reference.loc[reference['unique_name']==y0[0],'dob'].sum()
-        try: p_age = int((datetime(y0[1],4,1) - p_dob).days/365)
-        except TypeError: p_age = 28; missing.append(y0[0])
+        try: 
+            p_dob = reference.loc[reference['unique_name']==y0[0],'dob'].sum()
+            p_age = int((datetime(y0[1],4,1) - p_dob).days/365)
+        except TypeError: 
+            p_age = 28; missing.append(y0[0])
         batting.loc[(batting['batsman']==y0[0])&(batting['season']==y0[1]),'dots/ball'] += 0.000966*p_age + 0.058436*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.02771
         batting.loc[(batting['batsman']==y0[0])&(batting['season']==y0[1]),'1s/ball'] += -0.00072866*p_age - 0.038869*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.023522
         batting.loc[(batting['batsman']==y0[0])&(batting['season']==y0[1]),'2s/ball'] += -0.00012862*p_age + 0.009251*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.017422
@@ -83,10 +88,12 @@ def player_aging(batting,bowling,proj_year):
         batting.loc[(batting['batsman']==y0[0])&(batting['season']==y0[1]),'6s/ball'] += -0.000094568*p_age + 0.005449*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.001363
         batting.loc[(batting['batsman']==y0[0])&(batting['season']==y0[1]),'wickets/ball'] += 0.000277347*p_age + 0.010306*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.007334
         
-    for y00 in bowling.values:
-        p_dob = reference.loc[reference['unique_name']==y00[0],'dob'].sum()
-        try: p_age = int((datetime(y00[1],4,1) - p_dob).days/365)
-        except TypeError: p_age = 28; missing.append(y00[0])
+    for y00 in bowling.values:        
+        try:
+            p_dob = reference.loc[reference['unique_name']==y00[0],'dob'].sum()
+            p_age = int((datetime(y00[1],4,1) - p_dob).days/365)
+        except TypeError: 
+            p_age = 28; missing.append(y00[0])
         bowling.loc[(bowling['bowler']==y00[0])&(bowling['season']==y00[1]),'dots/ball'] += -0.00007606*p_age + 0.172822*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) - 0.01640
         bowling.loc[(bowling['bowler']==y00[0])&(bowling['season']==y00[1]),'1s/ball'] += 0.000013308*p_age - 0.0720761*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.005167
         bowling.loc[(bowling['bowler']==y00[0])&(bowling['season']==y00[1]),'2s/ball'] += 0.000051438*p_age - 0.0774087*(math.exp(-0.5*pow((p_age-28)/2,2)))/(5*math.sqrt(2*3.14)) + 0.003987
