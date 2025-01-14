@@ -37,7 +37,7 @@ def avg(bowler,file_name,item):
     return (bowling_usage,bowling_wkts)
 
 def usage_corrected(bowler,file_name,values,f):
-    custom_position_list = pd.read_excel(f'{path}/custom_positions.xlsx','custom positions')
+    custom_position_list = pd.read_excel(f'{path}/excel/custom_positions.xlsx','custom positions')
     team_names = np.unique(file_name['team'].values)
     if(bowler == 0): file_name['factor'] = 0
     if(f == 5/6): bowl_max = 100
