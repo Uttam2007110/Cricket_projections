@@ -15,30 +15,26 @@ from scipy.stats import zscore
 from scipy.stats import multivariate_normal
 pd.options.mode.chained_assignment = None  # default='warn'
 
-teams = ['Sacramento Kings','Indiana Pacers']
-teams = ['New Orleans Pelicans','Denver Nuggets']
-n = 11
+teams = ['Los Angeles Lakers','Charlotte Hornets']
+season = 2025
 file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
 
-correlation = pd.read_excel('C:/Users/GF63/Desktop/cricket/barttorvik/nba_roles.xlsx','correlation matrix')
-correlation.set_index('role', inplace=True)
-
 # %%  initialize functions
-def projected_minutes(file,teams):
+def projected_minutes(file,teams,season):
     DARKO = pd.read_html('https://spreadsheets.google.com/tq?tqx=out:html&tq=&key=1mhwOLqPu2F9026EQiVxFPIN1t9RGafGpl-dokaIsm9c&gid=284274620')[0]
     DARKO = header_first_row(DARKO)
+    
+    DARKO['pts_100'] = DARKO['pts_100'].str.replace(r'%', '', regex=True)
+    DARKO['pts_100'] = (pd.to_numeric(DARKO['pts_100'])/100)
+    DARKO['orb_100'] = DARKO['orb_100'].str.replace(r'%', '', regex=True)
+    DARKO['orb_100'] = (pd.to_numeric(DARKO['orb_100'])/100)
+    DARKO['drb_100'] = DARKO['drb_100'].str.replace(r'%', '', regex=True)
+    DARKO['drb_100'] = (pd.to_numeric(DARKO['drb_100'])/100)
     
     box_talent = DARKO.copy()
     box_talent.loc[box_talent['x_position']=='c_pos','position'] = 'big'
     box_talent.loc[(box_talent['x_position']=='pf_pos')|(box_talent['x_position']=='sf_pos'),'position'] = 'wing'
     box_talent.loc[(box_talent['x_position']=='sg_pos')|(box_talent['x_position']=='pg_pos'),'position'] = 'guard'
-    
-    box_talent['pts_100'] = box_talent['pts_100'].str.replace(r'%', '', regex=True)
-    box_talent['pts_100'] = (pd.to_numeric(box_talent['pts_100'])/100)
-    box_talent['orb_100'] = box_talent['orb_100'].str.replace(r'%', '', regex=True)
-    box_talent['orb_100'] = (pd.to_numeric(box_talent['orb_100'])/100)
-    box_talent['drb_100'] = box_talent['drb_100'].str.replace(r'%', '', regex=True)
-    box_talent['drb_100'] = (pd.to_numeric(box_talent['drb_100'])/100)
     
     pivot = pd.pivot_table(box_talent,values=['drb_100','ast_100','stl_100','rim_fga_100','fg3a_100'],columns='x_position',aggfunc=np.mean)
     pivot = pivot.T
@@ -65,17 +61,17 @@ def projected_minutes(file,teams):
     dataset = dataset[['player_name', 'team_name', 'position', 'x_position','minutes','c','pf','sf','sg','pg']]
     dataset = dataset[dataset['team_name'].isin(teams)]
     
-    pbp_y = pd.read_html('https://www.basketball-reference.com/leagues/NBA_2025_play-by-play.html')[0]
+    pbp_y = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{season}_play-by-play.html')[0]
     pbp_y.columns = pbp_y.columns.droplevel()
     pbp_y = pbp_y[['Player','PG%', 'SG%', 'SF%', 'PF%', 'C%']]
     pbp_y = pbp_y.drop_duplicates(subset='Player', keep="first")
 
-    pbp_y1 = pd.read_html('https://www.basketball-reference.com/leagues/NBA_2024_play-by-play.html')[0]
+    pbp_y1 = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{season-1}_play-by-play.html')[0]
     pbp_y1.columns = pbp_y1.columns.droplevel()
     pbp_y1 = pbp_y1[['Player','PG%', 'SG%', 'SF%', 'PF%', 'C%']]
     pbp_y1 = pbp_y1.drop_duplicates(subset='Player', keep="first")
 
-    pbp_y2 = pd.read_html('https://www.basketball-reference.com/leagues/NBA_2023_play-by-play.html')[0]
+    pbp_y2 = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{season-2}_play-by-play.html')[0]
     pbp_y2.columns = pbp_y2.columns.droplevel()
     pbp_y2 = pbp_y2[['Player','PG%', 'SG%', 'SF%', 'PF%', 'C%']]
     pbp_y2 = pbp_y2.drop_duplicates(subset='Player', keep="first")
@@ -110,7 +106,7 @@ def projected_minutes(file,teams):
     pbp_net.loc[:,"PG%":"C%"] = pbp_net.loc[:,"PG%":"C%"].div(pbp_net["sum"], axis=0)
     pbp_net = pbp_net.apply(pd.to_numeric, errors='ignore')
     
-    mapping = pd.read_excel(file,'mapping')
+    mapping = pd.read_excel(file,'DARKO')
 
     for p in dataset['player_name'].values:  
         try: 
@@ -162,10 +158,11 @@ def aggregate_mins(dataset,teams,positions):
     dataset = dataset.sort_values(by=['team_name','adj_minutes'],ascending=[True,False])
     return dataset
     
-def game_model(box_talent,teams):
+def game_model(box_talent,teams):    
     #game model
     box_talent['w_odpm'] = box_talent['minutes']*box_talent['o_dpm']/48
     box_talent['w_ddpm'] = box_talent['minutes']*box_talent['d_dpm']/48
+    box_talent['w_pace'] = box_talent['minutes']*box_talent['pace']/240
     t1_offsense_adj = (box_talent.loc[box_talent['team_name']==teams[0],'w_odpm'].sum() - box_talent.loc[box_talent['team_name']==teams[1],'w_odpm'].sum())/2
     t1_defense_adj = (box_talent.loc[box_talent['team_name']==teams[0],'w_ddpm'].sum() - box_talent.loc[box_talent['team_name']==teams[1],'w_ddpm'].sum())/2
 
@@ -178,13 +175,19 @@ def game_model(box_talent,teams):
     pace_t2 = sum(box_talent.loc[box_talent['team_name']==teams[1],'pace'] * box_talent.loc[box_talent['team_name']==teams[1],'minutes'])/240
     ortg_t2 = raw_pts_t2 * league_pace/pace_t2
 
+    #print(league_pace,raw_pts_t1,pace_t1,raw_pts_t2,pace_t2)
+
     game_pace = pace_t1*pace_t2/league_pace
-    game_ortg = ortg_t1 * ortg_t2 / (box_talent['pts'].sum() * 240 / box_talent['minutes'].sum())
+    #verify this !!!
+    league_avg_ortg = (box_talent['pts'].sum() * 240 / box_talent['minutes'].sum())
+    game_ortg = ortg_t1 * ortg_t2 / league_avg_ortg
     ortg_t1_adj = game_ortg + (t1_offsense_adj + t1_defense_adj)
     ortg_t2_adj = game_ortg - (t1_offsense_adj + t1_defense_adj)
 
-    adj_pts_t1 = (ortg_t1_adj * game_pace / league_pace) + 1
-    adj_pts_t2 = (ortg_t2_adj * game_pace / league_pace) - 1
+    #print(game_pace,league_avg_ortg,game_ortg,ortg_t1,ortg_t2)
+
+    adj_pts_t1 = (ortg_t1_adj * game_pace / league_pace) + 1.25
+    adj_pts_t2 = (ortg_t2_adj * game_pace / league_pace) - 1.25
 
     factor_t1 = adj_pts_t1/raw_pts_t1
     factor_t2 = adj_pts_t2/raw_pts_t2
@@ -219,18 +222,39 @@ def extract_data_DARKO_v2(box_talent,p_mins,teams):
         try:
             box_talent.loc[box_talent['player_name']==x[1],'minutes'] = p_mins.loc[p_mins['player_name']==x[1],'adj_minutes'].values[0]
         except:
-            box_talent.loc[box_talent['player_name']==x[1],'minutes'] = 0.1
+            #box_talent.loc[(box_talent['player_name']==x[1])&(box_talent['team_name'] in teams),'minutes'] = 0.1
+            box_talent
     
-    box_talent['pts_100'] = box_talent['pts_100'].str.replace(r'%', '', regex=True)
-    box_talent['pts'] = (pd.to_numeric(box_talent['pts_100'])/100) * (box_talent['pace']/100) * (box_talent['minutes']/48)
+    #Note - usage for the team has to be ~1 (NBA avg is 98.2%)
+    box_talent['w_usg_pct'] = box_talent['usg_pct'] * box_talent['minutes'] / 48
+    t1_usage_factor = .982/box_talent.loc[box_talent['team_name']==teams[0],'w_usg_pct'].sum()
+    box_talent.loc[box_talent['team_name']==teams[0],'pts_100'] *= t1_usage_factor
+    box_talent.loc[box_talent['team_name']==teams[0],'orb_100'] *= t1_usage_factor
+    box_talent.loc[box_talent['team_name']==teams[0],'drb_100'] *= t1_usage_factor
+    box_talent.loc[box_talent['team_name']==teams[0],'ast_100'] *= t1_usage_factor
+    box_talent.loc[box_talent['team_name']==teams[0],'blk_100'] *= t1_usage_factor
+    box_talent.loc[box_talent['team_name']==teams[0],'stl_100'] *= t1_usage_factor
+    box_talent.loc[box_talent['team_name']==teams[0],'tov_100'] *= t1_usage_factor
+    t2_usage_factor = .982/box_talent.loc[box_talent['team_name']==teams[1],'w_usg_pct'].sum()
+    box_talent.loc[box_talent['team_name']==teams[1],'pts_100'] *= t2_usage_factor
+    box_talent.loc[box_talent['team_name']==teams[1],'orb_100'] *= t2_usage_factor
+    box_talent.loc[box_talent['team_name']==teams[1],'drb_100'] *= t2_usage_factor
+    box_talent.loc[box_talent['team_name']==teams[1],'ast_100'] *= t2_usage_factor
+    box_talent.loc[box_talent['team_name']==teams[1],'blk_100'] *= t2_usage_factor
+    box_talent.loc[box_talent['team_name']==teams[1],'stl_100'] *= t2_usage_factor
+    box_talent.loc[box_talent['team_name']==teams[1],'tov_100'] *= t2_usage_factor
+    #print(t1_usage_factor,t2_usage_factor)
+    
+    #box_talent['pts_100'] = box_talent['pts_100'].str.replace(r'%', '', regex=True)
+    box_talent['pts'] = (box_talent['pts_100']) * (box_talent['pace']/100) * (box_talent['minutes']/48)
 
     box_talent['blk'] = (box_talent['blk_100']) * (box_talent['pace']/100) * (box_talent['minutes']/48)
 
-    box_talent['orb_100'] = box_talent['orb_100'].str.replace(r'%', '', regex=True)
-    box_talent['orb'] = (pd.to_numeric(box_talent['orb_100'])/100) * (box_talent['pace']/100) * (box_talent['minutes']/48)
+    #box_talent['orb_100'] = box_talent['orb_100'].str.replace(r'%', '', regex=True)
+    box_talent['orb'] = (box_talent['orb_100']) * (box_talent['pace']/100) * (box_talent['minutes']/48)
 
-    box_talent['drb_100'] = box_talent['drb_100'].str.replace(r'%', '', regex=True)
-    box_talent['drb'] = (pd.to_numeric(box_talent['drb_100'])/100) * (box_talent['pace']/100) * (box_talent['minutes']/48)
+    #box_talent['drb_100'] = box_talent['drb_100'].str.replace(r'%', '', regex=True)
+    box_talent['drb'] = (box_talent['drb_100']) * (box_talent['pace']/100) * (box_talent['minutes']/48)
 
     box_talent['ast'] = (box_talent['ast_100']) * (box_talent['pace']/100) * (box_talent['minutes']/48)
     box_talent['tov'] = (box_talent['tov_100']) * (box_talent['pace']/100) * (box_talent['minutes']/48)
@@ -245,17 +269,25 @@ def extract_data_DARKO_v2(box_talent,p_mins,teams):
     box_talent['FTr'] = (pd.to_numeric(box_talent['FTr'])/100)
     
     box_talent = game_model(box_talent,teams)
+    team_strength = pd.pivot_table(box_talent, values =['minutes','w_pace','w_odpm','w_ddpm'], index =['team_name'], aggfunc = np.sum)
+    team_strength['w_pace'] *= 240/team_strength['minutes']
+    team_strength['w_odpm'] *= 240/team_strength['minutes']
+    team_strength['w_ddpm'] *= 240/team_strength['minutes']
+    team_strength['dpm'] = team_strength['w_odpm'] + team_strength['w_ddpm']
+    team_strength = team_strength.reset_index()
+    team_strength = team_strength[['team_name','w_pace','w_odpm','w_ddpm','dpm']]
     
     f_points = box_talent[['nba_id','player_name', 'team_name', 'minutes', 'pts', 'blk', 'orb', 'drb', 'ast', 'tov', 'stl', 'fga', '3PAr', 'FTr']]
     f_points.rename(columns = {'nba_id':'playerid'}, inplace = True)
     f_points = f_points.sort_values(by=['minutes'],ascending=False)
     #f_points = f_points.loc[f_points['minutes']>0.1]
     f_points = f_points[f_points['team_name'].isin(teams)]
-    return f_points,full_player_list
+    return f_points,full_player_list,team_strength
 
 def assign_prices(file,f_points):
     try:
         data = pd.read_excel(file,'DARKO')
+        data = data.drop('bbref_name', axis=1)
         data = data.fillna(100)
         f_points = f_points.merge(data, on='player_name', how='left')
         f_points = f_points.fillna(100)
@@ -422,7 +454,7 @@ def solver(f_points):
     
     return duplicate,xpts,cost
 
-def iterator(f_points,n,teams):
+def iterator(f_points,n,teams,correlation):
     print()
     for t in teams: print(round(f_points.loc[f_points['team_name']==t,'pts'].sum(),1),t,"(",round(f_points.loc[f_points['team_name']==t,'minutes'].sum(),1),")")
     print()
@@ -465,13 +497,14 @@ def iterator(f_points,n,teams):
         k = k + 1   
     return a_team
 
-DARKO,p_mins = projected_minutes(file,teams)
+# %%  extract data from DARKO
+DARKO,p_mins = projected_minutes(file,teams,season)
 
 # %%  set custom player minutes
 p_mins = aggregate_mins(p_mins,teams,['c','pf','sf','sg','pg'])
 
-# %%  extract DARKO projections for the players
-f_points,full_player_list = extract_data_DARKO_v2(DARKO,p_mins,teams)
+# %%  generate projections for the players
+f_points,full_player_list,team_strength = extract_data_DARKO_v2(DARKO,p_mins,teams)
 f_points = f_points_clean_up(f_points,0)
 f_points['xPts/min'] = f_points['xPts']/f_points['minutes']
 f_points = assign_prices(file,f_points)
@@ -479,8 +512,12 @@ f_points = f_points.loc[f_points['minutes']>0.1]
 #simulation = multivariate_sim(f_points,correlation,teams[0])
 
 # %%  generate n unique lineups
+n = 11
+correlation = pd.read_excel('C:/Users/GF63/Desktop/cricket/barttorvik/nba_roles.xlsx','correlation matrix')
+correlation.set_index('role', inplace=True)
+
 #f_points = f_points_clean_up(f_points,1)
-a_team = iterator(f_points,n,teams)
+a_team = iterator(f_points,n,teams,correlation)
 a_team = pd.DataFrame(a_team)
 a_team.columns = a_team.iloc[0];a_team = a_team.drop(0)
 a_team = a_team.apply(pd.to_numeric, errors='ignore')
