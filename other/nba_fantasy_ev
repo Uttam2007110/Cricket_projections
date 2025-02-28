@@ -55,20 +55,42 @@ def get_player_mpg(player_info):
             continue
         else:
             player_data=pd.DataFrame(json['history'])
-            player_data['decay'] = pow(.8,len(player_data)-player_data.index)
+            player_data['decay'] = player_data.index
+            player_data['decay'] = pow(.8,len(player_data)-player_data['decay'])
             player_data['decay'] = player_data['decay']/sum(player_data['decay'])
             player_info.loc[player_info['id']==i,'MPG_adj'] = sum(player_data['decay']*player_data['minutes'])
             
             player_data = player_data.loc[player_data['minutes']>1]
             player_data.reset_index(inplace=False)
-            player_data['decay'] = pow(.8,len(player_data)-player_data.index)
+            player_data['decay'] = player_data.index
+            player_data['decay'] = pow(.8,len(player_data)-player_data['decay'])
             player_data['decay'] = player_data['decay']/sum(player_data['decay'])
             player_info.loc[player_info['id']==i,'MPG'] = sum(player_data['decay']*player_data['minutes'])
     
     player_info['DNP'] = 1-np.cos((48-player_info['MPG'])*np.pi/96)
     player_info['minutes'] = player_info['MPG_adj']*player_info['DNP'] + player_info['MPG']*(1-player_info['DNP'])
     player_info = player_info.drop(['MPG', 'MPG_adj', 'DNP'],axis=1)
+    
+    player_info['availability'] = 1
+    player_info.loc[player_info['STATUS']=='Out','availability'] = 0
+    player_info.loc[player_info['STATUS']=='Day-To-Day','availability'] = 0.75
+    player_info['minutes_GW'] = player_info['minutes']*player_info['availability']
     return(player_info)
+
+def adjust_mins_by_team(data):
+    results = []
+    for t in data['team'].unique():
+        subset = data[data['team']==t]
+        subset['rank'] = subset['minutes_GW'].rank(ascending=False)
+        decay = 1
+        while(subset['minutes_GW'].sum()>240.1 or subset['minutes_GW'].sum()<239.9):
+            subset['minutes_GW'] *= pow(decay,subset['rank'])
+            if(subset['minutes_GW'].sum()>240): decay -= 0.0001
+            else:  decay += 0.0001
+        results.append(subset)
+
+    results = pd.concat(results)
+    return results
 
 players = get_player_info()
 players = players.loc[players['code']>1]
@@ -84,15 +106,5 @@ injuries['NAME'] = injuries['NAME'].str.replace('Brandon Boston','Brandon Boston
 players = pd.merge(players, injuries, left_on = ['name'], right_on=['NAME'], how = 'outer')
 players = players.drop(['NAME','POS','COMMENT'],axis=1)
 
-subset = get_player_mpg(players[players['team']==8])
-subset['availability'] = 1
-subset.loc[subset['STATUS']=='Out','availability'] = 0
-subset.loc[subset['STATUS']=='Day-To-Day','availability'] = 0.75
-subset['minutes_GW'] = subset['minutes']*subset['availability']
-subset['rank'] = subset['minutes_GW'].rank(ascending=False)
-
-decay = 1
-while(subset['minutes_GW'].sum()>240.1 or subset['minutes_GW'].sum()<239.9):
-    subset['minutes_GW'] *= pow(decay,subset['rank'])
-    if(subset['minutes_GW'].sum()>240): decay -= 0.0001
-    else:  decay += 0.0001
+mins_adj = get_player_mpg(players[(players['team']==1)|(players['team']==2)])
+mins_adj = adjust_mins_by_team(mins_adj)
