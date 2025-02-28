@@ -48,6 +48,7 @@ def get_player_mpg(player_info):
     player_info['MPG_adj'] = 0.1
     
     for i in player_info['id']:
+        i = int(i)
         url = "https://nbafantasy.nba.com/api/element-summary/"+str(i)+"/"
         r = requests.get(url,verify=False)
         json = r.json()
@@ -72,13 +73,16 @@ def get_player_mpg(player_info):
     player_info = player_info.drop(['MPG', 'MPG_adj', 'DNP'],axis=1)
     
     player_info['availability'] = 1
-    player_info.loc[player_info['STATUS']=='Out','availability'] = 0
-    player_info.loc[player_info['STATUS']=='Day-To-Day','availability'] = 0.75
+    player_info.loc[player_info['Status']=='Out ','availability'] = 0
+    player_info.loc[player_info['Status']=='Out For The Season ','availability'] = 0
+    player_info.loc[player_info['Status']=='Injured Reserve ','availability'] = 0
+    player_info.loc[player_info['Status']=='Day-To-Day ','availability'] = 0.75
     player_info['minutes_GW'] = player_info['minutes']*player_info['availability']
     return(player_info)
 
 def adjust_mins_by_team(data):
     results = []
+    data['minutes_GW'] = data['minutes']*data['availability']
     for t in data['team'].unique():
         subset = data[data['team']==t]
         subset['rank'] = subset['minutes_GW'].rank(ascending=False)
@@ -99,12 +103,24 @@ players = players.loc[players['code']>1]
 #team_list = team_list.reset_index()
 #fixtures = get_fixture_info(players)
 
-injuries = pd.read_html('https://www.espn.in/nba/injuries')
+injuries = pd.read_html('https://sports.yahoo.com/nba/injuries/')
 injuries = pd.concat(injuries)
-injuries['NAME'] = injuries['NAME'].str.replace('Alex Sarr','Alexandre Sarr')
-injuries['NAME'] = injuries['NAME'].str.replace('Brandon Boston','Brandon Boston Jr.')
-players = pd.merge(players, injuries, left_on = ['name'], right_on=['NAME'], how = 'outer')
-players = players.drop(['NAME','POS','COMMENT'],axis=1)
+injuries['Player'] = injuries['Player'].str.replace('í','i')
+injuries['Player'] = injuries['Player'].str.replace('č','c')
+injuries['Player'] = injuries['Player'].str.replace('Č','C')
+injuries['Player'] = injuries['Player'].str.replace('ić','ic')
+injuries['Player'] = injuries['Player'].str.replace('ö','o')
+injuries['Player'] = injuries['Player'].str.replace('é','e')
+injuries['Player'] = injuries['Player'].str.replace('ü','u')
+injuries['Player'] = injuries['Player'].str.replace('Alex Sarr','Alexandre Sarr')
+injuries['Player'] = injuries['Player'].str.replace('P.J. Washington Jr.','P.J. Washington')
 
-mins_adj = get_player_mpg(players[(players['team']==1)|(players['team']==2)])
+players = pd.merge(players, injuries, left_on = ['name'], right_on=['Player'], how = 'outer')
+players[['Status', 'Injury']] = players['Status'].str.split('(', n=1, expand=True)
+players['Injury'] = players['Injury'].str.replace(')','')
+unmapped_injured_players = players.loc[players['name'].isna(),'Player']
+players = players[players['name'].notna()]
+players = players.drop(['Player','Pos','Date'],axis=1)
+
+mins_adj = get_player_mpg(players[(players['team']==1)|(players['team']==30)])
 mins_adj = adjust_mins_by_team(mins_adj)
