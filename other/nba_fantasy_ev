@@ -4,13 +4,14 @@ Created on Mon Feb 24 16:11:59 2025
 
 @author: Subramanya.Ganti
 """
-
+#%% imports
 import requests
 import pandas as pd
 import numpy as np
 import json
 import re
 
+#%% functions
 def get_player_info():
     
     url = "https://nbafantasy.nba.com/api/bootstrap-static/"
@@ -18,9 +19,11 @@ def get_player_info():
     json = r.json()
     elements = pd.DataFrame(json['elements'])
     elements['name'] = elements['first_name'] + ' ' + elements['second_name']
+    teams = pd.DataFrame(json['teams'])
     
     elements = elements[['code','id','name','now_cost','team','element_type']]
-    return(elements)
+    teams = teams[['id','name']]
+    return(elements,teams)
 
 def get_fixture_info(player_info):
     
@@ -96,6 +99,7 @@ def injury_status():
     injuries['Player'] = injuries['Player'].str.replace('ū','u')
     injuries['Player'] = injuries['Player'].str.replace('Ş','S')
     injuries['Player'] = injuries['Player'].str.replace('Š','S')
+    injuries['Player'] = injuries['Player'].str.replace('è','e')
     injuries['Player'] = injuries['Player'].str.replace('Alex Sarr','Alexandre Sarr')
     injuries['Player'] = injuries['Player'].str.replace('P.J. Washington Jr.','P.J. Washington')
     injuries['Player'] = injuries['Player'].str.replace('Jimmy Butler III','Jimmy Butler')
@@ -154,8 +158,9 @@ def yahoo_player_list():
     player_list['Player'] = player_list['Player'].str.replace('ū','u')
     player_list['Player'] = player_list['Player'].str.replace('Ş','S')
     player_list['Player'] = player_list['Player'].str.replace('Š','S')
+    player_list['Player'] = player_list['Player'].str.replace('è','e')
     return player_list
-    
+
 def adjust_mins_by_team(data):
     results = []
     data['minutes_GW'] = data['minutes']*data['availability']
@@ -172,21 +177,53 @@ def adjust_mins_by_team(data):
     results = pd.concat(results)
     return results
 
-players = get_player_info()
+#%% player names
+players,team_id = get_player_info()
 players = players.loc[players['code']>1]
-#players = players.sort_values(['now_cost', 'team'], ascending=[False, True])
-#team_list = players.groupby('team').first()
-#team_list = team_list.reset_index()
-#fixtures = get_fixture_info(players)
+players = players.sort_values(['now_cost', 'team'], ascending=[False, True])
+
+#%% fixtures by team
+team_list = players.groupby('team').first()
+team_list = team_list.reset_index()
+fixtures = get_fixture_info(team_list)
+
+fixtures['h_copy'] = fixtures['team_h']
+fixtures['a_copy'] = fixtures['team_a']
+fixtures = fixtures.drop('id',axis=1)
+fixtures['event_name'] = fixtures['event_name'].str.replace('Gameweek ', 'GD_')
+fixtures['event_name'] = fixtures['event_name'].str.replace(" - Day ", "_")
+
+for f in fixtures.values:
+    if(f[3]==False):
+        #print(f[0],f[1],f[3])
+        #h = f[0]; a = f[1]
+        fixtures.loc[(fixtures['h_copy']==f[4])&(fixtures['a_copy']==f[5])&(fixtures['event_name']==f[2])&(fixtures['is_home']==f[3]),'team_h'] = f[5]
+        fixtures.loc[(fixtures['h_copy']==f[4])&(fixtures['a_copy']==f[5])&(fixtures['event_name']==f[2])&(fixtures['is_home']==f[3]),'team_a'] = f[4]
+        
+fixtures_pivot = pd.pivot_table(fixtures,values='team_a',columns=['event_name'],index='team_h',aggfunc='count')
+fixtures_pivot = fixtures_pivot.fillna(0)
+
+#%% injury information
+player_list = yahoo_player_list()
+players = pd.merge(players, player_list, left_on = ['name'], right_on=['Player'], how = 'outer')
+unmapped_injured_players = players.loc[players['name'].isna(),'Player']
+print('Players not yet added to the official fantasy game who are on a roster')
+for x in unmapped_injured_players: print(x)
+players = players[players['name'].notna()]
+players = players[['code', 'id', 'name', 'now_cost', 'team', 'element_type']]
+del player_list
 
 injuries = injury_status()
-
 players = pd.merge(players, injuries, left_on = ['name'], right_on=['Player'], how = 'outer')
 players[['Status', 'Injury']] = players['Status'].str.split('(', n=1, expand=True)
 players['Injury'] = players['Injury'].str.replace(')','')
 unmapped_injured_players = players.loc[players['name'].isna(),'Player']
+print('Players on the injury report who are not mapped on the player list')
+for x in unmapped_injured_players: print(x)
 players = players[players['name'].notna()]
 players = players.drop(['Player','Pos','Date'],axis=1)
 
-mins_adj = get_player_mpg(players[(players['team']==12)|(players['team']==8)])
+
+#%% mintues adjustment
+mins_adj = get_player_mpg(players[(players['team']==8)|(players['team']==12)])
 mins_adj = adjust_mins_by_team(mins_adj)
