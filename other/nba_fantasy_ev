@@ -80,6 +80,82 @@ def get_player_mpg(player_info):
     player_info['minutes_GW'] = player_info['minutes']*player_info['availability']
     return(player_info)
 
+def injury_status():
+    injuries = pd.read_html('https://sports.yahoo.com/nba/injuries/')
+    injuries = pd.concat(injuries)
+    injuries['Player'] = injuries['Player'].str.replace('í','i')
+    injuries['Player'] = injuries['Player'].str.replace('č','c')
+    injuries['Player'] = injuries['Player'].str.replace('Č','C')
+    injuries['Player'] = injuries['Player'].str.replace('ić','ic')
+    injuries['Player'] = injuries['Player'].str.replace('ö','o')
+    injuries['Player'] = injuries['Player'].str.replace('é','e')
+    injuries['Player'] = injuries['Player'].str.replace('ü','u')
+    injuries['Player'] = injuries['Player'].str.replace('ņ','n')
+    injuries['Player'] = injuries['Player'].str.replace('ģ','g')
+    injuries['Player'] = injuries['Player'].str.replace('ô','o')
+    injuries['Player'] = injuries['Player'].str.replace('ū','u')
+    injuries['Player'] = injuries['Player'].str.replace('Ş','S')
+    injuries['Player'] = injuries['Player'].str.replace('Š','S')
+    injuries['Player'] = injuries['Player'].str.replace('Alex Sarr','Alexandre Sarr')
+    injuries['Player'] = injuries['Player'].str.replace('P.J. Washington Jr.','P.J. Washington')
+    injuries['Player'] = injuries['Player'].str.replace('Jimmy Butler III','Jimmy Butler')
+    injuries['Player'] = injuries['Player'].str.replace('GG Jackson II','GG Jackson')
+    injuries['Player'] = injuries['Player'].str.replace('Xavier Tillman Sr.','Xavier Tillman')
+    injuries['Player'] = injuries['Player'].str.replace('Jeff Dowtin Jr.','Jeff Dowtin')
+    injuries['Player'] = injuries['Player'].str.replace('Craig Porter Jr.','Craig Porter')
+    injuries['Player'] = injuries['Player'].str.replace('Ron Holland II','Ronald Holland II')
+    injuries['Player'] = injuries['Player'].str.replace('Tolu Smith III','Tolu Smith')
+    injuries['Player'] = injuries['Player'].str.replace('Trey Jemison III','Trey Jemison')
+    injuries['Player'] = injuries['Player'].str.replace('AJ Green','A.J. Green')
+    injuries['Player'] = injuries['Player'].str.replace('KJ Simpson','K.J. Simpson')
+    injuries['Player'] = injuries['Player'].str.replace('KJ Martin','Kenyon Martin Jr.')
+    injuries['Player'] = injuries['Player'].str.replace('Nate Williams','Jeenathan Williams')
+    return injuries
+
+def yahoo_player_list():
+    teams= ['boston','brooklyn','new-york','philadelphia','toronto',
+            'chicago','cleveland','detroit','indiana','milwaukee',
+            'atlanta','charlotte','miami','orlando','washington',
+            'golden-state','la-clippers','la-lakers','phoenix','sacramento',
+            'dallas','houston','memphis','new-orleans','san-antonio',
+            'denver','minnesota','oklahoma-city','portland','utah']
+    
+    player_list = []
+    for n in teams:
+        team_n = pd.read_html(f'https://sports.yahoo.com/nba/teams/{n}/roster/')
+        team_n = team_n[0]    
+        player_list.append(team_n)
+        
+    player_list = pd.concat(player_list)
+    player_list['Player'] = player_list['Player'].str.replace('í','i')
+    player_list['Player'] = player_list['Player'].str.replace('č','c')
+    player_list['Player'] = player_list['Player'].str.replace('Č','C')
+    player_list['Player'] = player_list['Player'].str.replace('ić','ic')
+    player_list['Player'] = player_list['Player'].str.replace('ö','o')
+    player_list['Player'] = player_list['Player'].str.replace('é','e')
+    player_list['Player'] = player_list['Player'].str.replace('ü','u')
+    player_list['Player'] = player_list['Player'].str.replace('ņ','n')
+    player_list['Player'] = player_list['Player'].str.replace('ģ','g')
+    player_list['Player'] = player_list['Player'].str.replace('Alex Sarr','Alexandre Sarr')
+    player_list['Player'] = player_list['Player'].str.replace('P.J. Washington Jr.','P.J. Washington')
+    player_list['Player'] = player_list['Player'].str.replace('Jimmy Butler III','Jimmy Butler')
+    player_list['Player'] = player_list['Player'].str.replace('GG Jackson II','GG Jackson')  
+    player_list['Player'] = player_list['Player'].str.replace('Xavier Tillman Sr.','Xavier Tillman')
+    player_list['Player'] = player_list['Player'].str.replace('Jeff Dowtin Jr.','Jeff Dowtin')
+    player_list['Player'] = player_list['Player'].str.replace('Craig Porter Jr.','Craig Porter')
+    player_list['Player'] = player_list['Player'].str.replace('Ron Holland II','Ronald Holland II')
+    player_list['Player'] = player_list['Player'].str.replace('Tolu Smith III','Tolu Smith')
+    player_list['Player'] = player_list['Player'].str.replace('Trey Jemison III','Trey Jemison')
+    player_list['Player'] = player_list['Player'].str.replace('AJ Green','A.J. Green')
+    player_list['Player'] = player_list['Player'].str.replace('KJ Simpson','K.J. Simpson')
+    player_list['Player'] = player_list['Player'].str.replace('KJ Martin','Kenyon Martin Jr.')
+    player_list['Player'] = player_list['Player'].str.replace('Nate Williams','Jeenathan Williams')
+    player_list['Player'] = player_list['Player'].str.replace('ô','o')
+    player_list['Player'] = player_list['Player'].str.replace('ū','u')
+    player_list['Player'] = player_list['Player'].str.replace('Ş','S')
+    player_list['Player'] = player_list['Player'].str.replace('Š','S')
+    return player_list
+    
 def adjust_mins_by_team(data):
     results = []
     data['minutes_GW'] = data['minutes']*data['availability']
@@ -103,17 +179,7 @@ players = players.loc[players['code']>1]
 #team_list = team_list.reset_index()
 #fixtures = get_fixture_info(players)
 
-injuries = pd.read_html('https://sports.yahoo.com/nba/injuries/')
-injuries = pd.concat(injuries)
-injuries['Player'] = injuries['Player'].str.replace('í','i')
-injuries['Player'] = injuries['Player'].str.replace('č','c')
-injuries['Player'] = injuries['Player'].str.replace('Č','C')
-injuries['Player'] = injuries['Player'].str.replace('ić','ic')
-injuries['Player'] = injuries['Player'].str.replace('ö','o')
-injuries['Player'] = injuries['Player'].str.replace('é','e')
-injuries['Player'] = injuries['Player'].str.replace('ü','u')
-injuries['Player'] = injuries['Player'].str.replace('Alex Sarr','Alexandre Sarr')
-injuries['Player'] = injuries['Player'].str.replace('P.J. Washington Jr.','P.J. Washington')
+injuries = injury_status()
 
 players = pd.merge(players, injuries, left_on = ['name'], right_on=['Player'], how = 'outer')
 players[['Status', 'Injury']] = players['Status'].str.split('(', n=1, expand=True)
@@ -122,5 +188,5 @@ unmapped_injured_players = players.loc[players['name'].isna(),'Player']
 players = players[players['name'].notna()]
 players = players.drop(['Player','Pos','Date'],axis=1)
 
-mins_adj = get_player_mpg(players[(players['team']==1)|(players['team']==30)])
+mins_adj = get_player_mpg(players[(players['team']==12)|(players['team']==8)])
 mins_adj = adjust_mins_by_team(mins_adj)
