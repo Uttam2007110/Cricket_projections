@@ -15,8 +15,9 @@ from scipy.stats import zscore
 from scipy.stats import multivariate_normal
 pd.options.mode.chained_assignment = None  # default='warn'
 
-teams = ['Los Angeles Lakers','Charlotte Hornets']
+teams = ['Atlanta Hawks','Orlando Magic']
 season = 2025
+playoffs = 0
 file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
 
 # %%  initialize functions
@@ -158,7 +159,7 @@ def aggregate_mins(dataset,teams,positions):
     dataset = dataset.sort_values(by=['team_name','adj_minutes'],ascending=[True,False])
     return dataset
     
-def game_model(box_talent,teams):    
+def game_model(box_talent,teams,playoffs):    
     #game model
     box_talent['w_odpm'] = box_talent['minutes']*box_talent['o_dpm']/48
     box_talent['w_ddpm'] = box_talent['minutes']*box_talent['d_dpm']/48
@@ -166,7 +167,17 @@ def game_model(box_talent,teams):
     t1_offsense_adj = (box_talent.loc[box_talent['team_name']==teams[0],'w_odpm'].sum() - box_talent.loc[box_talent['team_name']==teams[1],'w_odpm'].sum())/2
     t1_defense_adj = (box_talent.loc[box_talent['team_name']==teams[0],'w_ddpm'].sum() - box_talent.loc[box_talent['team_name']==teams[1],'w_ddpm'].sum())/2
 
-    league_pace = sum(box_talent['pace']*box_talent['minutes'])/sum(box_talent['minutes'])
+    #league_pace = sum(box_talent['pace']*box_talent['minutes'])/sum(box_talent['minutes'])
+    league_avg_stats = pd.read_html('https://www.basketball-reference.com/leagues/NBA_stats_per_game.html')
+    if(playoffs == 1): c_season = league_avg_stats[1]
+    else: c_season = league_avg_stats[0]
+    c_season.columns = c_season.columns.droplevel(0)
+    c_season = c_season.dropna()
+    c_season = c_season.loc[c_season['Rk']!='Rk']
+    c_season = c_season.apply(pd.to_numeric,errors='ignore')
+    c_season['weight'] = np.exp(-c_season['Rk'])
+    league_pace = sum(c_season['weight']*c_season['Pace'])/sum(c_season['weight'])
+    league_avg_ortg = sum(c_season['weight']*c_season['ORtg'])/sum(c_season['weight'])
 
     raw_pts_t1 = box_talent.loc[box_talent['team_name']==teams[0],'pts'].sum()
     pace_t1 = sum(box_talent.loc[box_talent['team_name']==teams[0],'pace'] * box_talent.loc[box_talent['team_name']==teams[0],'minutes'])/240
@@ -179,7 +190,7 @@ def game_model(box_talent,teams):
 
     game_pace = pace_t1*pace_t2/league_pace
     #verify this !!!
-    league_avg_ortg = (box_talent['pts'].sum() * 240 / box_talent['minutes'].sum())
+    #league_avg_ortg = (box_talent['pts'].sum() * 240 / box_talent['minutes'].sum())
     game_ortg = ortg_t1 * ortg_t2 / league_avg_ortg
     ortg_t1_adj = game_ortg + (t1_offsense_adj + t1_defense_adj)
     ortg_t2_adj = game_ortg - (t1_offsense_adj + t1_defense_adj)
@@ -212,7 +223,7 @@ def game_model(box_talent,teams):
     #print(raw_pts_t1,adj_pts_t1,raw_pts_t2,adj_pts_t2)
     return box_talent
 
-def extract_data_DARKO_v2(box_talent,p_mins,teams):
+def extract_data_DARKO_v2(box_talent,p_mins,teams,playoffs):
     p_mins = p_mins[['player_name', 'team_name', 'adj_minutes']]
     #box_talent = pd.read_html('https://spreadsheets.google.com/tq?tqx=out:html&tq=&key=1mhwOLqPu2F9026EQiVxFPIN1t9RGafGpl-dokaIsm9c&gid=284274620')[0]
     #box_talent = header_first_row(box_talent)
@@ -268,7 +279,7 @@ def extract_data_DARKO_v2(box_talent,p_mins,teams):
     box_talent['FTr'] = box_talent['ft_ar'].str.replace(r'%', '', regex=True)
     box_talent['FTr'] = (pd.to_numeric(box_talent['FTr'])/100)
     
-    box_talent = game_model(box_talent,teams)
+    box_talent = game_model(box_talent,teams,playoffs)
     team_strength = pd.pivot_table(box_talent, values =['minutes','w_pace','w_odpm','w_ddpm'], index =['team_name'], aggfunc = np.sum)
     team_strength['w_pace'] *= 240/team_strength['minutes']
     team_strength['w_odpm'] *= 240/team_strength['minutes']
@@ -504,7 +515,7 @@ DARKO,p_mins = projected_minutes(file,teams,season)
 p_mins = aggregate_mins(p_mins,teams,['c','pf','sf','sg','pg'])
 
 # %%  generate projections for the players
-f_points,full_player_list,team_strength = extract_data_DARKO_v2(DARKO,p_mins,teams)
+f_points,full_player_list,team_strength = extract_data_DARKO_v2(DARKO.copy(),p_mins,teams,playoffs)
 f_points = f_points_clean_up(f_points,0)
 f_points['xPts/min'] = f_points['xPts']/f_points['minutes']
 f_points = assign_prices(file,f_points)
