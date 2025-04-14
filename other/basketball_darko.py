@@ -15,10 +15,14 @@ from scipy.stats import zscore
 from scipy.stats import multivariate_normal
 pd.options.mode.chained_assignment = None  # default='warn'
 
-teams = ['Atlanta Hawks','Orlando Magic']
+teams = ['Denver Nuggets','Los Angeles Clippers']
 season = 2025
-playoffs = 0
-file = "C:/Users/GF63/Desktop/cricket/NBA prices.xlsx"
+playoffs = 1
+
+#path = "C:/Users/GF63/Desktop/cricket"
+path = "C:/Users/Subramanya.Ganti/Downloads/cricket/excel"
+
+file = f"{path}/NBA prices.xlsx"
 
 # %%  initialize functions
 def projected_minutes(file,teams,season):
@@ -37,7 +41,7 @@ def projected_minutes(file,teams,season):
     box_talent.loc[(box_talent['x_position']=='pf_pos')|(box_talent['x_position']=='sf_pos'),'position'] = 'wing'
     box_talent.loc[(box_talent['x_position']=='sg_pos')|(box_talent['x_position']=='pg_pos'),'position'] = 'guard'
     
-    pivot = pd.pivot_table(box_talent,values=['drb_100','ast_100','stl_100','rim_fga_100','fg3a_100'],columns='x_position',aggfunc=np.mean)
+    pivot = pd.pivot_table(box_talent,values=['drb_100','ast_100','stl_100','rim_fga_100','fg3a_100'],columns='x_position',aggfunc='mean')
     pivot = pivot.T
     
     dataset = box_talent[['player_name','team_name','position','x_position','minutes','ast_100', 'drb_100', 'fg3a_100', 'rim_fga_100', 'stl_100']]
@@ -105,8 +109,8 @@ def projected_minutes(file,teams,season):
         
     pbp_net['sum'] = pbp_net.loc[:,"PG%":"C%"].sum(axis=1)
     pbp_net.loc[:,"PG%":"C%"] = pbp_net.loc[:,"PG%":"C%"].div(pbp_net["sum"], axis=0)
-    pbp_net = pbp_net.apply(pd.to_numeric, errors='ignore')
-    
+    #pbp_net = pbp_net.apply(pd.to_numeric, errors='ignore') #deprecated
+    pbp_net = pbp_net.apply(to_numeric)
     mapping = pd.read_excel(file,'DARKO')
 
     for p in dataset['player_name'].values:  
@@ -174,7 +178,8 @@ def game_model(box_talent,teams,playoffs):
     c_season.columns = c_season.columns.droplevel(0)
     c_season = c_season.dropna()
     c_season = c_season.loc[c_season['Rk']!='Rk']
-    c_season = c_season.apply(pd.to_numeric,errors='ignore')
+    #c_season = c_season.apply(pd.to_numeric,errors='ignore') #deprecated
+    c_season = c_season.apply(to_numeric)
     c_season['weight'] = np.exp(-c_season['Rk'])
     league_pace = sum(c_season['weight']*c_season['Pace'])/sum(c_season['weight'])
     league_avg_ortg = sum(c_season['weight']*c_season['ORtg'])/sum(c_season['weight'])
@@ -280,7 +285,7 @@ def extract_data_DARKO_v2(box_talent,p_mins,teams,playoffs):
     box_talent['FTr'] = (pd.to_numeric(box_talent['FTr'])/100)
     
     box_talent = game_model(box_talent,teams,playoffs)
-    team_strength = pd.pivot_table(box_talent, values =['minutes','w_pace','w_odpm','w_ddpm'], index =['team_name'], aggfunc = np.sum)
+    team_strength = pd.pivot_table(box_talent, values =['minutes','w_pace','w_odpm','w_ddpm'], index =['team_name'], aggfunc = 'sum')
     team_strength['w_pace'] *= 240/team_strength['minutes']
     team_strength['w_odpm'] *= 240/team_strength['minutes']
     team_strength['w_ddpm'] *= 240/team_strength['minutes']
@@ -312,12 +317,13 @@ def header_first_row(df):
     new_header = df.iloc[0] #grab the first row for the header
     df = df[1:] #take the data less the header row
     df.columns = new_header #set the header row as the df header
-    df = df.apply(pd.to_numeric, errors='ignore')
+    #df = df.apply(pd.to_numeric, errors='ignore') #deprecated
+    df = df.apply(to_numeric)
     return df
 
 def clustering_known_centroids(f_points):
-    sample = pd.read_excel('C:/Users/GF63/Desktop/cricket/barttorvik/nba_roles.xlsx','sample')
-    centroids = pd.read_excel('C:/Users/GF63/Desktop/cricket/barttorvik/nba_roles.xlsx','centroids')
+    sample = pd.read_excel(f'{path}/nba_roles.xlsx','sample')
+    centroids = pd.read_excel(f'{path}/nba_roles.xlsx','centroids')
     centroids2 = centroids.copy()
     
     f_points['FGA/36'] = 36*f_points['fga']/f_points['minutes']
@@ -395,11 +401,11 @@ def covariance_matrix(f_points,correlation,team):
     covariance = pd.DataFrame(columns=correlation.columns, index=correlation.index)
     for x in covariance.columns:
         for y in covariance.index:
-            covariance[x][y] = f_points.loc[(f_points['role']==x)&(f_points['team_name']==team),'stdev'].sum() \
+            covariance.loc[y,x] = f_points.loc[(f_points['role']==x)&(f_points['team_name']==team),'stdev'].sum() \
                              * f_points.loc[(f_points['role']==y)&(f_points['team_name']==team),'stdev'].sum() \
                              * correlation[x][y]
-        
-    covariance = covariance.fillna(0)
+    
+    with pd.option_context("future.no_silent_downcasting", True): covariance = covariance.fillna(0)
     return covariance
 
 def multivariate_sim(f_points,correlation,team):
@@ -407,11 +413,11 @@ def multivariate_sim(f_points,correlation,team):
     xpts = pd.DataFrame(columns=['player_name','xPts'], index=covariance.index)
     for z in xpts.index:
         try:
-            xpts['xPts'][z] = f_points.loc[(f_points['role']==z)&(f_points['team_name']==team),'xPts'].sum()
-            xpts['player_name'][z] = f_points.loc[(f_points['role']==z)&(f_points['team_name']==team),'player_name'].values[0]
+            xpts.loc[z,'xPts'] = f_points.loc[(f_points['role']==z)&(f_points['team_name']==team),'xPts'].sum()
+            xpts.loc[z,'player_name'] = f_points.loc[(f_points['role']==z)&(f_points['team_name']==team),'player_name'].values[0]
         except:
-            xpts['xPts'][z] = 0
-            xpts['player_name'][z] = 'NA'
+            xpts.loc[z,'xPts'] = 0
+            xpts.loc[z,'player_name'] = 'NA'
             
     xpts['xPts'] = multivariate_normal.rvs(mean=xpts.iloc[:,1], cov=covariance)
     xpts = xpts.loc[xpts['player_name']!='NA']
@@ -426,7 +432,7 @@ def solver(f_points):
     duplicate['SF'] = np.where(duplicate['pos']==3,1,0)
     duplicate['PFs'] = np.where(duplicate['pos']==4,1,0)
     duplicate['C'] = np.where(duplicate['pos']==5,1,0)
-    duplicate['Sel'] = 0
+    duplicate['Sel'] = 0.0
     model = LpProblem(name="resource-allocation", sense=LpMaximize)
     
     # Define the decision variables
@@ -461,7 +467,7 @@ def solver(f_points):
     for name, constraint in model.constraints.items():
         if(name == 'cost'): cost = 100+constraint.value()
         #print(f"{name}: {constraint.value()}")   
-    for k in range (0, len(duplicate)): duplicate['Sel'][k] = x[k].value() + c[k].value() + 0.5*vc[k].value()
+    for k in range (0, len(duplicate)): duplicate.loc[k,'Sel'] = x[k].value() + c[k].value() + 0.5*vc[k].value()
     
     return duplicate,xpts,cost
 
@@ -508,6 +514,12 @@ def iterator(f_points,n,teams,correlation):
         k = k + 1   
     return a_team
 
+def to_numeric(s):
+    try:
+        return pd.to_numeric(s, errors='raise')
+    except ValueError:
+        return s
+
 # %%  extract data from DARKO
 DARKO,p_mins = projected_minutes(file,teams,season)
 
@@ -524,14 +536,14 @@ f_points = f_points.loc[f_points['minutes']>0.1]
 
 # %%  generate n unique lineups
 n = 11
-correlation = pd.read_excel('C:/Users/GF63/Desktop/cricket/barttorvik/nba_roles.xlsx','correlation matrix')
+correlation = pd.read_excel(f'{path}/nba_roles.xlsx','correlation matrix')
 correlation.set_index('role', inplace=True)
 
-#f_points = f_points_clean_up(f_points,1)
 a_team = iterator(f_points,n,teams,correlation)
 a_team = pd.DataFrame(a_team)
 a_team.columns = a_team.iloc[0];a_team = a_team.drop(0)
-a_team = a_team.apply(pd.to_numeric, errors='ignore')
+#a_team = a_team.apply(pd.to_numeric, errors='ignore')
+a_team = a_team.apply(to_numeric)
 a_team = a_team.sort_values(by=['xPts'],ascending=False)
 a_team.index = np.arange(1, len(a_team)+1)
 #f_points = f_points.drop('role', axis=1)
