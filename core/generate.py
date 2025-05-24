@@ -14,7 +14,7 @@ np.seterr(divide='ignore', invalid='ignore')
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-comp = 'ilt'
+comp = 'blast'
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
 
 if(comp=='hundred' or comp=='hundredw'):
@@ -318,6 +318,36 @@ print("individual season data dumped")
 now = datetime.datetime.now()
 print(now.time())
 
+#scale xruns and xwickets
+s_player_bat = pd.pivot_table(player_bat,values=['runs_off_bat','outs_batsman','xruns','xwickets'],index=['season'],aggfunc=np.sum)
+s_player_bat['r_scale'] = s_player_bat['runs_off_bat']/s_player_bat['xruns']
+s_player_bat['w_scale'] = s_player_bat['outs_batsman']/s_player_bat['xwickets']
+s_player_bat = s_player_bat.reset_index()
+player_bat = player_bat.merge(s_player_bat[['season','r_scale','w_scale']], left_on='season', right_on='season')
+player_bat['xruns'] = player_bat['xruns']*player_bat['r_scale']
+player_bat['xwickets'] = player_bat['xwickets']*player_bat['w_scale']
+player_bat['xSR'] = player_bat['xSR']*player_bat['r_scale']
+player_bat['RSAA'] = 1.2*(player_bat['SR']-player_bat['xSR'])*player_bat['usage']*factor
+
+s_player_bowl = pd.pivot_table(player_bowl,values=['runs_off_bat','extras','outs_bowler','xruns','xwickets'],index=['season'],aggfunc=np.sum)
+s_player_bowl['r_scale'] = (s_player_bowl['runs_off_bat']+s_player_bowl['extras'])/s_player_bowl['xruns']
+s_player_bowl['w_scale'] = s_player_bowl['outs_bowler']/s_player_bowl['xwickets']
+s_player_bowl = s_player_bowl.reset_index()
+player_bowl = player_bowl.merge(s_player_bowl[['season','r_scale','w_scale']], left_on='season', right_on='season')
+player_bowl['xruns'] = player_bowl['xruns']*player_bowl['r_scale']
+player_bowl['xwickets'] = player_bowl['xwickets']*player_bowl['w_scale']
+player_bowl['xSR'] = player_bowl['xSR']/player_bowl['w_scale']
+player_bowl['xECON'] = player_bowl['xECON']/player_bowl['r_scale']
+player_bowl['WTAA'] = factor*120*((1/player_bowl['SR'])-(1/player_bowl['xSR']))*player_bowl['usage']
+player_bowl['RCAA'] = 20*(player_bowl['ECON']-player_bowl['xECON'])*player_bowl['usage']*factor - 6*player_bowl['WTAA']*factor
+
+player_bat = player_bat.drop(columns=['r_scale', 'w_scale'])
+player_bowl = player_bowl.drop(columns=['r_scale', 'w_scale', 'WTAA'])
+
+print("individual season xruns/wickets rescaled")
+now = datetime.datetime.now()
+print(now.time())
+
 with pd.ExcelWriter(output_file) as writer:
     matchups.to_excel(writer, sheet_name="venue pace_spin", index=False)
     venue_bat_phase.to_excel(writer, sheet_name="venue batting", index=False)
@@ -328,5 +358,5 @@ with pd.ExcelWriter(output_file) as writer:
     year_bowl_phase.to_excel(writer, sheet_name="bowling phases", index=False)
     year_bat.to_excel(writer, sheet_name="batting year", index=False)
     year_bowl.to_excel(writer, sheet_name="bowling year", index=False)
-    
+  
 print("all data dumped to the desired excel file, run aggregate (if you want to) then run projections")
