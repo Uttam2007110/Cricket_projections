@@ -9,7 +9,7 @@ import glob
 import pandas as pd
 from datetime import datetime
  
-comp = 'tests'
+comp = 'blast'
 if(comp == 'odiq'):
     path = "C:/Users/Subramanya.Ganti/Downloads/cricket/raw/odi"
 elif(comp == 't20iq'):
@@ -28,7 +28,7 @@ excl_list = []; names_list=[]; i=0
 
 file_list = glob.glob(path + "/*.csv")
 if(comp == 'odiq'):
-    countries = ["Zimbabwe","Netherlands","West Indies","Nepal","United States of America","Sri Lanka","Ireland","Scotland","Oman","United Arab Emirates"]
+    countries = ["Zimbabwe","Netherlands","West Indies","Nepal","United States of America","Ireland","Scotland","Oman","United Arab Emirates"]
 elif(comp == 't20iw'):
     countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","Ireland","Scotland","West Indies","Pakistan","Bangladesh","Thailand","Zimbabwe"]
 elif(comp == 't20iwq'):
