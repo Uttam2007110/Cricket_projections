@@ -254,6 +254,7 @@ def analyse_bat_game(u,w,factor):
         coeffs.append((outs[p-1]+(missed/11))/max_balls)
         p = p + 1
     #print(usage_sum,c/(6*file0['match_id'].nunique()))
+    coeffs[11] = 0
     return coeffs
 
 def bowls(file_bowl_input,file_bowl,concat,factor):
