@@ -9,9 +9,13 @@ import numpy as np
 import pandas as pd
 import math
 import itertools
+import scipy.stats
+from scipy import stats
 from scipy.stats import norm
 from scipy.stats import skewnorm
 from scipy.stats import skew
+from scipy.stats import gamma
+from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -19,7 +23,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 from pandas.errors import SettingWithCopyWarning
 warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 
-path = "C:/Users/GF63/Desktop/cricket/excel/bart"
+path = "C:/Users/Subramanya.Ganti/Downloads/cricket/excel/bart"
 
 #%% team ratings
 def team_ratings():
@@ -47,12 +51,25 @@ def df_class(df):
     #df['class'] = stats.zscore(df['class'])
     return df
 
+def df_role(df):
+    mapping = {'Pure PG': 1, 'Combo G': 1.5, 'Wing F': 2, 'Wing G': 1.75, 'Stretch 4': 2.5, 'Scoring PG': 1.25, 'PF/C': 2.75, 'C': 3}
+    df['role'] = df['role'].map(mapping)
+    df = df[df['role'].notna()]
+    return df
+
 def height_adj(df):
     df[['Feet', 'Inches']] = df['height'].str.split('-', expand=True)
     df = df[df['Feet'].notna()]
     df = df[df['Inches'].notna()]
     df['hgt'] = 12*df['Feet'].astype(int) + df['Inches'].astype(int)
     df = df[df['hgt']>=60]
+    return df
+
+def log_adjust(df,category):
+    df[category] = np.log(df[category])
+    df[category] = df[category].replace(-np.inf, np.nan)
+    min_value = df[category].min(skipna=True)
+    df[category] = df[category].replace(np.nan, min_value)
     return df
 
 def iqr_column(df,category):
@@ -64,7 +81,20 @@ def extract_player_stats():
     i = 2010; p_stats = []; unadj_p_stats = []
     while(i<2026):
         data = pd.read_csv(f'{path}/{i}.csv', names=headers.columns)
+        
+        data['blocks']  = data['blk'] * data['GP']
+        data['steals']  = data['stl'] * data['GP']
+        data['minutes']  = data['mp'] * data['GP']
+        team_bs = pd.pivot_table(data,values=['blocks','steals','minutes'],index=['team'],aggfunc=np.sum)
+        team_bs['minutes'] = team_bs['minutes']/200
+        team_bs['blocks'] = team_bs['blocks']/team_bs['minutes']
+        team_bs['steals'] = team_bs['steals']/team_bs['minutes']
+        team_bs = team_bs.reset_index()
+        data = data.merge(team_bs, left_on='team', right_on='team')
+        
         data = data.loc[(data['mp']>=12) & (data['GP']>=10)]
+        data['blk_share'] = (data['blk']*40/data['mp'])/data['blocks_y']
+        data['stl_share'] = (data['stl']*40/data['mp'])/data['steals_y']
         #data = df_class(data)
         data = height_adj(data)
         data['season'] = i
@@ -86,13 +116,14 @@ def extract_player_stats():
         data = data.loc[data['ftr'].isna() == False]
         #data = data.merge(team_ranking, left_on=['team','season'], right_on=['team','season'])
         
-        data_adj = data[['player','pid','team','season','class','hgt','GP','mp','usg','TS%','ORB%','DRB%','AST%','TO%','ast/tov','BLK%',
-                         'STL%','pfr','ftr','FT%','dunkar','rimar','rim%','midar','mid%','3par','3P%','ORtg','drtg','bpm']]
+        data_adj = data[['player','pid','team','season','class','role','Rec Rank','hgt','GP','mp','usg','TS%','ORB%','DRB%','AST%','TO%','ast/tov','BLK%','blk_share',
+                         'STL%','stl_share','pfr','ftr','FT%','dunkar','rimar','rim%','midar','mid%','3par','3P%','ORtg','drtg','bpm']]
         
         unadj_p_stats.append(data_adj.copy())
         
-        for x in ['usg','ORB%','DRB%','AST%','TO%','BLK%','STL%','pfr','ftr','dunkar','rimar','midar','3par',
-                  'ast/tov','3P%','rim%','mid%','FT%','ORtg','drtg','bpm','mp']:
+        for x in ['ORB%','DRB%','BLK%','blk_share','STL%','stl_share','pfr','dunkar','AST%','TO%','ast/tov','mp']:
+            data_adj = log_adjust(data_adj,x)
+        for x in ['usg','ftr','rimar','midar','3par','3P%','rim%','mid%','FT%','ORtg','drtg','bpm','mp']:
             data_adj = iqr_column(data_adj,x)
         p_stats.append(data_adj)
         i+=1
@@ -101,16 +132,14 @@ def extract_player_stats():
     unadj_p_stats = pd.concat(unadj_p_stats)
     p_stats = df_class(p_stats)
     unadj_p_stats = df_class(unadj_p_stats)
+    p_stats = df_role(p_stats)
+    unadj_p_stats = df_role(unadj_p_stats)
+    
     
     p_stats = iqr_column(p_stats,'hgt')
-    p_stats = iqr_column(p_stats,'class')
-    #p_stats = iqr_column(p_stats,'3P%')
-    #p_stats = iqr_column(p_stats,'FT%')
-    #p_stats = iqr_column(p_stats,'rim%')
-    #p_stats = iqr_column(p_stats,'mid%')
-    #p_stats = iqr_column(p_stats,'TS%')
-    #p_stats = iqr_column(p_stats,'class')
-    #p_stats = iqr_column(p_stats,'rating')
+    #p_stats['hgt'] = np.exp(p_stats['hgt'])
+    p_stats = log_adjust(p_stats,'class')
+    p_stats = log_adjust(p_stats,'role')
     
     return p_stats,unadj_p_stats
 
@@ -120,12 +149,12 @@ player_stats.reset_index(drop=True,inplace=True)
 #player_stats = player_stats.merge(team_ranking, left_on=['team','season'], right_on=['team','season'])
 
 #%% histogram of all player stats
-player_stats.hist(figsize=(10, 8))  # Adjust figsize as needed
+data.hist(figsize=(10, 8))  # Adjust figsize as needed
 plt.tight_layout() # Adjust layout to prevent overlap
 plt.show()
 
 #%% covariance and inverse covariance for all the stats under consideration
-data = data[['class', 'hgt', 'usg', 'ORB%', 'DRB%', 'AST%', 'TO%', 'ast/tov', 'BLK%', 'STL%','pfr', 'ftr','FT%', 'dunkar', 'rimar', 
+data = data[['class', 'hgt', 'role', 'usg', 'ORB%', 'DRB%', 'AST%', 'TO%', 'ast/tov', 'BLK%','blk_share','STL%','stl_share','pfr', 'ftr','FT%', 'dunkar', 'rimar', 
              'rim%', 'midar', 'mid%', '3par', '3P%','ORtg','drtg','bpm','mp']]
 
 correlation_matrix = data.corr()
@@ -143,8 +172,8 @@ def distance(name, yr, full_matrix, data, print_df):
     #custom weightage to specific factors, ast/tov, STL%
     #cov[0,0] = cov[0,0] * 2
     #cov[1,1] = cov[1,1] * 2
-    cov[7,7] = cov[7,7] * 2
-    #cov[22,22] = cov[22,22] * 2
+    #cov[7,7] = cov[7,7] * 2
+    #cov[24,24] = cov[24,24] * 2
     
     #inverse covaiance matrix
     invcov = np.linalg.inv(cov)\
@@ -196,7 +225,7 @@ def distance(name, yr, full_matrix, data, print_df):
     full_matrix = full_matrix[['player','team','season','bpm','mdist','pid']]
     full_matrix['score'] = 1/(full_matrix['mdist']*full_matrix['mdist']) #np.exp(-1*full_matrix['mdist']*full_matrix['mdist'])
     full_matrix = full_matrix.sort_values(by=['score'], ascending=False)
-    full_matrix = full_matrix.loc[full_matrix['score'] >= (full_matrix[1:]['score'].mean()+4.5*full_matrix[1:]['score'].std())]
+    full_matrix = full_matrix.loc[full_matrix['score'] >= (full_matrix[1:]['score'].mean()+3.75*full_matrix[1:]['score'].std())]
     return full_matrix
 
 #%% mapping nba stats
@@ -248,122 +277,163 @@ def age_curve_adj(stats):
 nba_stats = age_curve_adj(nba_stats.copy())
 #del combinations; del x; del prev; del prev_name; del prev_pid
 
-#%% call the distance function
-name = "Ace Bailey"; p_season = 2025
-pdist = distance(name, p_season, player_stats.copy(), data, 1)
-pdist = pdist.drop_duplicates(subset=['player'], keep='first')
-pdist = pdist.loc[(pdist['season']<2025) | ((pdist['player']==name) & (pdist['season']==p_season))]
-pdist.reset_index(inplace=True)
+#%% individual player comps analysis
+def fleishman_coeffs(skew, kurt):
+    def equations(vars):
+        a, b, c, d = vars
+        eq1 = b**2 + 6*b*d + 2*c**2 + 15*d**2 - 1
+        eq2 = 2*c*(b**2 + 24*b*d + 105*d**2 + 2) - skew
+        eq3 = b**4 + 24*b**3*d + 144*b**2*d**2 + 12*b**2*c**2 + 720*b*d**3 + 120*b*c**2*d + 36*c**4 + 1680*d**4 + 12*c**2 + 3 - kurt
+        eq4 = a
+        return [eq1, eq2, eq3, eq4]
 
-#pdist = pd.merge(pdist, nba_stats[['pid','VORP/S','S']], left_on='pid', right_on='pid', how='left')
-#pdist = pdist.drop(columns=['pid'])
-comps = nba_stats[nba_stats['pid'].isin(pdist['pid'])]
-nba_comps = len(comps['pid'].unique())
-comps = comps.groupby('player_name')['dpm'].apply(lambda x: x.nlargest(5))
-comps = comps.to_list() + [-4] * (len(pdist)-nba_comps)
+    initial_guess = [0, 1, 0, 0]
+    a, b, c, d = fsolve(equations, initial_guess)
+    return a, b, c, d
 
-print("NBA Rate",1-skewnorm.cdf(-3, a=skew(comps) ,loc=np.median(comps), scale=np.std(comps)))
-print("Starter NBA Rate",1-skewnorm.cdf(0, a=skew(comps), loc=np.median(comps), scale=np.std(comps)))
-print("Star NBA Rate",1-skewnorm.cdf(2, a=skew(comps), loc=np.median(comps), scale=np.std(comps)))
-print("Superstar NBA Rate",1-skewnorm.cdf(4, a=skew(comps), loc=np.median(comps), scale=np.std(comps)))
-print("bpm gap over comps",pdist['bpm'].values[0]-pdist['bpm'].quantile(0.75)) #pdist['bpm'].mean())
+def generate_fleishman_distribution(n_samples, mean, std, skew, kurt):
+    a, b, c, d = fleishman_coeffs(skew, kurt)
+    z = np.random.normal(0, 1, n_samples)
+    x = a + b*z + c*z**2 + d*z**3
+    x = mean + x*std
+    return x
 
-qdist = nba_stats[nba_stats['pid'].isin(pdist['pid'])]
-qdist = pd.pivot_table(qdist,values=['dpm'],index=['player_name'],columns=['season_x'],aggfunc=np.sum)
-qdist.columns = qdist.columns.droplevel(0)
-qdist['VORP/S'] =  qdist.max(axis=1, numeric_only=True)
-qdist['S'] =  qdist.count(axis=1, numeric_only=True)
-qdist['S'] -= 1
-qdist.reset_index(inplace=True)
-qdist = qdist[['player_name','VORP/S','S']]
-qdist = qdist.loc[qdist['S'] > 1]
-
-print("Comp 1 - ",qdist.loc[qdist['VORP/S'] == qdist['VORP/S'].nlargest(1)[-1:].values[0],'player_name'].values[0])
-print("Comp 2 - ",qdist.loc[qdist['VORP/S'] == qdist['VORP/S'].nlargest(math.ceil(0.15*len(qdist)))[-1:].values[0],'player_name'].values[0])
-print("Comp 3 - ",qdist.loc[qdist['VORP/S'] == qdist['VORP/S'].nlargest(math.ceil(0.25*len(qdist)))[-1:].values[0],'player_name'].values[0])
-print("Comp 4 - ",qdist.loc[qdist['VORP/S'] == qdist['VORP/S'].nlargest(math.ceil(0.50*len(qdist)))[-1:].values[0],'player_name'].values[0])
-print("Comp 5 - ",qdist.loc[qdist['VORP/S'] == qdist['VORP/S'].nlargest(math.ceil(0.75*len(qdist)))[-1:].values[0],'player_name'].values[0])
-del qdist; del name; del p_season; del comps; del nba_comps
-
-#%% distance func for a list
-def mdist_list(year, nba_stats, p_stats):
+def player_comp_analysis(x,year,p_stats,print_val):
+    try:
+        dist = distance(x, year, p_stats.copy(), data, print_val)
+        dist = dist.drop_duplicates(subset=['player'], keep='first')
+        
+        team = dist['team'].values[0]
+        bpm = dist['bpm'].values[0]
+        
+        dist = dist.loc[(dist['season']<year)] #| ((dist['player']==x) & (dist['season']==year))]
+        dist.reset_index(inplace=True)
+        comps = nba_stats[nba_stats['pid'].isin(dist['pid'])]
+        nba_comps = len(comps['pid'].unique())
+        comps = comps.groupby('player_name')['dpm'].apply(lambda x: x.nlargest(5))
+        comps = comps.groupby(level=0).mean()
+        
+        comps_list = comps.to_list() + [-3.5] * (len(dist)-nba_comps) #[-3.8,-3.6,-3.4,-3.3,-3.2]
+        comps_list.sort()
+        comps_list = [x + 4 for x in comps_list]
+        skewness = skew(comps_list)
+        kurtosis = scipy.stats.kurtosis(comps_list)
+        mean = np.mean(comps_list)
+        variance = np.var(comps_list)
+        
+        #theta1 = 6/kurtosis 
+        #theta2 = (2/skewness)**2
+        #theta = theta2 #(theta1 + theta2)/2
+        #alpha1 = (mean+4)/theta
+        #alpha2 = variance/(theta*theta)
+        #alpha = (alpha1 + alpha2)/2
+        
+        # Remove the top 5% values
+        #del comps_list[:round(len(comps_list)*0.05)]
+        # Remove the bottom 5% values
+        #del comps_list[-round(len(comps_list)*0.05):]
+        
+        distribution = generate_fleishman_distribution(10000,mean, variance**0.5, skewness, kurtosis)
+        
+        comps_num = len(dist)
+        bpm_gap = stats.percentileofscore(dist['bpm'].to_list(), bpm)
+        
+        if(np.mean(comps_list) != -4):
+            #made_nba = 1-skewnorm.cdf(-2.2, a=skewness, loc=np.mean(comps_list), scale=np.var(comps_list))
+            #vorp_0 = 1-skewnorm.cdf(-0.6, a=skewness, loc=np.mean(comps_list), scale=np.var(comps_list))
+            #vorp_2 = 1-skewnorm.cdf(0.4, a=skewness, loc=np.mean(comps_list), scale=np.var(comps_list))
+            #vorp_4 = 1-skewnorm.cdf(1.8, a=skewness, loc=np.mean(comps_list), scale=np.var(comps_list))
+            made_nba = np.sum(np.array(distribution) >= 1)/10000
+            vorp_0 = np.sum(np.array(distribution) >= 2.5)/10000
+            vorp_2 = np.sum(np.array(distribution) >= 3.5)/10000
+            vorp_4 = np.sum(np.array(distribution) >= 5.8)/10000
+        else:
+            made_nba = 0
+            vorp_0 = 0
+            vorp_2 = 0
+            vorp_4 = 0
+        
+        dist2 = nba_stats[nba_stats['pid'].isin(dist['pid'])]
+        dist2 = pd.pivot_table(dist2,values=['dpm'],index=['player_name'],columns=['season_x'],aggfunc=np.sum)
+        dist2.columns = dist2.columns.droplevel(0)
+        dist2['VORP/S'] =  dist2.max(axis=1, numeric_only=True)
+        dist2['S'] =  dist2.count(axis=1, numeric_only=True)
+        dist2['S'] -= 1
+        dist2.reset_index(inplace=True)
+        dist2 = dist2[['player_name','VORP/S','S']]
+        dist2 = dist2.loc[dist2['S'] > 1]
+        
+        if(len(dist2) < 5):
+            c1 = ""
+            c2 = ""
+            c3 = ""
+            c4 = ""
+            c5 = ""
+        elif(len(dist2) < 11):
+            c1 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(1)[-1:].values[0],'player_name'].values[0]
+            c2 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(2)[-1:].values[0],'player_name'].values[0]
+            c3 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(3)[-1:].values[0],'player_name'].values[0]
+            c4 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(4)[-1:].values[0],'player_name'].values[0]
+            c5 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(5)[-1:].values[0],'player_name'].values[0]
+        else:
+            c1 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(2)[-1:].values[0],'player_name'].values[0]
+            c2 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(int(0.15*len(dist2)))[-1:].values[0],'player_name'].values[0]
+            c3 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(int(0.3*len(dist2)))[-1:].values[0],'player_name'].values[0]
+            c4 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(int(0.5*len(dist2)))[-1:].values[0],'player_name'].values[0]
+            c5 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(int(0.8*len(dist2)))[-1:].values[0],'player_name'].values[0]   
+        
+        if(print_val == 1):
+            print("Made Roster",made_nba)
+            print("Rotation Rate",vorp_0)
+            print("Starter Rate",vorp_2)
+            print("Star Rate",vorp_4)
+            print("bpm percentile among comps",bpm_gap)
+            print()
+            print("Comp 1 - ",c1)
+            print("Comp 2 - ",c2)
+            print("Comp 3 - ",c3)
+            print("Comp 4 - ",c4)
+            print("Comp 5 - ",c5)
+            print()
+            print("mean - ",mean)
+            print("variance - ",variance)
+            print("skew - ",skewness)
+            print("kurt - ",kurtosis)
+            return dist,comps
+        else:
+            print(x)
+            return [x, team, year, comps_num, bpm, bpm_gap, made_nba, vorp_0, vorp_2, vorp_4, c1, c2, c3, c4, c5]
+        
+    except IndexError:
+        print(f"*******error with {x}*******")
+        if(print_val == 0): return [x, "NA", year, 0, 0, 0, 0, 0, 0, 0, "", "", "", "", ""]        
+    
+def mdist_list(year, nba_stats, p_stats, print_val):
     list_p = pd.read_excel(f'{path}/nba_stats.xlsx',f'{year}')
-    seniors_p = p_stats.loc[(p_stats['season']==year)&(p_stats['class']==4)&(p_stats['bpm']>=5)]
-    names_list = list_p['Player'].to_list() + seniors_p['player'].to_list()
+    #seniors_p = p_stats.loc[(p_stats['season']==year)&(p_stats['class']==4)&(p_stats['bpm']>=5)]
+    names_list = list_p['Player'].to_list() #+ seniors_p['player'].to_list()
     names_list = list(set(names_list))
     names_list.sort()
     #names_list = p_stats[p_stats['player'].isin(names_list)]
     #names_list = names_list.loc[names_list['season']==year]
     #names_list = names_list.loc[(names_list['season']<=year)&(names_list['season']>year-5)]   
-    #names_list = names_list[0:10]
     
-    result = [['player','team','season','comps','bpm','bpm gap','made NBA','role player','all star','all nba','comp 1','comp 2','comp 3','comp 4','comp 5']]
-    
+    result = [['player','team','season','comps','bpm','bpm percentile','made NBA','rotation','starter','all star','comp 1','comp 2','comp 3','comp 4','comp 5']]    
     for x in names_list:
-        try:
-            dist = distance(x, year, p_stats.copy(), data, 0)
-            dist = dist.drop_duplicates(subset=['player'], keep='first')
-            dist = dist.loc[(dist['season']<2025) | ((dist['player']==x) & (dist['season']==year))]
-            dist.reset_index(inplace=True)
-            #dist = pd.merge(dist, nba_stats[['pid','VORP/S','S']], left_on='pid', right_on='pid', how='left')
-            #dist = dist.drop(columns=['pid'])
-            comps = nba_stats[nba_stats['pid'].isin(dist['pid'])]
-            nba_comps = len(comps['pid'].unique())
-            comps = comps.groupby('player_name')['dpm'].apply(lambda x: x.nlargest(5))
-            comps = comps.to_list() + [-4] * (len(dist)-nba_comps)
-            
-            team = dist['team'][0]
-            bpm = dist['bpm'][0]
-            comps_num = len(dist)
-            bpm_gap = bpm - dist['bpm'].quantile(0.75)
-            made_nba = 1-skewnorm.cdf(-3, a=skew(comps), loc=np.mean(comps), scale=np.std(comps))
-            vorp_0 = 1-skewnorm.cdf(0, a=skew(comps), loc=np.mean(comps), scale=np.std(comps))
-            vorp_2 = 1-skewnorm.cdf(2, a=skew(comps), loc=np.mean(comps), scale=np.std(comps))
-            vorp_4 = 1-skewnorm.cdf(4, a=skew(comps), loc=np.mean(comps), scale=np.std(comps))
-            #median_vorp = (dist['VORP/S']*dist['S']).sum()/dist['S'].sum()
-            
-            dist2 = nba_stats[nba_stats['pid'].isin(dist['pid'])]
-            dist2 = pd.pivot_table(dist2,values=['dpm'],index=['player_name'],columns=['season_x'],aggfunc=np.sum)
-            dist2.columns = dist2.columns.droplevel(0)
-            dist2['VORP/S'] =  dist2.max(axis=1, numeric_only=True)
-            dist2['S'] =  dist2.count(axis=1, numeric_only=True)
-            dist2['S'] -= 1
-            dist2.reset_index(inplace=True)
-            dist2 = dist2[['player_name','VORP/S','S']]
-            dist2 = dist2.loc[dist2['S'] > 1]
-            
-            if(len(dist2) < 5):
-                c1 = ""
-                c2 = ""
-                c3 = ""
-                c4 = ""
-                c5 = ""
-            elif(len(dist2) < 10):
-                c1 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(1)[-1:].values[0],'player_name'].values[0]
-                c2 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(2)[-1:].values[0],'player_name'].values[0]
-                c3 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(3)[-1:].values[0],'player_name'].values[0]
-                c4 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(4)[-1:].values[0],'player_name'].values[0]
-                c5 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(5)[-1:].values[0],'player_name'].values[0]
-            else:
-                c1 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(1)[-1:].values[0],'player_name'].values[0]
-                c2 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(int(0.15*len(dist2)))[-1:].values[0],'player_name'].values[0]
-                c3 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(int(0.25*len(dist2)))[-1:].values[0],'player_name'].values[0]
-                c4 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(int(0.50*len(dist2)))[-1:].values[0],'player_name'].values[0]
-                c5 = dist2.loc[dist2['VORP/S'] == dist2['VORP/S'].nlargest(int(0.75*len(dist2)))[-1:].values[0],'player_name'].values[0]
-            
-            result.append([x, team, year, comps_num, bpm, bpm_gap, made_nba, vorp_0, vorp_2, vorp_4, c1, c2, c3, c4, c5])
-            print(x)
-            
-        except IndexError:
-            print(f"*******error with {x},{year}*******")
-            result.append([x, "NA", year, 0, 0, 0, 0, 0, 0, 0, 0, "", "", "", "", ""])
-        
+        result.append(player_comp_analysis(x,year,p_stats,print_val))        
     
     result = pd.DataFrame(result)
     result.columns = result.iloc[0];result = result.drop(0)
     result = result.apply(pd.to_numeric, errors='ignore')
-    result = result.sort_values(by=['role player', 'player'], ascending=[False, True])
+    result = result.sort_values(by=['starter', 'player'], ascending=[False, True])
     result = result.drop_duplicates(subset=['player'], keep='first')
+    print()
+    print("NBA claiber players",result['made NBA'].sum())
+    print("rotation caliber players",result['rotation'].sum())
+    print("starter caliber players",result['starter'].sum())
+    print("all star caliber players",result['all star'].sum())
     return result
 
-draft_list = mdist_list(2025, nba_stats.copy(), player_stats.copy())
+#%% call the player comparision function    
+#pdist,nba_comps = player_comp_analysis("Patrick Williams",2020, player_stats.copy(),1)
+draft_list = mdist_list(2020, nba_stats.copy(), player_stats.copy(),0)
