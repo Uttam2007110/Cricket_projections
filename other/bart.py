@@ -405,9 +405,9 @@ def player_comp_analysis(x,year,p_stats,league_stats,print_val):
             #vorp_0 = 1-skewnorm.cdf(-0.6, a=skewness, loc=np.mean(comps_list), scale=np.var(comps_list))
             #vorp_2 = 1-skewnorm.cdf(0.4, a=skewness, loc=np.mean(comps_list), scale=np.var(comps_list))
             #vorp_4 = 1-skewnorm.cdf(1.8, a=skewness, loc=np.mean(comps_list), scale=np.var(comps_list))
-            vorp_0 = np.sum(np.array(distribution) >= 2.5)/samples
-            vorp_1 = np.sum(np.array(distribution) >= 3.85)/samples
-            vorp_2 = np.sum(np.array(distribution) >= 5.7)/samples
+            vorp_0 = np.sum(np.array(distribution) >= 2)/samples
+            vorp_1 = np.sum(np.array(distribution) >= 3.5)/samples
+            vorp_2 = np.sum(np.array(distribution) >= 5.5)/samples
             vorp_4 = np.sum(np.array(distribution) >= 7.6)/samples
         else:
             vorp_1 = 0
@@ -465,18 +465,23 @@ def player_comp_analysis(x,year,p_stats,league_stats,print_val):
             return dist,comps
         else:
             print(x,year)
-            return [x, team, year, comps_num, bpm, vorp_0, vorp_1, vorp_2, vorp_4, c1, c2, c3]
+            return [x, team, year, comps_num, bpm, vorp_0, vorp_1, vorp_2, c1, c2, c3]
         
     except:
         print(f"*******error with {x} {year}*******")
-        if(print_val == 0): return [x, "NA", year, 0, 0, 0, 0, 0, 0, "", "", ""]        
+        if(print_val == 0): return [x, "NA", year, 0, 0, 0, 0, 0, "", "", ""]        
     
 def mdist_list(year, p_stats, print_val):
     nba_stats = extract_nba_stats(year)
     list_p = pd.read_excel(f'{path}/nba_stats.xlsx',f'{year}')
-    names_list = list_p['Player'].to_list()
+    names_list = list_p['Player'].dropna().to_list()
     names_list = list(set(names_list))
     #names_list.sort()
+    withdrawn_list = list_p['Withdrawn'].dropna().to_list()
+    
+    seniors = p_stats[(p_stats['season']==2025)&(p_stats['class']==4)&(p_stats['bpm']>=7)]
+    seniors = [x for x in seniors['player'].to_list() if x not in withdrawn_list]
+    names_list = names_list + seniors
     
     exceptions = list(set(names_list)-set(p_stats.player))
     print("names not in player data")
@@ -486,7 +491,7 @@ def mdist_list(year, p_stats, print_val):
     names_list = p_stats[p_stats['player'].isin(names_list)]
     names_list = names_list.loc[(names_list['season']<=year)&(names_list['season']>year-5)]   
     
-    result = [['player','team','season','comps','bpm','rotation','starter','all nba','top 10','comp 1','comp 2','comp 3']]    
+    result = [['player','team','season','comps','bpm','rotation','starter','all nba','comp 1','comp 2','comp 3']]    
     for x,y in names_list[['player','season']].values:
         result.append(player_comp_analysis(x,y,p_stats,nba_stats.copy(),print_val))        
     
@@ -499,9 +504,11 @@ def mdist_list(year, p_stats, print_val):
     print("rotation caliber players",round(result['rotation'].sum(),2))
     print("starter caliber players",round(result['starter'].sum(),2))
     print("all nba caliber players",round(result['all nba'].sum(),2))
-    print("top 10 claiber players",round(result['top 10'].sum(),2))
-    return result
+    #print("top 10 claiber players",round(result['top 10'].sum(),2))
+    return result,exceptions
 
-#%% call the player comparision function    
-pdist,nba_comps = player_comp_analysis("Leoandro Bolmaro", 2019, player_stats.copy(), nba_stats.copy(), 1)
-#draft_list = mdist_list(2024, player_stats.copy(),0)
+#%% call the player comparision function
+
+#pdist,nba_comps = player_comp_analysis("Leoandro Bolmaro", 2019, player_stats.copy(), nba_stats.copy(), 1)
+
+draft_list,exception_list = mdist_list(2025, player_stats.copy(),0)
