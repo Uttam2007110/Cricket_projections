@@ -22,6 +22,9 @@ import matplotlib.pyplot as plt
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 from pandas.errors import SettingWithCopyWarning
@@ -354,6 +357,43 @@ def generate_fleishman_distribution(n_samples, mean, std, skew, kurt):
     x = mean + x*std
     return x
 
+def cluster_dataframe(df, cluster_cols, avg_col, n_clusters=3):
+    """
+    Clusters a DataFrame based on specified columns, adds cluster labels,
+    and orders clusters by the average of another column.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame.
+        cluster_cols (list): List of column names to use for clustering.
+        avg_col (str): Column name to use for ordering clusters.
+        n_clusters (int): Number of clusters.
+
+    Returns:
+        pd.DataFrame: DataFrame with added cluster labels and ordered clusters.
+    """
+
+    # Scale the clustering columns
+    scaler = StandardScaler()
+    scaled_features = scaler.fit_transform(df[cluster_cols])
+
+    # Perform K-Means clustering
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init = 'auto')
+    df['cluster'] = kmeans.fit_predict(scaled_features)
+
+    # Calculate average of avg_col for each cluster
+    cluster_means = df.groupby('cluster')[avg_col].mean().sort_values(ascending=False).index
+
+     # Create a mapping from original cluster labels to ordered labels
+    cluster_mapping = {old_label: new_label for new_label, old_label in enumerate(cluster_means)}
+
+    # Apply the mapping to the 'cluster' column
+    df['cluster'] = df['cluster'].map(cluster_mapping)
+    df['cluster'] = df['cluster'] + 1
+    df = df.sort_values(by=['cluster', 'rotation'], ascending=[True, False])
+    df = df.set_index('cluster')
+    
+    return df
+
 def player_comp_analysis(x,year,p_stats,league_stats,print_val):
     try:
         dist = distance(x, year, p_stats.copy(), data, print_val)
@@ -505,6 +545,7 @@ def mdist_list(year, p_stats, print_val):
     print("starter caliber players",round(result['starter'].sum(),2))
     print("all nba caliber players",round(result['all nba'].sum(),2))
     #print("top 10 claiber players",round(result['top 10'].sum(),2))
+    result = cluster_dataframe(result.copy(),['rotation','starter','all nba'],'rotation',8)
     return result,exceptions
 
 #%% call the player comparision function
