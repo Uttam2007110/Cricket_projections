@@ -13,9 +13,7 @@ import math
 import scipy.stats
 from scipy import stats
 from scipy.stats import norm
-#from scipy.stats import skewnorm
 from scipy.stats import skew
-#from scipy.stats import gamma
 from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
 
@@ -36,7 +34,7 @@ path = "C:/Users/Subramanya.Ganti/Downloads/cricket/excel/bart"
 #%% team ratings
 def team_ratings():
     i = 2008; team_ranking = []
-    while(i<2026):
+    while(i<2025+1):
         team = pd.read_csv(f'{path}/team/{i}_team_results.csv')
         team['season'] = i
         team = team[['rank','season','de Rank']]
@@ -231,10 +229,13 @@ def distance(name, yr, full_matrix, data, print_df):
     invcov = np.linalg.inv(cov)\
     
     # Get player data
-    player_data = full_matrix.loc[(full_matrix['player']==name)&(full_matrix['season']==yr)]
+    if(name == "Jalen Johnson"): #multiple jalen johnsons exist
+        player_data = full_matrix.loc[(full_matrix['pid']==73238)&(full_matrix['season']==yr)]
+    else:
+        player_data = full_matrix.loc[(full_matrix['player']==name)&(full_matrix['season']==yr)]
     player_index = player_data.index[0]
     player = data.iloc[player_index]
-    if(print_df == 1): print(player_data.squeeze())
+    #if(print_df == 1): print(player_data.squeeze())
     
     # Mask invalid values in the player vector
     pvec = np.ma.masked_invalid(np.array(player))
@@ -283,20 +284,12 @@ def distance(name, yr, full_matrix, data, print_df):
 #%% mapping nba stats
 def extract_nba_stats(year):
     nba_stats_y = pd.read_excel(f'{path}/nba_stats.xlsx','DARKO')
-    """
-    nba_stats_y = pd.pivot_table(nba_stats_y,values=['dpm'],index=['player_name'],columns=['season'],aggfunc=np.sum)
-    nba_stats_y.columns = nba_stats_y.columns.droplevel(0)
-    nba_stats_y['VORP/S'] =  nba_stats_y.max(axis=1, numeric_only=True)
-    nba_stats_y['S'] =  nba_stats_y.count(axis=1, numeric_only=True)
-    nba_stats_y['S'] -= 1
-    #nba_stats_y['VORP/S'] = 82 * nba_stats_y['VORP'] / nba_stats_y['G']
-    nba_stats_y.reset_index(inplace=True)
-    """
     mapping = pd.read_excel(f'{path}/nba_stats.xlsx','mapping DARKO')                   
     nba_stats_y = pd.merge(nba_stats_y, mapping, left_on='player_name', right_on='player_name', how='left')
     
     nba_stats_y['age_adj'] = nba_stats_y['age'].round()
-    nba_stats_y = nba_stats_y[['player_name','season_x','age_adj','dpm','pid']]
+    #nba_stats_y = nba_stats_y[['player_name','season_x','age_adj','dpm','pid']]
+    nba_stats_y = nba_stats_y[['player_name','season_x','age_adj','o_dpm','d_dpm','pid']]
     nba_stats_y = nba_stats_y[nba_stats_y['pid'].notna()]
     nba_stats_y = nba_stats_y[nba_stats_y['season_x']<=year]
     
@@ -313,9 +306,10 @@ def age_curve_adj(stats):
     combinations = combinations.merge(age_curve, left_on=['age_adj'], right_on=['age'])
     combinations = combinations.sort_values(by=['player_name', 'age'], ascending=[True, True])
     
-    prev = np.nan; prev_name = ""; prev_pid = np.nan
+    prev = np.nan; prev_name = ""; prev_pid = np.nan; prev_off = np.nan; prev_def = np.nan
     for x in combinations.values:
         #print(x)
+        """
         if(pd.isna(x[4]) and pd.notna(prev) and (prev_name == x[0])):  
             combinations.loc[(combinations['player_name']==x[0])&(combinations['age']==x[1]),'dpm'] = prev + x[6]
             combinations.loc[(combinations['player_name']==x[0])&(combinations['age']==x[1]),'pid'] = prev_pid
@@ -325,13 +319,26 @@ def age_curve_adj(stats):
             prev_name = x[0]
             prev = x[3]
             prev_pid = x[4]
+        """
+        if(pd.isna(x[5]) and pd.notna(prev_off) and pd.notna(prev_def) and (prev_name == x[0])):  
+            combinations.loc[(combinations['player_name']==x[0])&(combinations['age']==x[1]),'o_dpm'] = prev_off + x[8]
+            combinations.loc[(combinations['player_name']==x[0])&(combinations['age']==x[1]),'d_dpm'] = prev_def + x[9]
+            combinations.loc[(combinations['player_name']==x[0])&(combinations['age']==x[1]),'pid'] = prev_pid
+            prev_name = x[0]
+            prev_off = prev_off + x[8]
+            prev_def = prev_def + x[9]
+        else:
+            prev_name = x[0]
+            prev_off = x[3]
+            prev_def = x[4]
+            prev_pid = x[5]
             
     #nba_stats = combinations.copy()
     #nba_stats = nba_stats.groupby('player_name')['dpm'].apply(lambda x: x.nlargest(5))
     #nba_stats = nba_stats[nba_stats['dpm'] >= -4]
     return combinations
 
-#%% get 2025 nba stats
+#%% get latest nba stats
 nba_stats = extract_nba_stats(2025)
 
 #%% individual player comps analysis
@@ -357,7 +364,7 @@ def generate_fleishman_distribution(n_samples, mean, std, skew, kurt):
     x = mean + x*std
     return x
 
-def cluster_dataframe(df, cluster_cols, avg_col, n_clusters=3):
+def cluster_dataframe(df, cluster_cols, avg_col, n_clusters):
     """
     Clusters a DataFrame based on specified columns, adds cluster labels,
     and orders clusters by the average of another column.
@@ -377,11 +384,12 @@ def cluster_dataframe(df, cluster_cols, avg_col, n_clusters=3):
     scaled_features = scaler.fit_transform(df[cluster_cols])
 
     # Perform K-Means clustering
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init = 'auto')
+    kmeans = KMeans(n_clusters=n_clusters, n_init = 'auto') #random_state = ?
     df['cluster'] = kmeans.fit_predict(scaled_features)
 
     # Calculate average of avg_col for each cluster
     cluster_means = df.groupby('cluster')[avg_col].mean().sort_values(ascending=False).index
+    #print(df.groupby('cluster')[avg_col].mean())
 
      # Create a mapping from original cluster labels to ordered labels
     cluster_mapping = {old_label: new_label for new_label, old_label in enumerate(cluster_means)}
@@ -393,6 +401,25 @@ def cluster_dataframe(df, cluster_cols, avg_col, n_clusters=3):
     df = df.set_index('cluster')
     
     return df
+
+def sum_of_unique_combinations(arr1, arr2):
+    """
+    Calculates the sum for every unique combination of elements from two arrays.
+
+    Args:
+        arr1 (list): The first array of numbers.
+        arr2 (list): The second array of numbers.
+
+    Returns:
+        list: A list of sums, where each sum corresponds to a unique
+              combination of one element from arr1 and one from arr2.
+    """
+    sums = []
+    # Generate all unique combinations (Cartesian product) of elements
+    # from arr1 and arr2
+    for combo in itertools.product(arr1, arr2):
+        sums.append(sum(combo))
+    return sums
 
 def player_comp_analysis(x,year,p_stats,league_stats,print_val):
     try:
@@ -411,44 +438,46 @@ def player_comp_analysis(x,year,p_stats,league_stats,print_val):
         dist.reset_index(inplace=True)
         comps = league_stats[league_stats['pid'].isin(dist['pid'])]
         nba_comps = len(comps['pid'].unique())
-        comps = comps.groupby('player_name')['dpm'].apply(lambda x: x.nlargest(5))
-        comps = comps.groupby(level=0).mean()
+        #comps = comps.groupby('player_name')['dpm'].apply(lambda x: x.nlargest(5))
+        samples = 1000#00
         
-        comps_list = comps.to_list() + [-4] * (len(dist)-nba_comps) #[-3.8,-3.6,-3.4,-3.3,-3.2]
+        off_comps = comps.groupby('player_name')['o_dpm'].apply(lambda x: x.nlargest(5))
+        off_comps = off_comps.groupby(level=0).mean()
+        
+        def_comps = comps.groupby('player_name')['d_dpm'].apply(lambda x: x.nlargest(5))
+        def_comps = def_comps.groupby(level=0).mean()
+        
+        #comps_list = comps.to_list() + [-4] * (len(dist)-nba_comps) #[-3.8,-3.6,-3.4,-3.3,-3.2]
+        comps_list = off_comps.to_list() + [-3.5] * (len(dist)-nba_comps)
         comps_list.sort()
-        comps_list = [x + 4 for x in comps_list]
+        comps_list = [x + 3.5 for x in comps_list]
+        skewness_off = skew(comps_list)
+        kurtosis_off = scipy.stats.kurtosis(comps_list)
+        mean_off = np.mean(comps_list)
+        variance_off = np.var(comps_list)
+        #distribution = generate_fleishman_distribution(samples,mean, variance**0.5, skewness, kurtosis)
+        distribution_off = generate_fleishman_distribution(samples,mean_off, variance_off**0.5, skewness_off, kurtosis_off)
+        
+        comps_list = def_comps.to_list() + [-2] * (len(dist)-nba_comps)
+        comps_list.sort()
+        comps_list = [x + 2 for x in comps_list]
         skewness = skew(comps_list)
         kurtosis = scipy.stats.kurtosis(comps_list)
         mean = np.mean(comps_list)
         variance = np.var(comps_list)
         
-        #theta1 = 6/kurtosis 
-        #theta2 = (2/skewness)**2
-        #theta = theta2 #(theta1 + theta2)/2
-        #alpha1 = (mean+4)/theta
-        #alpha2 = variance/(theta*theta)
-        #alpha = (alpha1 + alpha2)/2
+        distribution_def = generate_fleishman_distribution(samples,mean, variance**0.5, skewness, kurtosis)
         
-        # Remove the top 5% values
-        #del comps_list[:round(len(comps_list)*0.05)]
-        # Remove the bottom 5% values
-        #del comps_list[-round(len(comps_list)*0.05):]
-        
-        samples = 100000
-        distribution = generate_fleishman_distribution(samples,mean, variance**0.5, skewness, kurtosis)
+        distribution = sum_of_unique_combinations(distribution_off,distribution_def)
         
         comps_num = len(dist)
         bpm_gap = stats.percentileofscore(dist['bpm'].to_list(), bpm)
         
         if(np.mean(comps_list) != -4):
-            #made_nba = 1-skewnorm.cdf(-2.2, a=skewness, loc=np.mean(comps_list), scale=np.var(comps_list))
-            #vorp_0 = 1-skewnorm.cdf(-0.6, a=skewness, loc=np.mean(comps_list), scale=np.var(comps_list))
-            #vorp_2 = 1-skewnorm.cdf(0.4, a=skewness, loc=np.mean(comps_list), scale=np.var(comps_list))
-            #vorp_4 = 1-skewnorm.cdf(1.8, a=skewness, loc=np.mean(comps_list), scale=np.var(comps_list))
-            vorp_0 = np.sum(np.array(distribution) >= 2)/samples
-            vorp_1 = np.sum(np.array(distribution) >= 3.5)/samples
-            vorp_2 = np.sum(np.array(distribution) >= 5.5)/samples
-            vorp_4 = np.sum(np.array(distribution) >= 7.6)/samples
+            vorp_0 = np.sum(np.array(distribution) >= 3)/(samples*samples)
+            vorp_1 = np.sum(np.array(distribution) >= 4.5)/(samples*samples)
+            vorp_2 = np.sum(np.array(distribution) >= 6.5)/(samples*samples)
+            vorp_4 = np.sum(np.array(distribution) >= 8)/(samples*samples)
         else:
             vorp_1 = 0
             vorp_0 = 0
@@ -456,6 +485,8 @@ def player_comp_analysis(x,year,p_stats,league_stats,print_val):
             vorp_4 = 0
         
         dist2 = league_stats[league_stats['pid'].isin(dist['pid'])]
+        #new line
+        dist2['dpm'] = dist2['o_dpm'] + dist2['d_dpm']
         dist2 = pd.pivot_table(dist2,values=['dpm'],index=['player_name'],columns=['season_x'],aggfunc=np.sum)
         dist2.columns = dist2.columns.droplevel(0)
         dist2['VORP/S'] =  dist2.max(axis=1, numeric_only=True)
@@ -470,8 +501,8 @@ def player_comp_analysis(x,year,p_stats,league_stats,print_val):
         dist2 = dist2.loc[dist2['S'] > 1]
         
         v1 = min(math.ceil(0.05*len(dist2)),len(dist2)-1)
-        v2 = min(max(math.ceil(0.15*len(dist2)),v1+1),len(dist2)-1)
-        v3 = min(max(math.ceil(0.4*len(dist2)),v2+1),len(dist2)-1)
+        v2 = max(math.ceil(0.15*len(dist2)),v1+1)
+        v3 = max(math.ceil(0.4*len(dist2)),v2+1)
         
         try : c1 = dist2.loc[dist2['composite'] == dist2['composite'].nlargest(v1)[-1:].values[0],'player_name'].values[0] 
         except: c1 = ""
@@ -498,11 +529,17 @@ def player_comp_analysis(x,year,p_stats,league_stats,print_val):
             #print("Comp 4 - ",c4)
             #print("Comp 5 - ",c5)
             print()
+            print("offense")
+            print("mean - ",mean_off)
+            print("variance - ",variance_off)
+            print("skew - ",skewness_off)
+            print("kurt - ",kurtosis_off)
+            print("defense")
             print("mean - ",mean)
             print("variance - ",variance)
             print("skew - ",skewness)
             print("kurt - ",kurtosis)
-            return dist,comps
+            return dist,(off_comps + def_comps)
         else:
             print(x,year)
             return [x, team, year, comps_num, bpm, vorp_0, vorp_1, vorp_2, c1, c2, c3]
@@ -519,7 +556,7 @@ def mdist_list(year, p_stats, print_val):
     #names_list.sort()
     withdrawn_list = list_p['Withdrawn'].dropna().to_list()
     
-    seniors = p_stats[(p_stats['season']==2025)&(p_stats['class']==4)&(p_stats['bpm']>=7)]
+    seniors = p_stats[(p_stats['season']==year)&(p_stats['class']==4)&(p_stats['bpm']>=7)]
     seniors = [x for x in seniors['player'].to_list() if x not in withdrawn_list]
     names_list = names_list + seniors
     
@@ -539,17 +576,19 @@ def mdist_list(year, p_stats, print_val):
     result.columns = result.iloc[0];result = result.drop(0)
     result = result.apply(pd.to_numeric, errors='ignore')
     result = result.sort_values(by=['all nba', 'player'], ascending=[False, True])
+    
+    result = cluster_dataframe(result.copy(),['rotation','starter','all nba'],'rotation',8)
     result = result.drop_duplicates(subset=['player'], keep='first')
     print()
     print("rotation caliber players",round(result['rotation'].sum(),2))
     print("starter caliber players",round(result['starter'].sum(),2))
     print("all nba caliber players",round(result['all nba'].sum(),2))
     #print("top 10 claiber players",round(result['top 10'].sum(),2))
-    result = cluster_dataframe(result.copy(),['rotation','starter','all nba'],'rotation',8)
+    
     return result,exceptions
 
 #%% call the player comparision function
 
-#pdist,nba_comps = player_comp_analysis("Leoandro Bolmaro", 2019, player_stats.copy(), nba_stats.copy(), 1)
+pdist,nba_comps = player_comp_analysis("Noa Essengue", 2025, player_stats.copy(), nba_stats.copy(), 1)
 
-draft_list,exception_list = mdist_list(2025, player_stats.copy(),0)
+#draft_list,exception_list = mdist_list(2025, player_stats.copy(),0)
