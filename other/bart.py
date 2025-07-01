@@ -31,10 +31,12 @@ warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 #path = "C:/Users/GF63/Desktop/cricket/excel/bart"
 path = "C:/Users/Subramanya.Ganti/Downloads/cricket/excel/bart"
 
+latest_season = 2025
+
 #%% team ratings
 def team_ratings():
     i = 2008; team_ranking = []
-    while(i<2025+1):
+    while(i<latest_season+1):
         team = pd.read_csv(f'{path}/team/{i}_team_results.csv')
         team['season'] = i
         team = team[['rank','season','de Rank']]
@@ -126,7 +128,7 @@ def extract_player_stats():
     internationals = international_stats_adjustments()
     
     i = 2008; p_stats = []; unadj_p_stats = []
-    while(i<2026):
+    while(i<latest_season+1):
         data = pd.read_csv(f'{path}/{i}.csv', names=headers.columns)
         
         data['blocks']  = data['blk'] * data['GP']
@@ -339,7 +341,7 @@ def age_curve_adj(stats):
     return combinations
 
 #%% get latest nba stats
-nba_stats = extract_nba_stats(2025)
+nba_stats = extract_nba_stats(latest_season)
 
 #%% individual player comps analysis
 def fleishman_coeffs(skew, kurt):
@@ -433,7 +435,7 @@ def player_comp_analysis(x,year,p_stats,league_stats,print_val):
         dist['bpm_pct'] = np.abs(dist['score']).rank(pct=True)
         
         if(print_val==0): dist = dist.loc[(dist['season']<year)] #| ((dist['player']==x) & (dist['season']==year))]
-        else: dist = dist.loc[(dist['season']<2025) | ((dist['player']==x) & (dist['season']==year))]
+        else: dist = dist.loc[(dist['season']<latest_season) | ((dist['player']==x) & (dist['season']==year))]
         
         dist.reset_index(inplace=True)
         comps = league_stats[league_stats['pid'].isin(dist['pid'])]
@@ -477,7 +479,7 @@ def player_comp_analysis(x,year,p_stats,league_stats,print_val):
             vorp_0 = np.sum(np.array(distribution) >= 3)/(samples*samples)
             vorp_1 = np.sum(np.array(distribution) >= 4.5)/(samples*samples)
             vorp_2 = np.sum(np.array(distribution) >= 6.5)/(samples*samples)
-            vorp_4 = np.sum(np.array(distribution) >= 8)/(samples*samples)
+            vorp_4 = np.sum(np.array(distribution) >= 10)/(samples*samples)
         else:
             vorp_1 = 0
             vorp_0 = 0
@@ -520,7 +522,7 @@ def player_comp_analysis(x,year,p_stats,league_stats,print_val):
             print("Rotation Rate",vorp_0)
             print("Starter Rate",vorp_1)
             print("All NBA Rate",vorp_2)
-            print("Top 10 Rate",vorp_4)
+            print("MVP Rate",vorp_4)
             #print("bpm percentile among comps",bpm_gap)
             print()
             print("Comp 1 - ",c1)
@@ -528,17 +530,21 @@ def player_comp_analysis(x,year,p_stats,league_stats,print_val):
             print("Comp 3 - ",c3)
             #print("Comp 4 - ",c4)
             #print("Comp 5 - ",c5)
+            #print()
+            #print("offense")
+            #print("mean - ",mean_off)
+            #print("variance - ",variance_off)
+            #print("skew - ",skewness_off)
+            #print("kurt - ",kurtosis_off)
+            #print("defense")
+            #print("mean - ",mean)
+            #print("variance - ",variance)
+            #print("skew - ",skewness)
+            #print("kurt - ",kurtosis)
             print()
-            print("offense")
-            print("mean - ",mean_off)
-            print("variance - ",variance_off)
-            print("skew - ",skewness_off)
-            print("kurt - ",kurtosis_off)
-            print("defense")
-            print("mean - ",mean)
-            print("variance - ",variance)
-            print("skew - ",skewness)
-            print("kurt - ",kurtosis)
+            print("25th percentile DARKO",round(np.percentile(distribution, 25)-4,1))
+            print("median DARKO",round(np.percentile(distribution, 50)-4,1))
+            print("90th percentile DARKO",round(np.percentile(distribution, 90)-4,1))
             return dist,(off_comps + def_comps)
         else:
             print(x,year)
@@ -548,17 +554,20 @@ def player_comp_analysis(x,year,p_stats,league_stats,print_val):
         print(f"*******error with {x} {year}*******")
         if(print_val == 0): return [x, "NA", year, 0, 0, 0, 0, 0, "", "", ""]        
     
-def mdist_list(year, p_stats, print_val):
+def mdist_list(year, p_stats, print_val, get_seniors_stats):
     nba_stats = extract_nba_stats(year)
-    list_p = pd.read_excel(f'{path}/nba_stats.xlsx',f'{year}')
-    names_list = list_p['Player'].dropna().to_list()
-    names_list = list(set(names_list))
+    #list_p = pd.read_excel(f'{path}/nba_stats.xlsx',f'{year}')
+    list_p = pd.read_excel(f'{path}/nba_stats.xlsx','draft list')[f'{year}']
+    #names_list = list_p['Player'].dropna().to_list()
+    names_list = list(set(list_p))
     #names_list.sort()
-    withdrawn_list = list_p['Withdrawn'].dropna().to_list()
+    try: withdrawn_list = list_p['Withdrawn'].dropna().to_list()
+    except KeyError: withdrawn_list = []
     
-    seniors = p_stats[(p_stats['season']==year)&(p_stats['class']==4)&(p_stats['bpm']>=7)]
-    seniors = [x for x in seniors['player'].to_list() if x not in withdrawn_list]
-    names_list = names_list + seniors
+    if(get_seniors_stats == 1):
+        seniors = p_stats[(p_stats['season']==year)&(p_stats['class']==4)&(p_stats['bpm']>=7)]
+        seniors = [x for x in seniors['player'].to_list() if x not in withdrawn_list]
+        names_list = names_list + seniors
     
     exceptions = list(set(names_list)-set(p_stats.player))
     print("names not in player data")
@@ -577,18 +586,18 @@ def mdist_list(year, p_stats, print_val):
     result = result.apply(pd.to_numeric, errors='ignore')
     result = result.sort_values(by=['all nba', 'player'], ascending=[False, True])
     
-    result = cluster_dataframe(result.copy(),['rotation','starter','all nba'],'rotation',8)
-    result = result.drop_duplicates(subset=['player'], keep='first')
+    result = cluster_dataframe(result.copy(),['rotation','starter','all nba'],'rotation',6)
+    result_copy = result.drop_duplicates(subset=['player'], keep='first')
     print()
-    print("rotation caliber players",round(result['rotation'].sum(),2))
-    print("starter caliber players",round(result['starter'].sum(),2))
-    print("all nba caliber players",round(result['all nba'].sum(),2))
-    #print("top 10 claiber players",round(result['top 10'].sum(),2))
+    print("rotation caliber players",round(result_copy['rotation'].sum(),2))
+    print("starter caliber players",round(result_copy['starter'].sum(),2))
+    print("all nba caliber players",round(result_copy['all nba'].sum(),2))
+    #print("top 10 claiber players",round(result['mvp'].sum(),2))
     
     return result,exceptions
 
 #%% call the player comparision function
 
-pdist,nba_comps = player_comp_analysis("Noa Essengue", 2025, player_stats.copy(), nba_stats.copy(), 1)
+pdist,nba_comps = player_comp_analysis("Cooper Flagg", 2025, player_stats.copy(), nba_stats.copy(), 1)
 
-#draft_list,exception_list = mdist_list(2025, player_stats.copy(),0)
+#draft_list,exception_list = mdist_list(2022, player_stats.copy(),0,0)
