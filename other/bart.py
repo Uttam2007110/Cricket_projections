@@ -123,49 +123,83 @@ def international_stats_adjustments():
     
     return df
 
+def pre_08_ncaa():
+    df = pd.read_excel(f'{path}/foreign_players.xlsx','ncaa')
+    #darren yates 2004 season has a ast/tov of infinity
+    df['ast/tov'] = df['ast/tov'].replace(np.inf, 11)
+    return df
+
+def bpm_estimate(df):
+    df['bpm'] = -0.144113373288963 + \
+                +0.099780626377398  * df['mp'] + \
+                -0.033812208445742  * df['usg'] + \
+                -0.0794753081021516 * df['TS%'] + \
+                +0.0938757627410997 * df['ORB%'] + \
+                -0.0198264884876267 * df['DRB%'] + \
+                +0.0498729810633044 * df['AST%'] + \
+                +0.05202239249302   * df['TO%'] + \
+                +0.20818594724229   * df['ast/tov'] + \
+                +0.384495013690059  * df['BLK%'] + \
+                +0.613544025847017  * df['STL%'] + \
+                -0.161067815268391  * df['ftr'] + \
+                -1.17542648511186   * df['FT%'] + \
+                +2.30629767192219   * df['3par'] + \
+                +0.599363695211862  * df['3P%'] + \
+                +0.236841287583253  * df['ORtg'] + \
+                -0.246965207036096  * df['drtg']
+    return df
+
 def extract_player_stats():
     headers = pd.read_csv(f'{path}/header.csv')   
     internationals = international_stats_adjustments()
+    pre_2008 = pre_08_ncaa()
     
-    i = 2008; p_stats = []; unadj_p_stats = []
+    #estimate the bpm for player stats pulled from RealGM
+    internationals = bpm_estimate(internationals)
+    pre_2008 = bpm_estimate(pre_2008)
+    
+    i = 2003; p_stats = []; unadj_p_stats = []
     while(i<latest_season+1):
-        data = pd.read_csv(f'{path}/{i}.csv', names=headers.columns)
-        
-        data['blocks']  = data['blk'] * data['GP']
-        data['steals']  = data['stl'] * data['GP']
-        data['minutes']  = data['mp'] * data['GP']
-        team_bs = pd.pivot_table(data,values=['blocks','steals','minutes'],index=['team'],aggfunc=np.sum)
-        team_bs['minutes'] = team_bs['minutes']/200
-        team_bs['blocks'] = team_bs['blocks']/team_bs['minutes']
-        team_bs['steals'] = team_bs['steals']/team_bs['minutes']
-        team_bs = team_bs.reset_index()
-        data = data.merge(team_bs, left_on='team', right_on='team')
-        
-        data = data.loc[(data['mp']>=10) & (data['GP']>=10)]
-        data['blk_share'] = (data['blk']*40/data['mp'])/data['blocks_y']
-        data['stl_share'] = (data['stl']*40/data['mp'])/data['steals_y']
-        #data = df_class(data)
-        data = height_adj(data)
-        data['season'] = i
-        
-        data['FG/mp'] = (data['2PA'] + data['3PA']) / (data['mp'] * data['GP'])
-        data['dunkar'] = data['dunkFGA']/(data['2PA']+data['3PA'])
-        data['rimFGA'] = data['rimFGA'] - data['dunkFGA']
-        data['rimFG'] = data['rimFG'] - data['dunkFG']
-        data['rim%'] = data['rimFG']/(data['rimFGA']+0.00000000000001)       
-        data['rimar'] = data['rimFGA']/(data['2PA']+data['3PA'])
-        data['midar'] = data['midFGA']/(data['2PA']+data['3PA'])
-        data['3par'] = data['3PA']/(data['2PA']+data['3PA'])
-        data['ftr'] = data['FTA']/(data['2PA']+data['3PA'])
-        
-        #data['rim%'] = data['rim%'].fillna(0)
-        #data['mid%'] = data['mid%'].fillna(0)
-        #data = data.loc[data['rimar'].isna() == False]
-        #data = data.loc[data['midar'].isna() == False]
-        #data = data.loc[data['ftr'].isna() == False]
-        
-        data_adj = data[['player','pid','team','season','class','hgt','GP','mp','usg','TS%','ORB%','DRB%','AST%','TO%','ast/tov','BLK%','blk_share',
-                         'STL%','stl_share','pfr','ftr','FT%','dunkar','rimar','rim%','midar','mid%','3par','3P%','ORtg','drtg','bpm']]
+        if(i < 2008):
+            data_adj = pre_2008[pre_2008['season']==i]
+        else:
+            data = pd.read_csv(f'{path}/{i}.csv', names=headers.columns)
+            
+            data['blocks']  = data['blk'] * data['GP']
+            data['steals']  = data['stl'] * data['GP']
+            data['minutes']  = data['mp'] * data['GP']
+            team_bs = pd.pivot_table(data,values=['blocks','steals','minutes'],index=['team'],aggfunc=np.sum)
+            team_bs['minutes'] = team_bs['minutes']/200
+            team_bs['blocks'] = team_bs['blocks']/team_bs['minutes']
+            team_bs['steals'] = team_bs['steals']/team_bs['minutes']
+            team_bs = team_bs.reset_index()
+            data = data.merge(team_bs, left_on='team', right_on='team')
+            
+            data = data.loc[(data['mp']>=10) & (data['GP']>=10)]
+            data['blk_share'] = (data['blk']*40/data['mp'])/data['blocks_y']
+            data['stl_share'] = (data['stl']*40/data['mp'])/data['steals_y']
+            #data = df_class(data)
+            data = height_adj(data)
+            data['season'] = i
+            
+            data['FG/mp'] = (data['2PA'] + data['3PA']) / (data['mp'] * data['GP'])
+            data['dunkar'] = data['dunkFGA']/(data['2PA']+data['3PA'])
+            data['rimFGA'] = data['rimFGA'] - data['dunkFGA']
+            data['rimFG'] = data['rimFG'] - data['dunkFG']
+            data['rim%'] = data['rimFG']/(data['rimFGA']+0.00000000000001)       
+            data['rimar'] = data['rimFGA']/(data['2PA']+data['3PA'])
+            data['midar'] = data['midFGA']/(data['2PA']+data['3PA'])
+            data['3par'] = data['3PA']/(data['2PA']+data['3PA'])
+            data['ftr'] = data['FTA']/(data['2PA']+data['3PA'])
+            
+            #data['rim%'] = data['rim%'].fillna(0)
+            #data['mid%'] = data['mid%'].fillna(0)
+            #data = data.loc[data['rimar'].isna() == False]
+            #data = data.loc[data['midar'].isna() == False]
+            #data = data.loc[data['ftr'].isna() == False]
+            
+            data_adj = data[['player','pid','team','season','class','hgt','GP','mp','usg','TS%','ORB%','DRB%','AST%','TO%','ast/tov','BLK%','blk_share',
+                             'STL%','stl_share','pfr','ftr','FT%','dunkar','rimar','rim%','midar','mid%','3par','3P%','ORtg','drtg','bpm']]
         
         #add internationals data
         data_adj = pd.concat([data_adj, internationals[internationals['season']==i]])
