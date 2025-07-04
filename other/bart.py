@@ -119,8 +119,7 @@ def international_stats_adjustments():
     df['STL%'] = df['STL%'] * factor
     df['ftr'] = df['ftr'] * factor
     df['ORtg'] = df['ORtg'] * factor
-    df['drtg'] = df['drtg'] / factor
-    
+    df['drtg'] = df['drtg'] / factor    
     return df
 
 def pre_08_ncaa():
@@ -149,14 +148,25 @@ def bpm_estimate(df):
                 -0.246965207036096  * df['drtg']
     return df
 
+def height_estimate(df):
+    df['hgt'] = +74.0115813626499 + \
+                +0.0242139494814847 * df['TS%'] + \
+                +0.154491122634659  * df['ORB%'] + \
+                +0.17303148969203   * df['DRB%'] + \
+                -0.151160612178076  * df['AST%'] + \
+                +0.343528125104708  * df['BLK%'] + \
+                -0.952915225005203  * df['3par']
+    return df
+
 def extract_player_stats():
     headers = pd.read_csv(f'{path}/header.csv')   
     internationals = international_stats_adjustments()
     pre_2008 = pre_08_ncaa()
     
-    #estimate the bpm for player stats pulled from RealGM
+    #estimate the height and bpm for player stats pulled from RealGM
     internationals = bpm_estimate(internationals)
     pre_2008 = bpm_estimate(pre_2008)
+    #pre_2008 = height_estimate(pre_2008)
     
     i = 2003; p_stats = []; unadj_p_stats = []
     while(i<latest_season+1):
@@ -256,10 +266,7 @@ def distance(name, yr, full_matrix, data, print_df):
     cov = np.ma.cov(np.ma.masked_invalid(data), rowvar=False)
     
     #custom weightage to specific factors, ast/tov, STL%
-    #cov[0,0] = cov[0,0] * 2
-    #cov[1,1] = cov[1,1] * 2
-    #cov[7,7] = cov[7,7] * 2
-    #cov[24,24] = cov[24,24] * 2
+    #cov[18,18] = cov[18,18] * 2
     
     #inverse covaiance matrix
     invcov = np.linalg.inv(cov)\
@@ -314,10 +321,10 @@ def distance(name, yr, full_matrix, data, print_df):
     full_matrix = full_matrix[['player','team','season','hgt','bpm','mdist','pid']]
     full_matrix['score'] = 1/(full_matrix['mdist']*full_matrix['mdist']) #np.exp(-1*full_matrix['mdist']*full_matrix['mdist'])
     full_matrix = full_matrix.sort_values(by=['score'], ascending=False)
-    full_matrix = full_matrix.loc[full_matrix['score'] >= (full_matrix[1:]['score'].mean()+3.75*full_matrix[1:]['score'].std())]
+    full_matrix = full_matrix.loc[full_matrix['score'] >= (full_matrix[1:]['score'].mean()+4*full_matrix[1:]['score'].std())]  #3.75 or 4
     return full_matrix
 
-#%% mapping nba stats
+#%% function to map nba stats
 def extract_nba_stats(year):
     nba_stats_y = pd.read_excel(f'{path}/nba_stats.xlsx','DARKO')
     mapping = pd.read_excel(f'{path}/nba_stats.xlsx','mapping DARKO')                   
