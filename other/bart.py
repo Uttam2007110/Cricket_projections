@@ -49,7 +49,8 @@ def team_ratings():
     #team_ranking.columns = team_ranking.columns.droplevel(level=0)
     return team_ranking
     
-#team_ranking = team_ratings()
+team_ranking = team_ratings()
+team_ranking['adj_rating'] = norm.ppf(team_ranking['rating'], loc=0.494, scale=0.255)
 
 #%% player classification
 def data_imputation_08_09(df):
@@ -94,10 +95,10 @@ def iqr_column(df,category):
 
 def international_stats_adjustments():
     df = pd.read_excel(f'{path}/foreign_players.xlsx','final')
+    df['TS%'] = df['TS%']*100
     
     df['mp'] = 10.2 + 25.7*(df['mp'].rank(pct=True))
     df['usg'] = df['usg'] + 1.5
-    df['TS%'] = df['TS%']*100
     df['AST%'] = df['AST%'] + 0.5
     df['TO%'] = df['TO%'] + 1.8
     df['ast/tov'] = df['ast/tov'] - 0.1
@@ -118,14 +119,15 @@ def international_stats_adjustments():
     df['BLK%'] = df['BLK%'] * factor
     df['STL%'] = df['STL%'] * factor
     df['ftr'] = df['ftr'] * factor
-    df['ORtg'] = df['ORtg'] * factor
-    df['drtg'] = df['drtg'] / factor    
+    df['ORtg'] = df['ORtg'] * (factor**0.5)
+    df['drtg'] = df['drtg'] / (factor**0.5)    
     return df
 
 def pre_08_ncaa():
     df = pd.read_excel(f'{path}/foreign_players.xlsx','ncaa')
     #darren yates 2004 season has a ast/tov of infinity
     df['ast/tov'] = df['ast/tov'].replace(np.inf, 11)
+    df['TS%'] = df['TS%']*100
     return df
 
 def bpm_estimate(df):
@@ -240,7 +242,9 @@ def extract_player_stats():
 data,player_stats = extract_player_stats()
 data.reset_index(drop=True,inplace=True)
 player_stats.reset_index(drop=True,inplace=True)
-#player_stats = player_stats.merge(team_ranking, left_on=['team','season'], right_on=['team','season'])
+
+data = data.merge(team_ranking, left_on=['team','season'], right_on=['team','season'], how='left')
+data.drop('rating', axis=1, inplace=True)
 
 #%% fix pids of players in both real GM and bart torvik
 mapping = pd.read_excel(f'{path}/nba_stats.xlsx','mapping DARKO')
@@ -283,7 +287,7 @@ plt.show()
 #%% correlation matrix for all the stats under consideration
 data = data[['class', 'hgt', 'usg', 'ORB%', 'DRB%', 'AST%', 'TO%', 'ast/tov', 'BLK%','blk_share','STL%','stl_share', 'ftr','FT%', 
              #'dunkar', 'rimar', 'rim%', 'midar', 'mid%', 
-             '3par', '3P%','ORtg','drtg','bpm','mp']]
+             '3par', '3P%','ORtg','drtg','bpm','mp','adj_rating']]
 
 data = data_imputation_08_09(data.copy())
 correlation_matrix = data.corr()
@@ -702,6 +706,6 @@ def mdist_list(year, p_stats, print_val, get_seniors_stats):
 
 #%% call the player comparision function
 
-#pdist,nba_comps = player_comp_analysis("Cooper Flagg", 2025, player_stats.copy(), nba_stats.copy(), 1)
+pdist,nba_comps = player_comp_analysis("Cooper Flagg", 2025, player_stats.copy(), nba_stats.copy(), 1)
 
-draft_list,exception_list = mdist_list(2021, player_stats.copy(),0,0)
+#draft_list,exception_list = mdist_list(2021, player_stats.copy(),0,0)
