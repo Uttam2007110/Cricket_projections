@@ -517,6 +517,8 @@ def player_comp_analysis(x,year,p_stats,league_stats,print_val):
         else: dist = dist.loc[(dist['season']<latest_season) | ((dist['player']==x) & (dist['season']==year))]
         
         dist.reset_index(inplace=True)
+        p_class = player_stats.iloc[dist['index'].values[0]]['class']
+        
         comps = league_stats[league_stats['pid'].isin(dist['pid'])]
         nba_comps = len(comps['pid'].unique())
         #comps = comps.groupby('player_name')['dpm'].apply(lambda x: x.nlargest(5))
@@ -634,11 +636,11 @@ def player_comp_analysis(x,year,p_stats,league_stats,print_val):
             return dist,(off_comps + def_comps)
         else:
             print(x,year)
-            return [x, pid, team, year, comps_num, bpm, bench, starter, allstar, allnba, mvp, c1, c2, c3, p_25, p_90]
+            return [x, pid, team, p_class, year, comps_num, bpm, bench, starter, allstar, allnba, mvp, c1, c2, c3, p_25, p_90]
         
     except:
         print(f"*******error with {x} {year}*******")
-        if(print_val == 0): return [x, 0,"NA", year, 0, 0, 0, 0, 0,0,0, "", "", "",0,0]        
+        if(print_val == 0): return [x, 0,"NA", 0, year, 0, 0, 0, 0, 0,0,0, "", "", "",0,0]        
     
 def mdist_list(year, p_stats, print_val, get_seniors_stats):
     nba_stats = extract_nba_stats(year)
@@ -663,7 +665,7 @@ def mdist_list(year, p_stats, print_val, get_seniors_stats):
     names_list = p_stats[p_stats['player'].isin(names_list)]
     names_list = names_list.loc[(names_list['season']<=year)&(names_list['season']>year-5)&(names_list['class']>0)]   
     
-    result = [['player','pid','team','season','comps','bpm','rotation','starter','all star','all nba','mvp','comp 1','comp 2','comp 3','floor','ceil']]    
+    result = [['player','pid','team','class','season','comps','bpm','rotation','starter','all star','all nba','mvp','comp 1','comp 2','comp 3','floor','ceil']]    
     for x,y in names_list[['player','season']].values:
         result.append(player_comp_analysis(x,y,p_stats,nba_stats.copy(),print_val))        
     
@@ -671,8 +673,13 @@ def mdist_list(year, p_stats, print_val, get_seniors_stats):
     result.columns = result.iloc[0];result = result.drop(0)
     result = result.apply(pd.to_numeric, errors='ignore')
     result = result.sort_values(by=['all nba', 'player'], ascending=[False, True])
+    result = result[result['class']>0]
     
-    pivot = result.pivot_table(values=['season','rotation','starter','all star','all nba','mvp','floor','ceil'], index=['player','pid'], aggfunc="mean")
+    pivot = result.pivot_table(values=['season','rotation','starter','all star','all nba','mvp','floor','ceil'], index=['player','pid'], 
+                               aggfunc = lambda rows: np.average(rows, weights = result.loc[rows.index, 'class'])) #aggfunc="mean")
+    
+    exceptions += list(set(result['player'].to_list()) - set(pivot['player'].to_list()))
+    
     team = result.pivot_table(values=['team'], index=['player','pid'], aggfunc=lambda x: ', '.join(x.unique()))
     team = team.reset_index()
     pivot = pivot.reset_index()
@@ -702,7 +709,7 @@ def mdist_list(year, p_stats, print_val, get_seniors_stats):
     pivot['all star'] = round(pivot['all star'],5)
     pivot['all nba'] = round(pivot['all nba'],5)
     pivot['mvp'] = round(pivot['mvp'],5)
-    return pivot,exceptions
+    return pivot,exceptions    
 
 #%% call the player comparision function
 
