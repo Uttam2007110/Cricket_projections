@@ -709,8 +709,8 @@ def mdist_list(year, p_stats, print_val, get_seniors_stats):
 
 #%% call the player comparision function
 
-pdist,nba_comps = player_comp_analysis("Cooper Flagg", 2025, player_stats.copy(), nba_stats.copy(), 1)
+pdist,nba_comps = player_comp_analysis("Hannes Steinbach", 2025, player_stats.copy(), nba_stats.copy(), 1)
 
-#draft_list,exception_list = mdist_list(2019, player_stats.copy(),0,0)
+#draft_list,exception_list = mdist_list(2017, player_stats.copy(),0,0)
 
-#clustered_list = clustering(2018,2019)
+#clustered_list = clustering(2017,2025)
