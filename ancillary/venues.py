@@ -43,4 +43,4 @@ def write_to_excel(venues,output_dump):
             venues.to_excel(writer, sheet_name='Sheet1',index=False)
 
 venues = venue_aggregate([],venues,path)
-write_to_excel(venues,input_file)
+#write_to_excel(venues,input_file)

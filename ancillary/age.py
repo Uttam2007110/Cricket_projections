@@ -89,7 +89,7 @@ def names_list(batting,bowling,reference):
         #print(x0)
         pid = int(reference.loc[reference['unique_name']==x0[0],'key_cricinfo'].sum())
         df.loc[df['name']==x0[0],'ID'] = pid
-        p_age,dob,bat_type,bowl_type = age(pid,datetime(2024,4,1))
+        p_age,dob,bat_type,bowl_type = age(pid,datetime(2025,3,1))
         df.loc[df['name']==x0[0],'DOB'] = dob
     return df
 
@@ -101,7 +101,7 @@ def names_list_full(sheet):
     #reference['dob'] = age(int(reference['key_cricinfo']),datetime(2023,4,1))[1]
     for x in reference.values:
         p_key = reference.loc[reference['unique_name']==x[2],'key_cricinfo'].sum()
-        p_age,p_dob,bat_type,bowl_type = age(int(p_key),datetime(2024,4,1))
+        p_age,p_dob,bat_type,bowl_type = age(int(p_key),datetime(2025,3,1))
         reference.loc[reference['unique_name']==x[2],'dob'] = p_dob
         reference.loc[reference['unique_name']==x[2],'batType'] = bat_type
         reference.loc[reference['unique_name']==x[2],'bowlType'] = bowl_type

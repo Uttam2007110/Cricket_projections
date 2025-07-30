@@ -18,7 +18,7 @@ matchups = list(product(['spin','pace'],venue_pace_spin['venue'].unique()))
 matchups = pd.DataFrame(matchups, columns =['bowl_type','venue'])
 matchups['season'] = proj_year
 #matchups['weight'] = 0
-matchups['bias'] = 0.5
+matchups['bias'] = 0.65
 
 spin_la_balls = venue_pace_spin.loc[venue_pace_spin['bowl_type']=='spin','balls'].sum()
 spin_la_runs = venue_pace_spin.loc[venue_pace_spin['bowl_type']=='spin','runs'].sum()

@@ -8,9 +8,10 @@ comparing stats across different leagues
 import pandas as pd
 import numpy as np
 
-file1 = 'C:/Users/Subramanya.Ganti/Downloads/cricket/summary/ss_summary.xlsx'
-file2 = 'C:/Users/Subramanya.Ganti/Downloads/cricket/summary/hundred_summary.xlsx'
-output_dump = "C:/Users/Subramanya.Ganti/Downloads/cricket/league_comparision.xlsx"
+file1 = 'C:/Users/Subramanya.Ganti/Downloads/cricket/summary/cc_summary.xlsx'
+file2 = 'C:/Users/Subramanya.Ganti/Downloads/cricket/summary/tests_summary.xlsx'
+output_dump = "C:/Users/Subramanya.Ganti/Downloads/cricket/outputs/league_comparision.xlsx"
+dump = 0
 
 def bowling(file1,file2):
     file1 = pd.read_excel(file1,'bowling seasons')
@@ -51,9 +52,10 @@ def batting(file1,file2):
 common_bat = batting(file1,file2)
 common_bowl = bowling(file1,file2)
 
-#with pd.ExcelWriter(output_dump) as writer:        
-#    common_bat.to_excel(writer, sheet_name="batting", index=False)
-#    common_bowl.to_excel(writer, sheet_name="bowling", index=False)
+if(dump == 1):
+    with pd.ExcelWriter(output_dump) as writer:        
+        common_bat.to_excel(writer, sheet_name="batting", index=False)
+        common_bowl.to_excel(writer, sheet_name="bowling", index=False)
 
 runs_l1 = sum(common_bat['SR_l1']*common_bat['balls_l1']/100)
 runs_l2 = sum(common_bat['SR_l2']*common_bat['balls_l2']/100)
