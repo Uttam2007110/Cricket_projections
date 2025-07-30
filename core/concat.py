@@ -9,7 +9,7 @@ import glob
 import pandas as pd
 from datetime import datetime
  
-comp = 'blast'
+comp = 'tests'
 if(comp == 'odiq'):
     path = "C:/Users/Subramanya.Ganti/Downloads/cricket/raw/odi"
 elif(comp == 't20iq'):

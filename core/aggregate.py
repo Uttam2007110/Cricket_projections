@@ -10,13 +10,13 @@ import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 np.seterr(divide='ignore', invalid='ignore')
 
-base_comp = 'blast'
+base_comp = 'tests'
 compm = ['bbl','ipl','lpl','sa20','hundred','bpl','blast','mlc','psl','ilt','t20i','cpl','odi','odiq','rlc','smat','ss','t20iq','ctc']
 lsm = [.95,1,.9,.95,1,.9,.95,.95,1,.95,.95,1,.95,.8,.8,.85,.9,.8,.9]
 compw = ['wbbl','wpl','hundredw','t20iw','frb','odiw','wcpl','wss','cec','rhf','t20iwq']
 lsw = [1,1,1,.9,.85,.9,1,.85,.85,.85,.7]
-compt = ['tests','cc','shield','pks']
-lst = [1,.9,.9,.85]
+compt = ['tests','cc','shield','pks'] + compm
+lst = [1,.9,.9,.85] + lsm
 
 name_changes = [['NR Sciver','NR Sciver-Brunt'],['KH Brunt','KH Sciver-Brunt'],['L Winfield','L Winfield-Hill'],
                 ['Navdeep Saini','NA Saini'],['Josh Brown','J Brown'],['Mohammad Nawaz (3)','Mohammad Nawaz'],

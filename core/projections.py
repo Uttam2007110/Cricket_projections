@@ -15,7 +15,7 @@ np.seterr(divide='ignore', invalid='ignore')
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-comp = 'blast'
+comp = 'tests'
 proj_year = 2026   #year+1 of the season you want projections for
 aggregate = 0
 path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'

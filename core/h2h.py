@@ -17,39 +17,32 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 #%% choose the teams which are playing
-comp = 'blast'; year = '25'; unique_combos = 20
+comp = 'tests'; year = '25'; unique_combos = 20
 #if another league data is used as a proxy then set 1
 home=[]; opps=[]; venue = []; team_bat_first = [""]; proxy = 0; custom = 0
 #date based game selection if 0, else specific gameweek or entire season
 gw = 0; write = 0
 #select teams manually
-#home = ["Punjab Kings"]; opps = ["Chennai Super Kings"]; venue = ["Mullanpur"]; team_bat_first = [""]
+home = ["England"]; opps = ["India"]; venue = ["Edgbaston"]; team_bat_first = [""]
 #select custom date
-custom = dt.datetime(2025,6,3) #year,month,date
+#custom = dt.datetime(2025,6,3) #year,month,date
 #type of scoring system, default dream 11
 coversoff = 0; ex22 = 0; cricdraft = 0; old = 0
 #the length of the reduced game due to rain or other factors, full game is 1
 reduced_length = 1
 
 #frauds like ben stokes who bowl whenever they feel like it
-not_bowling_list = ['H Klaasen','RK Singh','Tilak Varma','SA Yadav','TH David','N Pooran','Shashank Singh','VR Iyer','R Ravindra',
+not_bowling_list = ['H Klaasen','RK Singh','Tilak Varma','SA Yadav','N Pooran','Shashank Singh','VR Iyer','R Ravindra',
                     'S Dube','YBK Jaiswal','TM Head','J Fraser-McGurk','MR Marsh','M Shahrukh Khan','R Tewatia','N Wadhera',
-                    'DJ Hooda','Nithish Kumar Reddy','SE Rutherford','N Rana','KK Nair','Abdul Samad','JM Vince','SK Rasheed']
+                    'DJ Hooda','SE Rutherford','N Rana','KK Nair','Abdul Samad','JM Vince','SK Rasheed']
 #frauds who suddenly decide to bat in a different position
-custom_position_list = [['A Raghuvanshi',4],['VR Iyer',5],['SP Narine',2],['CV Varun',12],
-                        ['D Padikkal',3],['KH Pandya',5],
-                        ['SM Curran',3],['RA Jadeja',4],['R Ashwin',8],['A Kamboj',12],
-                        ['WG Jacks',4],['SA Yadav',3],['Naman Dhir',7],['KV Sharma',12],
-                        ['N Rana',3],['R Parag',4],['SO Hetmyer',6],['Dhruv Jurel',5],['PWH de Silva',8],['JC Archer',9],
-                        ['AR Patel',5],['KL Rahul',4],['KK Nair',3],['Abishek Porel',1],
-                        ['A Badoni',5],['AK Markram',1],
-                        ['TM Head',2],['Ishan Kishan',3],['Aniket Verma',6],['A Zampa',12],['PJ Cummins',8],
-                        ['JC Buttler',3],['R Sai Kishore',9],['I Sharma',12],['Rashid Khan',7],
-                        ['SS Iyer',3],['GJ Maxwell',6],['MP Stoinis',5],['YS Chahal',12],['N Wadhera',5]]
+custom_position_list = [['KL Rahul',2],['KK Nair',3],['Shubman Gill',4],['OJ Pope',3]]
 #designated wicketkeeper in a game
-designated_keeper_list = ['Rahmanullah Gurbaz','JM Sharma','MS Dhoni','RD Rickelton','Dhruv Jurel','H Klaasen','KL Rahul','RR Pant','JC Buttler','JP Inglis']
+designated_keeper_list = ['RR Pant','JL Smith',
+                          'AL Davies','OG Robinson','CG Benjamin','MS Pepper','MF Hurst','W Luxton','James Bracey','BD Guest','LD McManus',
+                          'T Kohler-Cadmore','JLB Davies','TE Albert','GH Roderick','TJ Moores','OB Cox','JA Simpson','CB Cooke']
 #player who only bats as an impact sub
-not_fielding_list = ['A Raghuvanshi','D Padikkal','TM Head','SB Dubey','RG Sharma','S Dube','MR Marsh','KK Nair','P Simran Singh','SE Rutherford']
+not_fielding_list = []
 
 #%% find projections for the games in question
 from usage import *
@@ -177,7 +170,9 @@ def adj_bowl_usage(t1,t2,bowl_game,bias_spin,bias_pace,factor,reduced_length):
         delta = t2_bowl - bowl_game.loc[bowl_game['team']==t2,'usage'].sum()
         count_t2 = len(bowl_game.loc[bowl_game['team']==t2,'team'])
         bowl_game.loc[bowl_game['team']==t2,'usage'] = bowl_game.loc[bowl_game['team']==t2,'usage'] + (delta/count_t2)
-        #print(delta)        
+        #print(delta) 
+        
+    bowl_game = bowl_game[bowl_game['usage'] > 0]
     return bowl_game
 
 def toss_effects(batting,bowling,bat_first,t1,t2,factor,reduced_length):
@@ -1117,7 +1112,10 @@ d11_keeper_eligibility = ['SV Samson','H Klaasen','RD Rickelton','JM Sharma','RR
                           'BL Mooney','U Chetry','M De Ridder','D Ferreira','MF Hurst','SB Harper','JM Clarke','FH Allen','JR Philippe','TL Seifert',
                           'LJ Evans','HJ Nielsen','SW Billings','CT Bancroft','M Mangru','RM Ghosh','T Stubbs','SA Campbelle','MS Wade','KD Karthik',
                           'BR McDermott','LG Pretorius','C Esterhuizen','MP Breetzke','Rahmanullah Gurbaz','M Gilkes','T Suri','FH Allen',
-                          'JM Bairstow','Mushfiqur Rahim','Jaker Ali','Mohammad Haris']
+                          'JM Bairstow','Mushfiqur Rahim','Jaker Ali','Mohammad Haris','AL Davies']
+
+d11_keeper_eligibility = d11_keeper_eligibility + designated_keeper_list
+d11_keeper_eligibility = list(set(d11_keeper_eligibility))
 
 def solver(f_points):
     duplicate = f_points.copy()
