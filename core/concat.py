@@ -9,17 +9,17 @@ import glob
 import pandas as pd
 from datetime import datetime
  
-comp = 'tests'
+comp = 'hundred'
 if(comp == 'odiq'):
-    path = "C:/Users/Subramanya.Ganti/Downloads/cricket/raw/odi"
+    path = "C:/Users/Subramanya.Ganti/Downloads/Sports/cricket/raw/odi"
 elif(comp == 't20iq'):
-    path = "C:/Users/Subramanya.Ganti/Downloads/cricket/raw/t20i"
+    path = "C:/Users/Subramanya.Ganti/Downloads/Sports/cricket/raw/t20i"
 elif(comp == 't20iwq'):
-    path = "C:/Users/Subramanya.Ganti/Downloads/cricket/raw/t20iw"
+    path = "C:/Users/Subramanya.Ganti/Downloads/Sports/cricket/raw/t20iw"
 else:
-    path = f"C:/Users/Subramanya.Ganti/Downloads/cricket/raw/{comp}"
-output = f'C:/Users/Subramanya.Ganti/Downloads/cricket/raw/{comp}.csv'
-output2 = f'C:/Users/Subramanya.Ganti/Downloads/cricket/raw/{comp}_GP.csv'
+    path = f"C:/Users/Subramanya.Ganti/Downloads/Sports/cricket/raw/{comp}"
+output = f'C:/Users/Subramanya.Ganti/Downloads/Sports/cricket/raw/{comp}.csv'
+output2 = f'C:/Users/Subramanya.Ganti/Downloads/Sports/cricket/raw/{comp}_GP.csv'
 db_start = 1
 db_end = 2100
 league = 0; check = 0

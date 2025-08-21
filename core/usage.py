@@ -13,7 +13,7 @@ from sklearn import linear_model
 pd.options.mode.chained_assignment = None  # default='warn'
 
 game_sim = 0
-path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
+path = 'C:/Users/Subramanya.Ganti/Downloads/Sports/cricket'
 
 def avg(bowler,file_name,item):
     total = []; total2 = []

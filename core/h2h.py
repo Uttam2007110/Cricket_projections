@@ -17,17 +17,17 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 #%% choose the teams which are playing
-comp = 'tests'; year = '25'; unique_combos = 20
+comp = 'hundred'; year = '25'; unique_combos = 20
 #if another league data is used as a proxy then set 1
 home=[]; opps=[]; venue = []; team_bat_first = [""]; proxy = 0; custom = 0
 #date based game selection if 0, else specific gameweek or entire season
-gw = 0; write = 0
+gw = 1; write = 0
 #select teams manually
-home = ["England"]; opps = ["India"]; venue = ["Edgbaston"]; team_bat_first = [""]
+#home = ["Southern Brave"]; opps = ["Manchester Originals"]; venue = [""]; team_bat_first = [""]
 #select custom date
 #custom = dt.datetime(2025,6,3) #year,month,date
 #type of scoring system, default dream 11
-coversoff = 0; ex22 = 0; cricdraft = 0; old = 0
+coversoff = 1; ex22 = 0; cricdraft = 0; old = 0
 #the length of the reduced game due to rain or other factors, full game is 1
 reduced_length = 1
 
@@ -36,17 +36,15 @@ not_bowling_list = ['H Klaasen','RK Singh','Tilak Varma','SA Yadav','N Pooran','
                     'S Dube','YBK Jaiswal','TM Head','J Fraser-McGurk','MR Marsh','M Shahrukh Khan','R Tewatia','N Wadhera',
                     'DJ Hooda','SE Rutherford','N Rana','KK Nair','Abdul Samad','JM Vince','SK Rasheed']
 #frauds who suddenly decide to bat in a different position
-custom_position_list = [['KL Rahul',2],['KK Nair',3],['Shubman Gill',4],['OJ Pope',3]]
+custom_position_list = []
 #designated wicketkeeper in a game
-designated_keeper_list = ['RR Pant','JL Smith',
-                          'AL Davies','OG Robinson','CG Benjamin','MS Pepper','MF Hurst','W Luxton','James Bracey','BD Guest','LD McManus',
-                          'T Kohler-Cadmore','JLB Davies','TE Albert','GH Roderick','TJ Moores','OB Cox','JA Simpson','CB Cooke']
+designated_keeper_list = ['SW Billings','FH Allen','BM Duckett','JL Smith','PD Salt','MS Pepper','T Banton','JM Bairstow']
 #player who only bats as an impact sub
 not_fielding_list = []
 
 #%% find projections for the games in question
 from usage import *
-path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
+path = 'C:/Users/Subramanya.Ganti/Downloads/Sports/cricket'
 if(proxy == 1): input_file = f"{path}/projections/{comp}_proxy_projections.xlsx"
 else: input_file = f"{path}/projections/{comp}_projections.xlsx"
 input_file1 = f"{path}/summary/{comp}_summary.xlsx"
@@ -812,7 +810,7 @@ def coversoff_projection(a,b,input_file1,input_file,factor,v,tbf,reduced_length)
     
     if(factor < 1):
         bat_game['xPts'] = bat_game['usage']*bat_game['SR']
-    elif(factor == 1):
+    if(factor <= 1):
         (bat_bonus,bowl_bonus) = coversoff_bonus(SR,bf,rs,ECON,wkts,bb,factor)
         #runs 4s and 6s have pts
         bat_game['xPts'] = 120*reduced_length*factor*bat_game['usage']*(bat_game['runs/ball']+2*bat_game['6s/ball']+1*bat_game['4s/ball'])
@@ -870,7 +868,7 @@ def coversoff_projection(a,b,input_file1,input_file,factor,v,tbf,reduced_length)
     
     if(factor < 1):
         bowl_game['xPts'] = bowl_game['usage']*bowl_game['wickets/ball']*100*20
-    if(factor == 1):
+    if(factor <= 1):
         #wicket is 35 pts
         b_lbw = (dismissals.loc[dismissals['wicket type']=='bowled','t20'].values[0] + dismissals.loc[dismissals['wicket type']=='lbw','t20'].values[0])/(sum(dismissals['t20'])-dismissals.loc[dismissals['wicket type']=='run out','t20'].values[0])
         bowl_game['xPts'] = 120*reduced_length*factor*bowl_game['usage']*bowl_game['wickets/ball']*(40*(1-b_lbw)+45*b_lbw)

@@ -15,10 +15,10 @@ np.seterr(divide='ignore', invalid='ignore')
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-comp = 'tests'
+comp = 'hundred'
 proj_year = 2026   #year+1 of the season you want projections for
 aggregate = 0
-path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
+path = 'C:/Users/Subramanya.Ganti/Downloads/Sports/cricket'
 
 if(comp=='hundred' or comp=='hundredw'):
     factor = (5/6); aggregate = 1 #hundred

@@ -10,7 +10,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 np.seterr(divide='ignore', invalid='ignore')
 
-base_comp = 'tests'
+base_comp = 'hundred'
 compm = ['bbl','ipl','lpl','sa20','hundred','bpl','blast','mlc','psl','ilt','t20i','cpl','odi','odiq','rlc','smat','ss','t20iq','ctc']
 lsm = [.95,1,.9,.95,1,.9,.95,.95,1,.95,.95,1,.95,.8,.8,.85,.9,.8,.9]
 compw = ['wbbl','wpl','hundredw','t20iw','frb','odiw','wcpl','wss','cec','rhf','t20iwq']
@@ -43,7 +43,7 @@ else:
     print("new competition, not in any list")
     comp = [base_comp]; ls = [1]; mult = 1
 
-path = 'C:/Users/Subramanya.Ganti/Downloads/cricket'
+path = 'C:/Users/Subramanya.Ganti/Downloads/Sports/cricket'
 input_file = f'{path}/summary/{base_comp}_summary.xlsx'
 output_file = f"{path}/summary/{base_comp}_aggregate.xlsx"
 i=0
