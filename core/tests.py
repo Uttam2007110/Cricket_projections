@@ -15,19 +15,27 @@ import statsmodels.formula.api as smf
 import glob
 
 np.seterr(divide='ignore')
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
-league = 't20i'
-#full_leagues_list = ['odi','odiq','t20i','t20iq','ipl','psl','cpl','mlc','sa20','blast','bbl','hundred','lpl','ilt','smash','bpl','smat']
-#full_leagues_list = ['tests','cc','shield']
-
+league = 'ipl'
 path = 'C:/Users/Subramanya.Ganti/Downloads/Sports/cricket'
 
 #%% read files and basic pre processing
-def test_leagues(): l = ['tests','cc','shield']; return l
-def odi_leagues(): l = ['odi','odiq']; return l
-def t20_leagues(): l = ['t20i','t20iq','ipl','psl','cpl','mlc','sa20','blast','bbl','lpl','ilt','smash','bpl','smat']; return l
+def test_leagues(): l = ['tests','cc','shield','pks']; return l
+def odi_leagues(): l = ['odi','odib','rlc','odc']; return l
+def t20_leagues(): l = ['t20i','t20ib','ipl','psl','cpl','mlc','sa20','blast','bbl','lpl','ilt','smash','bpl','smat','msl','npl']; return l
 def short_leagues(): l = ['hundred']; return l
 
+def player_name_changes():
+    name_changes = [['NR Sciver','NR Sciver-Brunt'],['KH Brunt','KH Sciver-Brunt'],['L Winfield','L Winfield-Hill'],
+                ['NA Saini','Navdeep Saini'],['Josh Brown','J Brown'],['Mohammad Nawaz (3)','Mohammad Nawaz'],
+                ['Arshad Khan (2)','Arshad Khan'],['Mohsin Khan (2)','Mohsin Khan'],['Steven Ryan Taylor','SR Taylor'],
+                ['Aaron Beard','AP Beard'],['A Aitken','A Aitken-Drummond'],['Duan Jansen','D Jansen'],['S Rana','Sneh Rana']]
+    name_changes = pd.DataFrame(name_changes, columns=['old', 'new'])
+    mapping_series = name_changes.set_index('old')['new']
+    return mapping_series
+    
 def leagues_considered(l):
     if(l in test_leagues()): return test_leagues()
     else: return (odi_leagues() + short_leagues() + t20_leagues()) 
@@ -61,11 +69,11 @@ def active_lineups(comp):
     return full_squad_list
     
 def concat_game_files(comp):
-    if(comp == 'odiq'):
+    if(comp == 'odib'):
         path_files = f"{path}/raw/odi"
-    elif(comp == 't20iq'):
+    elif(comp == 't20ib'):
         path_files = f"{path}/raw/t20i"
-    elif(comp == 't20iwq'):
+    elif(comp == 't20iwb'):
         path_files = f"{path}/raw/t20iw"
     else:
         path_files = f"{path}/raw/{comp}"
@@ -78,26 +86,25 @@ def concat_game_files(comp):
     league = 0; check = 0
     col_names = ["col1", "col2", "team", "player","id"]
     excl_list = []; names_list=[]; i=0
-
     file_list = glob.glob(path_files + "/*.csv")
-    if(comp == 'odiq'):
-        countries = ["Zimbabwe","Netherlands","West Indies","Nepal","United States of America","Ireland","Scotland","Oman","United Arab Emirates"]
+    
+    if(comp == 'odi' or comp == 't20i' or comp == 'tests'):
+        countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","West Indies","Pakistan","Bangladesh","Afghanistan"]
+    elif(comp == 'odib'):
+        countries = ["Zimbabwe","Netherlands","Nepal","United States of America","Ireland","Scotland","Oman","United Arab Emirates",'Namibia','Canada']
     elif(comp == 't20iw'):
-        countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","Ireland","Scotland","West Indies","Pakistan","Bangladesh","Thailand","Zimbabwe"]
-    elif(comp == 't20iwq'):
-        countries = ["Ireland","Scotland","Thailand","Zimbabwe","Papua New Guinea","Netherlands","Namibia","United Arab Emirates","Uganda","Tanzania","Indonesia","Nepal"]
+        countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","Bangladesh","West Indies","Pakistan"]
+    elif(comp == 't20iwb'):
+        countries = ["Ireland","Scotland","Thailand","Zimbabwe","Papua New Guinea","Netherlands","Namibia","United Arab Emirates","Uganda",
+                     "Tanzania","Indonesia","Nepal"]
     elif(comp == 'odiw'):
         countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","West Indies","Pakistan","Bangladesh","Thailand","Ireland"]
-    elif(comp == 'odi'):
-        countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","Pakistan","Bangladesh","Afghanistan","West Indies","Netherlands","Nepal","Ireland","Zimbabwe"]
-    elif(comp == 't20i'):
-        countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","West Indies","Pakistan","Bangladesh","Ireland","Afghanistan","Zimbabwe","Scotland","Netherlands","Namibia","United Arab Emirates","Nepal","Oman","Papua New Guinea","Canada","United States of America","Uganda"]
-    elif(comp == 't20iq'):
-        countries = ["Ireland","Scotland","Jersey","Italy","Germany","Denmark","Austria","Netherlands","Zimbabwe","Namibia","Nigeria","Rwanda","Tanzania","Uganda","Kenya","Bahrain","Hong Kong","Kuwait","Malaysia","Nepal","Oman","Singapore","United Arab Emirates","Japan","Papua New Guinea","Philippines","Canada","United States of America"]
-    elif(comp == 'tests'):
-        countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","Pakistan","West Indies","Bangladesh"]
-    elif(comp == 'cwc'):
-        countries = ["Australia","England","New Zealand","India","South Africa","Sri Lanka","Pakistan","Bangladesh","Afghanistan","West Indies","Netherlands","Nepal","Ireland","Zimbabwe","Kenya","Namibia"]
+    elif(comp == 't20ib'):
+        countries = ["Ireland","Zimbabwe","Scotland","Netherlands","Namibia","United Arab Emirates","Nepal","Oman","Canada","United States of America",
+                     'Italy',"Uganda","Jersey","Kenya","Bahrain","Papua New Guinea"]
+    #elif(comp == 't20ic'):
+    #    countries = ["Jersey","Germany","Denmark","Austria","Nigeria","Rwanda","Tanzania","Kenya","Bahrain","Hong Kong","Kuwait",
+    #                 "Malaysia","Singapore","Japan","Papua New Guinea","Philippines"]
     elif(comp == 'smat'):
         countries = ['Meghalaya','Mizoram','Sikkim','Arunachal Pradesh','Manipur','Nagaland','Pondicherry']
     else:
@@ -107,8 +114,14 @@ def concat_game_files(comp):
         if(file[-8:] != "info.csv"):
             df = pd.read_csv(file)
             date = datetime.strptime(df['start_date'][0], '%Y-%m-%d')
-            if(league == 0):check = df['batting_team'][0] in countries and df['bowling_team'][0] in countries
+            
+            if(league == 0 and comp == 'tests'):check = df['batting_team'][0] in countries and df['bowling_team'][0] in countries
+            if(league == 0 and (comp == 't20i' or comp == 'odi')):
+                check = df['batting_team'][0] in countries or df['bowling_team'][0] in countries
+            if(league == 0 and (comp == 't20ib' or comp == 'odib')):
+                check = df['batting_team'][0] in countries and df['bowling_team'][0] in countries
             if(comp == 'smat'):check = df['batting_team'][0] not in countries and df['bowling_team'][0] not in countries
+            
             if(date.year>=db_start and (check or league) and date.year<=db_end):
                 if((comp == 'bbl' or comp == 'wbbl' or comp == 'ss' or comp == 'wss' or comp == 'shield') and date.month < 4):   #big bash is a december-january league
                     df['season'] = date.year-1
@@ -149,7 +162,6 @@ def concat_game_files(comp):
     print(f"concat for {comp} done, file dumped, run generate.py")
     
 def squad_info():
-    #all_leagues = ['tests','odi','odiq','t20i','t20iq','ipl','psl','cpl','mlc','sa20','blast','bbl','hundred','cc','shield','lpl','ilt','smash','bpl','smat']
     all_leagues = test_leagues() + odi_leagues() + t20_leagues() + short_leagues()
     agg = []
     for l in all_leagues:
@@ -170,7 +182,8 @@ def squad_info():
        
     existing = pd.read_excel(f'{path}/excel/projections.xlsx','squads')
     agg = agg.merge(existing[['player','team']], on='player', how='left')
-    agg = agg[['player','team','tests','odi','t20i','odiq','t20iq','ipl','psl','cpl','mlc','sa20','blast','bbl','lpl','ilt','smash','bpl','smat','hundred','cc','shield']]
+    agg = agg[['player','team','tests','odi','t20i','odib','t20ib','ipl','psl','cpl','mlc','sa20','blast','bbl','lpl',
+               'ilt','smash','bpl','smat','npl','hundred','cc','shield','pks','rlc','odc']]
     return agg
     
 def league_data(l):
@@ -203,7 +216,8 @@ def league_data(l):
     sample['1s'] +=  sample['5s']
     sample['0s'] *= sample['batter_bf']
     
-    pivot = sample.pivot_table(index=['match_id'],values=['bowler_bb','batter_bf','runs_off_bat','0s','1s','2s','4s','6s','extras','wicket_bowler','wicket_striker','wicket_non_striker'],aggfunc='sum')
+    pivot = sample.pivot_table(index=['match_id'],values=['bowler_bb','batter_bf','runs_off_bat','0s','1s','2s','4s','6s',
+                                                          'extras','wicket_bowler','wicket_striker','wicket_non_striker'],aggfunc='sum')
     pivot = pivot.reset_index()
     #pivot2 = sample.pivot_table(index=['match_id'],values=['wicket_non_striker'],aggfunc='sum')
     #pivot2 = pivot2.reset_index()
@@ -220,7 +234,8 @@ def league_data(l):
     pivot['6s_ball'] = pivot['6s'] / pivot['batter_bf']
     pivot['extras_ball'] = pivot['extras'] / pivot['bowler_bb']
     
-    sample = sample.merge(pivot[['match_id','bat_runs_ball','bat_wkt_ball','bowl_runs_ball','bowl_wkt_ball','0s_ball','1s_ball','2s_ball','4s_ball','6s_ball','extras_ball']], on=['match_id'])
+    sample = sample.merge(pivot[['match_id','bat_runs_ball','bat_wkt_ball','bowl_runs_ball','bowl_wkt_ball','0s_ball','1s_ball',
+                                 '2s_ball','4s_ball','6s_ball','extras_ball']], on=['match_id'])
     sample['bat_runs_ball'] *= sample['batter_bf']
     sample['0s_ball'] *= sample['batter_bf']
     sample['1s_ball'] *= sample['batter_bf']
@@ -356,8 +371,12 @@ def aging_analysis(df, bat_bowl):
     df = df[df['age']<=45]
     df['age'] = df['age'].astype(int)
     
-    if(bat_bowl == 0): df_agg = df.pivot_table(index=[key,'age'],values=['bowler_bb','0s','1s','2s','4s','6s','extras','dismissals','0s_ball','1s_ball','2s_ball','4s_ball','6s_ball','extras_ball','bowl_wkt_ball'],aggfunc='sum')
-    else: df_agg = df.pivot_table(index=[key,'age'],values=['batter_bf','0s','1s','2s','4s','6s','dismissals','0s_ball','1s_ball','2s_ball','4s_ball','6s_ball','bat_wkt_ball'],aggfunc='sum')
+    if(bat_bowl == 0): 
+        df_agg = df.pivot_table(index=[key,'age'],values=['bowler_bb','0s','1s','2s','4s','6s','extras','dismissals','0s_ball',
+                                                          '1s_ball','2s_ball','4s_ball','6s_ball','extras_ball','bowl_wkt_ball'],aggfunc='sum')
+    else: 
+        df_agg = df.pivot_table(index=[key,'age'],values=['batter_bf','0s','1s','2s','4s','6s','dismissals','0s_ball','1s_ball',
+                                                          '2s_ball','4s_ball','6s_ball','bat_wkt_ball'],aggfunc='sum')
     df_agg = df_agg.reset_index()
     df_agg['r0s'] = df_agg['0s'] / df_agg['0s_ball']
     df_agg['r1s'] = df_agg['1s'] / df_agg['1s_ball']
@@ -673,8 +692,8 @@ def kalman_stats_batting(df,player,print_val):
     mean_bf, std_bf = kalman_filtering(df,player,'batter_bf',1)
     #mean_runs, std_runs = kalman_filtering(df,player,'runs_off_bat',1)
     #mean_xruns, std_xruns = kalman_filtering(df,player,'bat_runs_ball',1)
-    mean_dismissals, std_runs = kalman_filtering(df,player,'dismissals',1)
-    mean_xdismissals, std_xruns = kalman_filtering(df,player,'bat_wkt_ball',1)
+    mean_dismissals, std_dismissals = kalman_filtering(df,player,'dismissals',1)
+    mean_xdismissals, std_xdismissals = kalman_filtering(df,player,'bat_wkt_ball',1)
     
     mean_0s, std_0s = kalman_filtering(df,player,'0s',1)
     mean_x0s, std_x0s = kalman_filtering(df,player,'0s_ball',1)
@@ -876,22 +895,15 @@ def apply_aging_factors(df,af,df_full,bat_bowl):
         df = df[['player','age','Pos','rBPD','r0s', 'r1s', 'r2s', 'r4s', 'r6s']]
     return df
 
-def game_matrix(l):
-    venues = pd.read_excel(f'{path}/excel/venues.xlsx','Sheet1')
-    people = pd.read_excel(f'{path}/excel/people.xlsx','people')
-    #people = people[['unique_name','bowlType']]
-    
-    if(l in ['tests']): target_list = test_leagues()
-    elif(l in ['odi']): target_list = odi_leagues()
-    elif(l in ['hundred']): target_list = short_leagues()
-    else: target_list = t20_leagues()
-    
-    league_stats_concat = []
-    for l2 in target_list:
-        sample = league_data(l2)
-        league_stats_concat.append(sample)
-        
-    league_stats_concat = pd.concat(league_stats_concat)
+def bat_bowl_matrix(l):    
+    league_stats_concat = league_data(l)
+    """
+    if(l in ['odi','t20i']):
+        league_stats_concat = league_stats_concat[league_stats_concat['batting_team'].isin(['Australia','England','South Africa','India','West Indies',
+                                                                                            'Sri Lanka','New Zealand','Bangladesh','Pakistan','Afghanistan'])]
+        league_stats_concat = league_stats_concat[league_stats_concat['bowling_team'].isin(['Australia','England','South Africa','India','West Indies',
+                                                                                            'Sri Lanka','New Zealand','Bangladesh','Pakistan','Afghanistan'])]
+    """
     league_stats_concat['start_date'] = pd.to_datetime(league_stats_concat['start_date'], format='%Y-%m-%d')
     #league_stats_concat = league_stats_concat.sort_values(by=['start_date'], ascending=[True])
     league_stats_concat['weight'] = (datetime.now() - league_stats_concat['start_date']) / (pd.Timedelta(days=1))
@@ -905,7 +917,7 @@ def game_matrix(l):
                                                 values=['batter_bf', 'bat_wkt_ball', '0s_ball', '1s_ball', '2s_ball', '4s_ball', '6s_ball'],
                                                 aggfunc=lambda rows: np.sum(rows * league_stats_concat.loc[rows.index, 'weight']))
     
-    avg_stats_bat['BPG'] = avg_stats_bat['batter_bf']/(innings*len(target_list))
+    avg_stats_bat['BPG'] = avg_stats_bat['batter_bf']/innings
     avg_stats_bat['BPD'] = avg_stats_bat['batter_bf']/avg_stats_bat['bat_wkt_ball']
     avg_stats_bat['BPD_ratio'] = avg_stats_bat['BPG']/avg_stats_bat['BPD']
     avg_stats_bat['0s_ball'] = avg_stats_bat['0s_ball']/avg_stats_bat['batter_bf']
@@ -916,12 +928,12 @@ def game_matrix(l):
     avg_stats_bat['bat_wkt_ball'] = avg_stats_bat['bat_wkt_ball']/avg_stats_bat['batter_bf']
     avg_stats_bat = avg_stats_bat[['BPD','BPD_ratio','0s_ball','1s_ball','2s_ball','4s_ball','6s_ball','bat_wkt_ball']]
     avg_stats_bat = avg_stats_bat.reset_index()
-    print("batting matrix done")
+    #print("batting matrix done")
 
     avg_stats_bowl = filtered_concat.pivot_table(index=['Pos_bowler'],
                                                  values=['bowler_bb', 'bowl_wkt_ball', '0s_ball', '1s_ball', '2s_ball', '4s_ball', '6s_ball', 'extras_ball'], 
                                                  aggfunc=lambda rows: np.sum(rows * league_stats_concat.loc[rows.index, 'weight']))
-    avg_stats_bowl['BPG'] = avg_stats_bowl['bowler_bb']/(innings*len(target_list))
+    avg_stats_bowl['BPG'] = avg_stats_bowl['bowler_bb']/innings
     avg_stats_bowl['0s_ball'] = avg_stats_bowl['0s_ball']/avg_stats_bowl['bowler_bb']
     avg_stats_bowl['1s_ball'] = avg_stats_bowl['1s_ball']/avg_stats_bowl['bowler_bb']
     avg_stats_bowl['2s_ball'] = avg_stats_bowl['2s_ball']/avg_stats_bowl['bowler_bb']
@@ -931,8 +943,28 @@ def game_matrix(l):
     avg_stats_bowl['bowl_wkt_ball'] = avg_stats_bowl['bowl_wkt_ball']/avg_stats_bowl['bowler_bb']
     avg_stats_bowl = avg_stats_bowl[['BPG','0s_ball','1s_ball','2s_ball','4s_ball','6s_ball','extras_ball','bowl_wkt_ball']]
     avg_stats_bowl = avg_stats_bowl.reset_index()
-    print("bowling matrix done")
+    #print("bowling matrix done")
     
+    return avg_stats_bat, avg_stats_bowl
+
+def venue_league_matrix(l):
+    venues = pd.read_excel(f'{path}/excel/venues.xlsx','Sheet1')
+    people = pd.read_excel(f'{path}/excel/people.xlsx','people')
+    #people = people[['unique_name','bowlType']]
+    
+    if(l in ['tests']): target_list = test_leagues()
+    else: target_list = odi_leagues() + short_leagues() + t20_leagues()
+    
+    league_stats_concat = []
+    for l2 in target_list:
+        sample = league_data(l2)
+        league_stats_concat.append(sample)
+        
+    league_stats_concat = pd.concat(league_stats_concat)
+    league_stats_concat['start_date'] = pd.to_datetime(league_stats_concat['start_date'], format='%Y-%m-%d')
+    #league_stats_concat = league_stats_concat.sort_values(by=['start_date'], ascending=[True])
+    league_stats_concat['weight'] = (datetime.now() - league_stats_concat['start_date']) / (pd.Timedelta(days=1))
+    league_stats_concat['weight'] = pow(.9995,league_stats_concat['weight'])    
     league_stats_concat = league_stats_concat.merge(venues, on=['venue'], how='left')
     league_stats_concat = league_stats_concat.merge(people[['unique_name','bowlType']], left_on=['bowler'], right_on=['unique_name'], how='left')
     league_stats_concat['type'] = league_stats_concat['bowlType'].isin(['Right-arm offbreak','Legbreak googly','Legbreak','Slow left-arm orthodox',
@@ -944,13 +976,13 @@ def game_matrix(l):
                                                                                                    '0s_ball','1s_ball','2s_ball','4s_ball','6s_ball','extras_ball'], aggfunc='sum')
     venue_stats = venue_stats.reset_index()
     
-    venue_stats['r0s'] = (venue_stats['0s_ball']/venue_stats['batter_bf']) / (venue_stats['0s_ball'].sum()/venue_stats['batter_bf'].sum())
-    venue_stats['r1s'] = (venue_stats['1s_ball']/venue_stats['batter_bf']) / (venue_stats['1s_ball'].sum()/venue_stats['batter_bf'].sum())
-    venue_stats['r2s'] = (venue_stats['2s_ball']/venue_stats['batter_bf']) / (venue_stats['2s_ball'].sum()/venue_stats['batter_bf'].sum())
-    venue_stats['r4s'] = (venue_stats['4s_ball']/venue_stats['batter_bf']) / (venue_stats['4s_ball'].sum()/venue_stats['batter_bf'].sum())
-    venue_stats['r6s'] = (venue_stats['6s_ball']/venue_stats['batter_bf']) / (venue_stats['6s_ball'].sum()/venue_stats['batter_bf'].sum())
-    venue_stats['rextras'] = (venue_stats['extras_ball']/venue_stats['bowler_bb']) / (venue_stats['extras_ball'].sum()/venue_stats['bowler_bb'].sum())
-    venue_stats['rwkts'] = (venue_stats['bowl_wkt_ball']/venue_stats['bowler_bb']) / (venue_stats['bowl_wkt_ball'].sum()/venue_stats['bowler_bb'].sum())
+    venue_stats['r0s'] = (venue_stats['0s']/venue_stats['batter_bf']) / (venue_stats['0s'].sum()/venue_stats['batter_bf'].sum())
+    venue_stats['r1s'] = (venue_stats['1s']/venue_stats['batter_bf']) / (venue_stats['1s'].sum()/venue_stats['batter_bf'].sum())
+    venue_stats['r2s'] = (venue_stats['2s']/venue_stats['batter_bf']) / (venue_stats['2s'].sum()/venue_stats['batter_bf'].sum())
+    venue_stats['r4s'] = (venue_stats['4s']/venue_stats['batter_bf']) / (venue_stats['4s'].sum()/venue_stats['batter_bf'].sum())
+    venue_stats['r6s'] = (venue_stats['6s']/venue_stats['batter_bf']) / (venue_stats['6s'].sum()/venue_stats['batter_bf'].sum())
+    venue_stats['rextras'] = (venue_stats['extras']/venue_stats['bowler_bb']) / (venue_stats['extras'].sum()/venue_stats['bowler_bb'].sum())
+    venue_stats['rwkts'] = (venue_stats['wicket_bowler']/venue_stats['bowler_bb']) / (venue_stats['wicket_bowler'].sum()/venue_stats['bowler_bb'].sum())
     #venue_stats['r0s'] = venue_stats['0s']/venue_stats['0s_ball']
     #venue_stats['r1s'] = venue_stats['1s']/venue_stats['1s_ball']
     #venue_stats['r2s'] = venue_stats['2s']/venue_stats['2s_ball']
@@ -969,14 +1001,14 @@ def game_matrix(l):
     bias.columns = ['start_date', 'match_id', 'short', 'pace', 'spin', 'weight', 'weight_copy']
     bias = bias.fillna(0)
     bias['spin_bias'] = bias['spin']/(bias['pace']+bias['spin'])
-    bias['pace_bias'] = bias['pace']/(bias['pace']+bias['spin'])
+    bias['pace_bias'] = bias['pace']/(bias['pace']+bias['spin'])    
     bias = bias.pivot_table(index=['short'], values=['pace_bias','spin_bias'], aggfunc=lambda rows: np.average(rows, weights = bias.loc[rows.index, 'weight']))
     bias = bias.reset_index()
     
     agg_venue_stats = venue_stats.pivot_table(index=['short','type'], values=['bowler_bb','r0s','r1s','r2s','r4s','r6s','rextras','rwkts'], 
                             aggfunc=lambda rows: np.average(rows, weights = venue_stats.loc[rows.index, 'weight']))
     
-    regression_weight = venue_stats['bowler_bb'].mean()/2
+    regression_weight = venue_stats['bowler_bb'].mean()
     
     agg_venue_stats['r0s'] = (agg_venue_stats['r0s']*agg_venue_stats['bowler_bb'] + regression_weight)/(agg_venue_stats['bowler_bb'] + regression_weight)
     agg_venue_stats['r1s'] = (agg_venue_stats['r1s']*agg_venue_stats['bowler_bb'] + regression_weight)/(agg_venue_stats['bowler_bb'] + regression_weight)
@@ -986,7 +1018,7 @@ def game_matrix(l):
     agg_venue_stats['rextras'] = (agg_venue_stats['rextras']*agg_venue_stats['bowler_bb'] + regression_weight)/(agg_venue_stats['bowler_bb'] + regression_weight)
     agg_venue_stats['rwkts'] = (agg_venue_stats['rwkts']*agg_venue_stats['bowler_bb'] + regression_weight)/(agg_venue_stats['bowler_bb'] + regression_weight)
     agg_venue_stats = agg_venue_stats.reset_index()
-    agg_venue_stats = agg_venue_stats.merge(bias, on='short', how='left')
+    agg_venue_stats = agg_venue_stats.merge(bias, on=['short'], how='left')
     agg_venue_stats['bias'] = np.where(agg_venue_stats['type'] == 'pace', agg_venue_stats['pace_bias'], agg_venue_stats['spin_bias'])
     agg_venue_stats = agg_venue_stats[['short','type','bias','r0s','r1s','r2s','r4s','r6s','rextras','rwkts']]
     agg_venue_stats = agg_venue_stats.rename(columns={'short': 'venue'})
@@ -1014,7 +1046,7 @@ def game_matrix(l):
     agg_venue_stats = pd.DataFrame(agg_venue_stats[1:], columns=agg_venue_stats[0])
     """
     print("venue matrix done")
-    return avg_stats_bat, avg_stats_bowl, agg_venue_stats
+    return agg_venue_stats
 
 def match_calculations(lg,df,bat_bowl):
     if(lg in test_leagues()): innings = 2; limit = 225*6
@@ -1136,29 +1168,76 @@ def venues_adj(df, bat_bowl):
     else: df['rBPD'] /= df['v_rwkts']
     return df
 
-def game_sim(lg,t1,t2,venue):
-    if(lg in test_leagues()): sheet_p = 'tests'; sheet_matrix = 'test'; limit = 225*6/5
-    elif(lg in short_leagues()): sheet_p = 'lo'; sheet_matrix = 'hundred'; limit = 100/5
-    elif(lg in odi_leagues()): sheet_p = 'lo'; sheet_matrix = 'odi'; limit = 300/5
-    else: sheet_p = 'lo'; sheet_matrix = 't20'; limit = 120/5
+def sample_with_prob(df, n, prob_col):
+    df_det = df[df[prob_col] == 1]
+
+    k = n - len(df_det)
+    if(k < 0): raise ValueError("More than n rows have probability=1. Impossible to sample n rows.")
+    df_prob = df[df[prob_col] < 1]
+
+    probs = pd.to_numeric(df_prob[prob_col], errors="coerce").fillna(0).to_numpy()
+    if probs.sum() == 0 and k > 0: raise ValueError("Probabilities of non-1 rows sum to zero.")
+    probs = probs / probs.sum()
+
+    chosen_idx = np.random.choice(
+        df_prob.index,
+        size=k,
+        replace=False,
+        p=probs
+    )
+    df_chosen = df_prob.loc[chosen_idx]
+    final = pd.concat([df_det, df_chosen], ignore_index=True)
+    return final
+
+def pick_lineup_probabalistically(lg,df,t):
+    if(lg in ['ipl','ilt']): tot = 12
+    else: tot = 11
+    df = df[df[f'{lg}']==t]
+    sampled_df = df.sample(n=tot, weights='team', replace=False)
+    #sampled_df = sample_with_prob(df, tot, 'team')
+    return sampled_df['player'].to_list()
+
+def game_prelims(lg,t1,t2,venue):
+    if(lg in test_leagues()): sheet_p = 'tests'; sheet_matrix = 'test'; limit = 225*6/5; y = 4
+    elif(lg in short_leagues()): sheet_p = 'lo'; sheet_matrix = 'lo'; limit = 100/5; y = 8
+    elif(lg in odi_leagues()): sheet_p = 'lo'; sheet_matrix = 'lo'; limit = 300/5; y = 5.5
+    else: sheet_p = 'lo'; sheet_matrix = 'lo'; limit = 120/5; y = 7
     
     batter_projections = pd.read_excel(f'{path}/excel/projections.xlsx',f'{sheet_p} batters')
     bowler_projections = pd.read_excel(f'{path}/excel/projections.xlsx',f'{sheet_p} bowlers')
     squads = pd.read_excel(f'{path}/excel/projections.xlsx','squads')
-    bat_matrix = pd.read_excel(f'{path}/excel/matrix.xlsx',f'{sheet_matrix} batting')
-    bowl_matrix = pd.read_excel(f'{path}/excel/matrix.xlsx',f'{sheet_matrix} bowling')
-    venue_matrix = pd.read_excel(f'{path}/excel/matrix.xlsx',f'{sheet_matrix} venues')
+    #squads['team'] = squads['team'].fillna(0)
+    bat_matrix, bowl_matrix = bat_bowl_matrix(lg)
+    #bat_matrix = pd.read_excel(f'{path}/excel/matrix.xlsx',f'{sheet_matrix} batting')
+    #bowl_matrix = pd.read_excel(f'{path}/excel/matrix.xlsx',f'{sheet_matrix} bowling')
+    venue_matrix = pd.read_excel(f'{path}/excel/projections.xlsx',f'{sheet_matrix} venues')
     
-    batter_projections = batter_projections.merge(squads[['player','team']], on=['player'], how='left')
-    bowler_projections = bowler_projections.merge(squads[['player','team']], on=['player'], how='left')
+    batter_projections = batter_projections.merge(squads[['player','team',f'{lg}']], on=['player'], how='left')
+    bowler_projections = bowler_projections.merge(squads[['player','team',f'{lg}']], on=['player'], how='left')
     
+    return lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y
+    
+def game_engine(lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y,print_val):   
     pace_avg = venue_matrix.loc[venue_matrix['type']=='pace','bias'].mean()
     spin_avg = venue_matrix.loc[venue_matrix['type']=='spin','bias'].mean()
     
-    bat_t1 = batter_projections[batter_projections['team']==t1]
-    bowl_t1 = bowler_projections[bowler_projections['team']==t1]
-    bat_t2 = batter_projections[batter_projections['team']==t2]
-    bowl_t2 = bowler_projections[bowler_projections['team']==t2]
+    t1_player_list = pick_lineup_probabalistically(lg,squads,t1)
+    t2_player_list = pick_lineup_probabalistically(lg,squads,t2)
+    
+    batter_projections = batter_projections.drop(columns=['team'])
+    bowler_projections = bowler_projections.drop(columns=['team'])
+    batter_projections = batter_projections.rename(columns={f'{lg}': 'team'})
+    bowler_projections = bowler_projections.rename(columns={f'{lg}': 'team'})
+    
+    bat_t1 = batter_projections[batter_projections['player'].isin(t1_player_list)]
+    bowl_t1 = bowler_projections[bowler_projections['player'].isin(t1_player_list)]
+    bat_t2 = batter_projections[batter_projections['player'].isin(t2_player_list)]
+    bowl_t2 = bowler_projections[bowler_projections['player'].isin(t2_player_list)]
+    
+    #bat_t1 = batter_projections[batter_projections['team']==t1]
+    #bowl_t1 = bowler_projections[bowler_projections['team']==t1]
+    #bat_t2 = batter_projections[batter_projections['team']==t2]
+    #bowl_t2 = bowler_projections[bowler_projections['team']==t2]
 
     bat_t1.loc[bat_t1.index,'Pos'] = bat_t1['Pos'].rank(method='dense', ascending=True)
     bat_t2.loc[bat_t2.index,'Pos'] = bat_t2['Pos'].rank(method='dense', ascending=True)
@@ -1243,25 +1322,119 @@ def game_sim(lg,t1,t2,venue):
     
     bat = bat.sort_values(by=['team','Pos'], ascending=[True,True])
     bowl = bowl.sort_values(by=['team','balls'], ascending=[True,False])
+    bowl = bowl[bowl['balls']>=0.1]
     
     if(lg in test_leagues()): draw = 1/(1+pow(80*(bat['dismissals'].sum()/bat['balls'].sum()),8.5))  #draw formula for tests
     else: draw = 0
     
-    win_t1 = (1-draw)/(1+pow(bowl_t1['runs'].sum()/bowl_t2['runs'].sum(),5.5))
-    win_t2 = (1-draw)/(1+pow(bowl_t2['runs'].sum()/bowl_t1['runs'].sum(),5.5))
+    win_t1 = (1-draw)/(1+pow(bowl_t1['runs'].sum()/bowl_t2['runs'].sum(),y))
+    win_t2 = (1-draw)/(1+pow(bowl_t2['runs'].sum()/bowl_t1['runs'].sum(),y))
+    
+    if(print_val == 1):
+        print()
+        print(t1,"vs",t2)
+        print('Competition -',lg)
+        print("Venue -",venue)
+        print()
+        print(t1,round(bowl_t2['runs'].sum(),1),"/",round(bat_t1['dismissals'].sum(),1),"in",round(bat_t1['balls'].sum(),1),"balls")
+        print(t2,round(bowl_t1['runs'].sum(),1),"/",round(bat_t2['dismissals'].sum(),1),"in",round(bat_t2['balls'].sum(),1),"balls")
+        print()
+        print(t1,round(100*win_t1,2))
+        if(lg in test_leagues()): print("Draw",round(100*draw,2))
+        print(t2,round(100*win_t2,2))
+    
+    game_result = [['t1','t2','venue','t1_win','t2_win','t1_runs','t2_runs','t1_wickets','t2_wickets','t1_balls','t2_balls']]
+    game_result.append([t1,t2,venue,win_t1,win_t2,bowl_t2['runs'].sum(),bowl_t1['runs'].sum(),
+                        bat_t1['dismissals'].sum(),bat_t2['dismissals'].sum(),bat_t1['balls'].sum(),bat_t2['balls'].sum()])
+    
+    game_result = pd.DataFrame(game_result)
+    game_result.columns = game_result.iloc[0];game_result = game_result.drop(0)
+    game_result = game_result.apply(pd.to_numeric, errors='ignore')
+    return bat,bowl,game_result
+
+def game_sim(lg,t1,t2,venue,print_val):
+    lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y = game_prelims(lg,t1,t2,venue)
+    bat,bowl,game_result = game_engine(lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y,print_val)
+    return bat,bowl,game_result
+
+def sample_tournament():
+    from itertools import permutations
+    teams = ['Chennai Super Kings','Delhi Capitals','Gujarat Titans','Kolkata Knight Riders','Lucknow Super Giants','Mumbai Indians',
+             'Punjab Kings','Rajasthan Royals','Royal Challengers Bengaluru','Sunrisers Hyderabad']
+    homes = ['Chepauk','Kotla','Motera','Eden Gardens','Ekana','Wankhede','Mullanpur','Sawai Mansingh','Chinnaswamy','Uppal']
+        
+    fixtures = list(permutations(teams, 2))
+    corresponding_data = [homes[teams.index(p[0])] for p in fixtures]
+    
+    fixtures = pd.DataFrame(fixtures, columns=['t1', 't2'])
+    fixtures['venue'] = corresponding_data
+    
+    bat_t = []; bowl_t = [];results_t = []
+    for f in fixtures.values: 
+        #print(f)
+        batters_f,bowlers_f,result_f = game_sim(league,f[0],f[1],f[2])
+        bat_t.append(batters_f)
+        bowl_t.append(bowlers_f)
+        results_t.append(result_f)
+        
+    results_t = pd.concat(results_t)
+    return bat_t,bowl_t, results_t
+
+def monte_carlo_game_sim(lg,t1,t2,venue,iters):
+    i=1; batters_all = []; bowlers_all = []; result_all = []
+    
+    lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y = game_prelims(lg,t1,t2,venue)
+    while(i<=iters):
+        batters_iter,bowlers_iter,result_iter = game_engine(lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y,0)
+        batters_all.append(batters_iter)
+        bowlers_all.append(bowlers_iter)
+        result_all.append(result_iter)
+        print(f"iteration {i} done")
+        i+=1
+        
+    result_all = pd.concat(result_all)
+    batters_all = pd.concat(batters_all)
+    bowlers_all = pd.concat(bowlers_all)
+    
+    batters_all['lineup'] = 1
+    bowlers_all['lineup'] = 1
+    
+    bp1 = batters_all.pivot_table(index=['player','team','age'],values=['balls','0s','1s','2s','4s','6s','dismissals','runs','lineup'],aggfunc="sum")
+    bp1 = bp1/iters
+    bp2 = batters_all.pivot_table(index=['player','team','age'],values=['Pos'],aggfunc="mean")
+    bp1['Pos'] = bp2['Pos']
+    bp1 = bp1.reset_index()
+    bp1 = bp1[['player', 'team', 'age', 'lineup', 'Pos', 'balls', '0s', '1s', '2s', '4s', '6s', 'dismissals', 'runs']]
+    bp1 = bp1.sort_values(by=['team','runs'], ascending=[True,False])
+    bp1['AVG'] = bp1['runs']/bp1['dismissals']
+    bp1['SR'] = 100*bp1['runs']/bp1['balls']
+    
+    bbp1 = bowlers_all.pivot_table(index=['player','team','age'],values=['balls','0s','1s','2s','4s','6s','extras','wickets','runs','lineup'],aggfunc="sum")
+    bbp1 = bbp1/iters
+    bbp2 = bowlers_all.pivot_table(index=['player','team','age'],values=['Pos_bowler'],aggfunc="mean")
+    bbp1['Pos_bowler'] = bbp2['Pos_bowler']
+    bbp1 = bbp1.reset_index()
+    bbp1 = bbp1[['player', 'team', 'age', 'lineup', 'Pos_bowler', 'balls', '0s', '1s', '2s', '4s', '6s', 'extras', 'wickets', 'runs']]
+    bbp1 = bbp1.sort_values(by=['team','balls'], ascending=[True,False])
+    bbp1['ECON'] = 6*bbp1['runs']/bbp1['balls']
+    bbp1['SR'] = bbp1['balls']/bbp1['wickets']
+    
+    win_t1 = result_all['t1_win'].mean()
+    win_t2 = result_all['t2_win'].mean()
     
     print()
     print(t1,"vs",t2)
     print('Competition -',lg)
     print("Venue -",venue)
     print()
-    print(t1,round(bowl_t2['runs'].sum(),1),"/",round(bat_t1['dismissals'].sum(),1),"in",round(bat_t1['balls'].sum(),1),"balls")
-    print(t2,round(bowl_t1['runs'].sum(),1),"/",round(bat_t2['dismissals'].sum(),1),"in",round(bat_t2['balls'].sum(),1),"balls")
+    print(t1,round(result_all['t1_runs'].mean(),1),"/",round(result_all['t1_wickets'].mean(),1),"in",round(result_all['t1_balls'].mean(),1),"balls")
+    print(t2,round(result_all['t2_runs'].mean(),1),"/",round(result_all['t2_wickets'].mean(),1),"in",round(result_all['t2_balls'].mean(),1),"balls")
     print()
     print(t1,round(100*win_t1,2))
-    if(lg in test_leagues()): print("Draw",round(100*draw,2))
+    if(lg in test_leagues()): print("Draw",round(100*(1-win_t1-win_t2),2))
     print(t2,round(100*win_t2,2))
-    return bat,bowl
+    
+    return bp1,bbp1,result_all
 
 #%% concat raw data files
 concat_game_files('mlc')
@@ -1286,6 +1459,11 @@ league_conversions = [factors_bowler, factors]
 league_scaling = [scale_bowler, scale]
 del scale, scale_bowler, factors_bowler, factors
 
+player_name_changes = player_name_changes()
+batter['striker'] = batter['striker'].map(player_name_changes).fillna(batter['striker'])
+bowler['bowler'] = bowler['bowler'].map(player_name_changes).fillna(bowler['bowler'])
+del player_name_changes
+
 #%% remove everyone who hasnt played in 4 years (to speed up sims)
 batters_alive = batter.groupby('striker')['start_date'].max()
 batters_alive = batters_alive.reset_index()
@@ -1307,8 +1485,10 @@ del batters_alive, bowlers_alive, active_list
 
 #%% get projections
 #kalman_stats_batting(batter,'SP Narine',1)
-batter_projections = kalman_summary(batter.copy(), 1)
 #kalman_stats_bowling(bowler,'SP Narine',1)
+
+batter_projections = kalman_summary(batter.copy(), 1)
+print()
 bowler_projections = kalman_summary(bowler.copy(), 0)
 
 #%% aging applied
@@ -1319,17 +1499,22 @@ adj_bowling_usage = bowling_usage(league,batter,bowler)
 bowler_projections = bowler_projections.merge(adj_bowling_usage, left_on='player', right_on='bowler', how='left')
 bowler_projections = bowler_projections[['player','type','age','Pos_bowler','bowler_bb','rSR','r0s','r1s','r2s','r4s','r6s','rextras']]
 
+batter_projections = batter_projections.drop_duplicates(subset=['player'])
+bowler_projections = bowler_projections.drop_duplicates(subset=['player'])
+
 del batter, bowler, adj_bowling_usage
 
-#%% game level matrix
-bat_matrix, bowl_matrix, venue_matrix = game_matrix(league)
+#%% venue stats derived
+venue_matrix = venue_league_matrix(league)
 
 #%% get team and bio info for players
 squads = squad_info()
-#lineups = active_lineups('t20i')
+#lineups = active_lineups('ipl')
 
 #%% game sims
-#batters,bowlers = game_sim(league,'Australia','Pakistan','Lahore')
-#batters,bowlers = game_sim(league,'South Africa','West Indies','Wanderers')
-#batters,bowlers = game_sim(league,'Sri Lanka','England','Pallekele')
-batters,bowlers = game_sim(league,'India','New Zealand','Greenfield')
+
+#batters,bowlers,result = game_sim(league,'Royal Challengers Bengaluru','Sunrisers Hyderabad','Chinnaswamy',1)
+
+batters,bowlers,result = monte_carlo_game_sim(league,'Kolkata Knight Riders','Chennai Super Kings','Eden Gardens',1000)
+
+#batters,bowlers,result = sample_tournament()
