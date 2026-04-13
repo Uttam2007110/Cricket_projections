@@ -19,7 +19,8 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 league = 'ipl'
-path = 'C:/Users/Subramanya.Ganti/Downloads/Sports/cricket'
+#path = 'C:/Users/Subramanya.Ganti/Downloads/Sports/cricket'
+path = "C:/Users/uttam/Desktop/Sports/cricket"
 
 #%% read files and basic pre processing
 def test_leagues(): l = ['tests','cc','shield','pks']; return l
@@ -1197,7 +1198,7 @@ def pick_lineup_probabalistically(lg,df,t):
     #sampled_df = sample_with_prob(df, tot, 'team')
     return sampled_df['player'].to_list()
 
-def game_prelims(lg,t1,t2,venue):
+def game_prelims(lg):
     if(lg in test_leagues()): sheet_p = 'tests'; sheet_matrix = 'test'; limit = 225*6/5; y = 4
     elif(lg in short_leagues()): sheet_p = 'lo'; sheet_matrix = 'lo'; limit = 100/5; y = 8
     elif(lg in odi_leagues()): sheet_p = 'lo'; sheet_matrix = 'lo'; limit = 300/5; y = 5.5
@@ -1215,7 +1216,7 @@ def game_prelims(lg,t1,t2,venue):
     batter_projections = batter_projections.merge(squads[['player','team',f'{lg}']], on=['player'], how='left')
     bowler_projections = bowler_projections.merge(squads[['player','team',f'{lg}']], on=['player'], how='left')
     
-    return lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y
+    return lg,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y
     
 def game_engine(lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y,print_val):   
     pace_avg = venue_matrix.loc[venue_matrix['type']=='pace','bias'].mean()
@@ -1353,43 +1354,23 @@ def game_engine(lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_
     return bat,bowl,game_result
 
 def game_sim(lg,t1,t2,venue,print_val):
-    lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y = game_prelims(lg,t1,t2,venue)
+    lg,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y = game_prelims(lg)
     bat,bowl,game_result = game_engine(lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y,print_val)
     return bat,bowl,game_result
 
-def sample_tournament():
-    from itertools import permutations
-    teams = ['Chennai Super Kings','Delhi Capitals','Gujarat Titans','Kolkata Knight Riders','Lucknow Super Giants','Mumbai Indians',
-             'Punjab Kings','Rajasthan Royals','Royal Challengers Bengaluru','Sunrisers Hyderabad']
-    homes = ['Chepauk','Kotla','Motera','Eden Gardens','Ekana','Wankhede','Mullanpur','Sawai Mansingh','Chinnaswamy','Uppal']
-        
-    fixtures = list(permutations(teams, 2))
-    corresponding_data = [homes[teams.index(p[0])] for p in fixtures]
-    
-    fixtures = pd.DataFrame(fixtures, columns=['t1', 't2'])
-    fixtures['venue'] = corresponding_data
-    
-    bat_t = []; bowl_t = [];results_t = []
-    for f in fixtures.values: 
-        #print(f)
-        batters_f,bowlers_f,result_f = game_sim(league,f[0],f[1],f[2])
-        bat_t.append(batters_f)
-        bowl_t.append(bowlers_f)
-        results_t.append(result_f)
-        
-    results_t = pd.concat(results_t)
-    return bat_t,bowl_t, results_t
-
 def monte_carlo_game_sim(lg,t1,t2,venue,iters):
-    i=1; batters_all = []; bowlers_all = []; result_all = []
+    lg,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y = game_prelims(lg)
+    bat,bowl,result = monte_carlo_game_engine(lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y,iters)
+    return bat,bowl,result
     
-    lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y = game_prelims(lg,t1,t2,venue)
+def monte_carlo_game_engine(lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y,iters):
+    i=1; batters_all = []; bowlers_all = []; result_all = []
     while(i<=iters):
         batters_iter,bowlers_iter,result_iter = game_engine(lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y,0)
         batters_all.append(batters_iter)
         bowlers_all.append(bowlers_iter)
         result_all.append(result_iter)
-        print(f"iteration {i} done")
+        #print(f"iteration {i} done")
         i+=1
         
     result_all = pd.concat(result_all)
@@ -1399,13 +1380,16 @@ def monte_carlo_game_sim(lg,t1,t2,venue,iters):
     batters_all['lineup'] = 1
     bowlers_all['lineup'] = 1
     
+    result_all = result_all.pivot_table(index=['t1','t2','venue'],values=['t1_win', 't2_win', 't1_runs', 't2_runs','t1_wickets', 't2_wickets', 't1_balls', 't2_balls'], aggfunc="mean")
+    result_all = result_all.reset_index()
+    
     bp1 = batters_all.pivot_table(index=['player','team','age'],values=['balls','0s','1s','2s','4s','6s','dismissals','runs','lineup'],aggfunc="sum")
     bp1 = bp1/iters
     bp2 = batters_all.pivot_table(index=['player','team','age'],values=['Pos'],aggfunc="mean")
     bp1['Pos'] = bp2['Pos']
     bp1 = bp1.reset_index()
     bp1 = bp1[['player', 'team', 'age', 'lineup', 'Pos', 'balls', '0s', '1s', '2s', '4s', '6s', 'dismissals', 'runs']]
-    bp1 = bp1.sort_values(by=['team','runs'], ascending=[True,False])
+    bp1 = bp1.sort_values(by=['team','Pos'], ascending=[True,True])
     bp1['AVG'] = bp1['runs']/bp1['dismissals']
     bp1['SR'] = 100*bp1['runs']/bp1['balls']
     
@@ -1435,6 +1419,61 @@ def monte_carlo_game_sim(lg,t1,t2,venue,iters):
     print(t2,round(100*win_t2,2))
     
     return bp1,bbp1,result_all
+
+def sample_tournament(lg,iters):
+    from itertools import permutations
+    teams = ['Chennai Super Kings','Delhi Capitals','Gujarat Titans','Kolkata Knight Riders','Lucknow Super Giants','Mumbai Indians',
+             'Punjab Kings','Rajasthan Royals','Royal Challengers Bengaluru','Sunrisers Hyderabad']
+    homes = ['Chepauk','Kotla','Motera','Eden Gardens','Ekana','Wankhede','Mullanpur','Sawai Mansingh','Chinnaswamy','Uppal']
+        
+    fixtures = list(permutations(teams, 2))
+    corresponding_data = [homes[teams.index(p[0])] for p in fixtures]
+    
+    fixtures = pd.DataFrame(fixtures, columns=['t1', 't2'])
+    fixtures['venue'] = corresponding_data
+    
+    bat_t = []; bowl_t = [];results_t = []
+    lg,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y = game_prelims(lg)
+    
+    for f in fixtures.values: 
+        #print(f)
+        #batters_f,bowlers_f,result_f = game_sim(league,f[0],f[1],f[2])
+        batters_f,bowlers_f,result_f = monte_carlo_game_engine(lg,f[0],f[1],f[2],batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y,iters)
+        bat_t.append(batters_f)
+        bowl_t.append(bowlers_f)
+        results_t.append(result_f)
+        
+    results_t = pd.concat(results_t)
+    wins = results_t.pivot_table(index=['t1'], values=['t1_balls','t1_runs','t1_wickets','t1_win'],aggfunc="sum")
+    wins2 = results_t.pivot_table(index=['t2'], values=['t2_balls','t2_runs','t2_wickets','t2_win'],aggfunc="sum")
+    wins['t1_balls'] += wins2['t2_balls']
+    wins['t1_runs'] += wins2['t2_runs']
+    wins['t1_wickets'] += wins2['t2_wickets']
+    wins['t1_win'] += wins2['t2_win']
+    #without full schedule reduce from 18 to 14 games
+    wins = wins * 14/18
+    wins = wins.reset_index()
+    wins = wins[['t1','t1_win']]
+    
+    bat_t = pd.concat(bat_t)
+    bat_t = bat_t.pivot_table(index=['player','team','age'], values = ['lineup', 'Pos', 'balls', '0s', '1s', '2s','4s', '6s', 'dismissals', 'runs'], aggfunc = "sum")
+    bat_t *= 14/18
+    bat_t['Pos'] /= 14
+    bat_t = bat_t.reset_index()
+    bat_t = bat_t[['player', 'team', 'age', 'lineup', 'Pos', 'balls', '0s', '1s', '2s', '4s', '6s', 'dismissals', 'runs']]
+    bat_t['AVG'] = bat_t['runs']/bat_t['dismissals']
+    bat_t['SR'] = 100*bat_t['runs']/bat_t['balls']
+    
+    bowl_t = pd.concat(bowl_t)
+    bowl_t = bowl_t.pivot_table(index=['player','team','age'], values = ['lineup', 'Pos_bowler', 'balls', '0s', '1s', '2s', '4s', '6s', 'extras', 'wickets', 'runs'], aggfunc = "sum")
+    bowl_t *= 14/18
+    bowl_t['Pos_bowler'] /= 14
+    bowl_t = bowl_t.reset_index()
+    bowl_t = bowl_t[['player', 'team', 'age', 'lineup', 'Pos_bowler', 'balls', '0s', '1s', '2s', '4s', '6s', 'extras', 'wickets', 'runs']]
+    bowl_t['ECON'] = 6*bowl_t['runs']/bowl_t['balls']
+    bowl_t['SR'] = bowl_t['balls']/bowl_t['wickets']
+    
+    return bat_t, bowl_t, results_t, wins
 
 #%% concat raw data files
 concat_game_files('mlc')
@@ -1515,6 +1554,6 @@ squads = squad_info()
 
 #batters,bowlers,result = game_sim(league,'Royal Challengers Bengaluru','Sunrisers Hyderabad','Chinnaswamy',1)
 
-batters,bowlers,result = monte_carlo_game_sim(league,'Kolkata Knight Riders','Chennai Super Kings','Eden Gardens',1000)
+batters,bowlers,result = monte_carlo_game_sim(league,'Rajasthan Royals','Chennai Super Kings','Barsapara',100)
 
-#batters,bowlers,result = sample_tournament()
+#batters,bowlers,result,table = sample_tournament(league,100)
