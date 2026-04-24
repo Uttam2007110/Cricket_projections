@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Dec 24 16:55:30 2025
-Cricket projections v2
-@author: Uttam Ganti
+Created on Mon Apr 20 17:42:10 2026
+monte carlo cricket projections
+@author: Subramanya.Ganti
 """
+
 #%% imports and read files
 import numpy as np
 import pandas as pd
@@ -13,14 +14,15 @@ from sklearn import linear_model
 from itertools import combinations
 import statsmodels.formula.api as smf
 import glob
+import random
+from datetime import datetime
 
 np.seterr(divide='ignore')
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 league = 'ipl'
-#path = 'C:/Users/Subramanya.Ganti/Downloads/Sports/cricket'
-path = "C:/Users/uttam/Desktop/Sports/cricket"
+path = 'C:/Users/Subramanya.Ganti/Downloads/Sports/cricket'
 
 #%% read files and basic pre processing
 def test_leagues(): l = ['tests','cc','shield','pks']; return l
@@ -39,8 +41,8 @@ def player_name_changes():
     
 def leagues_considered(l):
     if(l in test_leagues()): return test_leagues()
-    else: return (odi_leagues() + short_leagues() + t20_leagues()) 
-
+    else: return (odi_leagues() + short_leagues() + t20_leagues())
+    
 def active_lineups(comp):
     path_files = f"{path}/raw/{comp}"        
     col_names = ["col1", "col2", "team", "player","id"]
@@ -181,12 +183,16 @@ def squad_info():
         if(len(agg) == 0): agg = team
         else: agg = agg.merge(team,how='outer')
        
-    existing = pd.read_excel(f'{path}/excel/projections.xlsx','squads')
-    agg = agg.merge(existing[['player','team']], on='player', how='left')
+    try:
+        existing = pd.read_excel(f'{path}/excel/projections.xlsx','squads')
+        agg = agg.merge(existing[['player','team']], on='player', how='left')
+    except ValueError:
+        agg['team'] = np.nan
+        
     agg = agg[['player','team','tests','odi','t20i','odib','t20ib','ipl','psl','cpl','mlc','sa20','blast','bbl','lpl',
                'ilt','smash','bpl','smat','npl','hundred','cc','shield','pks','rlc','odc']]
     return agg
-    
+
 def league_data(l):
     file = f'{path}/raw/{l}.csv'
     sample = pd.read_csv(file,sep=',',low_memory=False)
@@ -312,7 +318,7 @@ def league_data(l):
     sample = sample.merge(bowl_pos[['match_id','innings','bowling_team','bowler','Pos_bowler']], on=['match_id','innings','bowling_team','bowler'], how='left')
     return sample
 
-def league_conversion_factors(df, leagues, bat_bowl):
+def league_conversion_factors(df, leagues, bat_bowl, btype):
     combos = list(combinations(range(0,len(df)), 2))
     if(bat_bowl == 0): categories = ['rRuns','rWkts','r0s','r1s','r2s','r4s','r6s', 'rextras']; key = 'bowler'; bx = 'bowler_bb_x'; by = 'bowler_bb_y'
     else: categories = ['rRuns','rWkts','r0s','r1s','r2s','r4s','r6s']; key = 'striker'; bx = 'batter_bf_x'; by = 'batter_bf_y'
@@ -326,6 +332,10 @@ def league_conversion_factors(df, leagues, bat_bowl):
         for c in combos:
             from_df = df[c[0]]
             to_df = df[c[1]]
+            
+            #pace or spin
+            from_df = from_df[from_df['type']==btype]
+            to_df = to_df[to_df['type']==btype]
             
             df_from_to = to_df.merge(from_df, on=[key,'season'])
             df_from_to['weighted'] = df_from_to[[bx,by]].min(axis=1)
@@ -362,6 +372,105 @@ def league_conversion_factors(df, leagues, bat_bowl):
     all_eqn = all_eqn.apply(pd.to_numeric, errors='ignore')
     return all_eqn
 
+def extract_all_league_stats(leagues):
+    df_game_stats = []; df_conversion = []
+    df_game_stats_bowl = []; df_conversion_bowl = []
+    player_age = pd.read_excel(f'{path}/excel/people.xlsx','people')
+    player_age = player_age[['unique_name', 'dob', 'batType', 'bowlType']]
+    player_age['type'] = np.where(player_age['bowlType'].isin(['Right-arm offbreak','Legbreak googly','Legbreak','Slow left-arm orthodox',
+                                                                        'Left-arm wrist-spin','Right-arm offbreak (underarm)']), 'spin', 'pace')
+    
+    leagues = leagues_considered('ipl')
+    for l in leagues:
+        sample = league_data(l)
+        sample = sample.merge(player_age[['unique_name', 'type']], left_on='bowler', right_on='unique_name', how='left')
+        
+        batter = sample.pivot_table(index=['striker','batting_team','start_date','type'],values=['batter_bf','runs_off_bat','wicket_bowler','wicket_striker',
+                                                                                          'wicket_non_striker','bat_runs_ball','bat_wkt_ball',
+                                                                                          '0s','1s','2s','4s','6s','0s_ball','1s_ball','2s_ball',
+                                                                                          '4s_ball','6s_ball'],aggfunc='sum')
+        batter = batter.reset_index()
+        batterp = sample.pivot_table(index=['striker','batting_team','start_date'],values=['Pos'],aggfunc='mean')
+        batterp = batterp.reset_index()
+        batter = batter.merge(batterp, on=['striker','batting_team','start_date'], how='left')
+        
+        batter2 = sample.pivot_table(index=['non_striker','batting_team','start_date'],values=['wicket_non_striker'],aggfunc='sum')
+        batter2 = batter2.reset_index()
+        batter2.columns = ['striker','batting_team','start_date','wicket_non_striker']
+        
+        batter = batter.merge(batter2, on=['striker','batting_team','start_date'], how='left')
+        batter = batter.merge(player_age[['unique_name', 'dob']], left_on=['striker'], right_on=['unique_name'], how='left')
+        batter['wicket_non_striker_y'] = batter['wicket_non_striker_y'].fillna(0)
+        batter['dismissals'] = batter['wicket_striker']+batter['wicket_non_striker_y']
+        batter['start_date'] = pd.to_datetime(batter['start_date'], format='%Y-%m-%d')
+        
+        batter['delta'] = datetime.now() - batter['start_date']
+        batter['delta'] = batter['delta'].dt.total_seconds()/(60*60*24)
+        batter['delta'] = pow(.999,batter['delta'])
+        
+        batter['season'] = batter['start_date'].dt.year
+        batter['dob'] = pd.to_datetime(batter['dob'],errors='coerce')
+        batter['age'] = (batter['start_date'] - batter['dob']) / (pd.Timedelta(days=1)*365.25)
+        df_game_stats.append(batter)
+        
+        batter_season = batter.pivot_table(index=['striker','season','type'],values=['bat_runs_ball','bat_wkt_ball','batter_bf','runs_off_bat','dismissals','0s',
+                                                                              '1s','2s','4s','6s','0s_ball','1s_ball','2s_ball','4s_ball','6s_ball'],aggfunc='sum')
+        batter_season = batter_season.reset_index()
+        batter_season2 = batter.pivot_table(index=['striker','season','type'],values=['age'],aggfunc='mean')
+        batter_season2 = batter_season2.reset_index()
+        batter_season['rRuns'] = batter_season['runs_off_bat'] / batter_season['bat_runs_ball']
+        batter_season['r0s'] = batter_season['0s'] / batter_season['0s_ball']
+        batter_season['r1s'] = batter_season['1s'] / batter_season['1s_ball']
+        batter_season['r2s'] = batter_season['2s'] / batter_season['2s_ball']
+        batter_season['r4s'] = batter_season['4s'] / batter_season['4s_ball']
+        batter_season['r6s'] = batter_season['6s'] / batter_season['6s_ball']
+        batter_season['rWkts'] = batter_season['dismissals'] / batter_season['bat_wkt_ball']
+        batter_season = batter_season.merge(batter_season2, on=['striker','season','type'], how='left')
+        df_conversion.append(batter_season)
+        
+        bowler = sample.pivot_table(index=['bowler','bowling_team','start_date','type'],values=['bowler_bb','runs_off_bat','wicket_bowler','bowl_runs_ball',
+                                                                                         'bowl_wkt_ball','0s','1s','2s','4s','6s','0s_ball','1s_ball',
+                                                                                         '2s_ball','4s_ball','6s_ball','extras','extras_ball'],aggfunc='sum')
+        bowler = bowler.reset_index()
+        #bowler['Pos_bowler'] /= bowler['bowler_bb']
+        bowlerp = sample.pivot_table(index=['bowler','bowling_team','start_date'],values=['Pos_bowler'],aggfunc='mean')
+        bowler = bowler.merge(bowlerp, on=['bowler','bowling_team','start_date'], how='left')
+        
+        bowler = bowler.merge(player_age[['unique_name', 'dob']], left_on=['bowler'], right_on=['unique_name'], how='left')
+        bowler['dismissals'] = bowler['wicket_bowler']
+        bowler['start_date'] = pd.to_datetime(bowler['start_date'], format='%Y-%m-%d')
+        
+        bowler['delta'] = datetime.now() - bowler['start_date']
+        bowler['delta'] = bowler['delta'].dt.total_seconds()/(60*60*24)
+        bowler['delta'] = pow(.999,bowler['delta'])
+        
+        bowler['season'] = bowler['start_date'].dt.year
+        bowler['dob'] = pd.to_datetime(bowler['dob'],errors='coerce')
+        bowler['age'] = (bowler['start_date'] - bowler['dob']) / (pd.Timedelta(days=1)*365.25)
+        df_game_stats_bowl.append(bowler)
+        
+        bowler_season = bowler.pivot_table(index=['bowler','season','type'],values=['bowl_runs_ball','bowl_wkt_ball','bowler_bb','runs_off_bat','dismissals','0s',
+                                                                             '1s','2s','4s','6s','0s_ball','1s_ball','2s_ball','4s_ball','6s_ball','extras','extras_ball'],aggfunc='sum')
+        bowler_season = bowler_season.reset_index()
+        bowler_season2 = bowler.pivot_table(index=['bowler','season','type'],values=['age'],aggfunc='mean')
+        bowler_season2 = bowler_season2.reset_index()
+        bowler_season['rRuns'] = (bowler_season['runs_off_bat']+bowler_season['extras']) / bowler_season['bowl_runs_ball']
+        bowler_season['r0s'] = bowler_season['0s'] / bowler_season['0s_ball']
+        bowler_season['r1s'] = bowler_season['1s'] / bowler_season['1s_ball']
+        bowler_season['r2s'] = bowler_season['2s'] / bowler_season['2s_ball']
+        bowler_season['r4s'] = bowler_season['4s'] / bowler_season['4s_ball']
+        bowler_season['r6s'] = bowler_season['6s'] / bowler_season['6s_ball']
+        bowler_season['rextras'] = bowler_season['extras'] / bowler_season['extras_ball']
+        bowler_season['rWkts'] = bowler_season['dismissals'] / bowler_season['bowl_wkt_ball']
+        bowler_season = bowler_season.merge(bowler_season2, on=['bowler','season','type'], how='left')
+        df_conversion_bowl.append(bowler_season)
+        
+    conversions_pace = league_conversion_factors(df_conversion, leagues, 1, 'pace')
+    conversions_spin = league_conversion_factors(df_conversion, leagues, 1, 'spin')
+    conversions_pace_bowl = league_conversion_factors(df_conversion_bowl, leagues, 0, 'pace')
+    conversions_spin_bowl = league_conversion_factors(df_conversion_bowl, leagues, 0, 'spin')
+    return df_game_stats, conversions_pace, conversions_spin, df_game_stats_bowl, conversions_pace_bowl, conversions_spin_bowl
+
 def aging_analysis(df, bat_bowl):
     if(bat_bowl == 0): key = 'bowler'; bx = 'bowler_bb_x'; by = 'bowler_bb_y'
     else: key = 'striker'; bx = 'batter_bf_x'; by = 'batter_bf_y'
@@ -370,6 +479,7 @@ def aging_analysis(df, bat_bowl):
     df['age'] = (pd.to_datetime(df['season'], format='%Y')-df['dob']) / (pd.Timedelta(days=1)*365.25)
     df['age'] = df['age'].apply(np.floor)
     df = df[df['age']<=45]
+    df = df[df['age']>=14]
     df['age'] = df['age'].astype(int)
     
     if(bat_bowl == 0): 
@@ -457,107 +567,21 @@ def aging_analysis(df, bat_bowl):
     final_eqn = final_eqn.apply(pd.to_numeric, errors='ignore')
     return final_eqn
 
-def extract_all_league_stats(leagues):
-    df_game_stats = []; df_conversion = []
-    df_game_stats_bowl = []; df_conversion_bowl = []
-    player_age = pd.read_excel(f'{path}/excel/people.xlsx','people')
-    player_age = player_age[['unique_name', 'dob', 'batType', 'bowlType']]
-    
-    for l in leagues:
-        sample = league_data(l)
-        
-        batter = sample.pivot_table(index=['striker','batting_team','start_date'],values=['batter_bf','runs_off_bat','wicket_bowler','wicket_striker',
-                                                                                          'wicket_non_striker','bat_runs_ball','bat_wkt_ball',
-                                                                                          '0s','1s','2s','4s','6s','0s_ball','1s_ball','2s_ball',
-                                                                                          '4s_ball','6s_ball'],aggfunc='sum')
-        batter = batter.reset_index()
-        #batter['Pos'] /= batter['batter_bf']
-        batterp = sample.pivot_table(index=['striker','batting_team','start_date'],values=['Pos'],aggfunc='mean')
-        batter = batter.merge(batterp, on=['striker','batting_team','start_date'], how='left')
-        
-        batter2 = sample.pivot_table(index=['non_striker','batting_team','start_date'],values=['wicket_non_striker'],aggfunc='sum')
-        batter2 = batter2.reset_index()
-        batter2.columns = ['striker','batting_team','start_date','wicket_non_striker']
-        batter = batter.merge(batter2, on=['striker','batting_team','start_date'], how='left')
-        batter = batter.merge(player_age, left_on=['striker'], right_on=['unique_name'], how='left')
-        batter['wicket_non_striker_y'] = batter['wicket_non_striker_y'].fillna(0)
-        batter['dismissals'] = batter['wicket_striker']+batter['wicket_non_striker_y']
-        batter['start_date'] = pd.to_datetime(batter['start_date'], format='%Y-%m-%d')
-        #batter['delta'] = datetime.now() - batter['start_date']
-        #batter['delta'] = batter['delta'].dt.total_seconds()/(60*60*24)
-        #batter['delta'] = pow(.999,batter['delta'])
-        batter['season'] = batter['start_date'].dt.year
-        batter['dob'] = pd.to_datetime(batter['dob'],errors='coerce')
-        batter['age'] = (batter['start_date'] - batter['dob']) / (pd.Timedelta(days=1)*365.25)
-        df_game_stats.append(batter)
-        
-        batter_season = batter.pivot_table(index=['striker','season'],values=['bat_runs_ball','bat_wkt_ball','batter_bf','runs_off_bat','dismissals','0s',
-                                                                              '1s','2s','4s','6s','0s_ball','1s_ball','2s_ball','4s_ball','6s_ball'],aggfunc='sum')
-        batter_season = batter_season.reset_index()
-        batter_season2 = batter.pivot_table(index=['striker','season'],values=['age'],aggfunc='mean')
-        batter_season2 = batter_season2.reset_index()
-        batter_season['rRuns'] = batter_season['runs_off_bat'] / batter_season['bat_runs_ball']
-        batter_season['r0s'] = batter_season['0s'] / batter_season['0s_ball']
-        batter_season['r1s'] = batter_season['1s'] / batter_season['1s_ball']
-        batter_season['r2s'] = batter_season['2s'] / batter_season['2s_ball']
-        batter_season['r4s'] = batter_season['4s'] / batter_season['4s_ball']
-        batter_season['r6s'] = batter_season['6s'] / batter_season['6s_ball']
-        batter_season['rWkts'] = batter_season['dismissals'] / batter_season['bat_wkt_ball']
-        batter_season = batter_season.merge(batter_season2, on=['striker','season'], how='left')
-        df_conversion.append(batter_season)
-        
-        bowler = sample.pivot_table(index=['bowler','bowling_team','start_date'],values=['bowler_bb','runs_off_bat','wicket_bowler','bowl_runs_ball',
-                                                                                         'bowl_wkt_ball','0s','1s','2s','4s','6s','0s_ball','1s_ball',
-                                                                                         '2s_ball','4s_ball','6s_ball','extras','extras_ball'],aggfunc='sum')
-        bowler = bowler.reset_index()
-        #bowler['Pos_bowler'] /= bowler['bowler_bb']
-        bowlerp = sample.pivot_table(index=['bowler','bowling_team','start_date'],values=['Pos_bowler'],aggfunc='mean')
-        bowler = bowler.merge(bowlerp, on=['bowler','bowling_team','start_date'], how='left')
-        
-        bowler = bowler.merge(player_age, left_on=['bowler'], right_on=['unique_name'], how='left')
-        bowler['dismissals'] = bowler['wicket_bowler']
-        bowler['start_date'] = pd.to_datetime(bowler['start_date'], format='%Y-%m-%d')
-        bowler['season'] = bowler['start_date'].dt.year
-        bowler['dob'] = pd.to_datetime(bowler['dob'],errors='coerce')
-        bowler['age'] = (bowler['start_date'] - bowler['dob']) / (pd.Timedelta(days=1)*365.25)
-        df_game_stats_bowl.append(bowler)
-        
-        bowler_season = bowler.pivot_table(index=['bowler','season'],values=['bowl_runs_ball','bowl_wkt_ball','bowler_bb','runs_off_bat','dismissals','0s',
-                                                                             '1s','2s','4s','6s','0s_ball','1s_ball','2s_ball','4s_ball','6s_ball','extras','extras_ball'],aggfunc='sum')
-        bowler_season = bowler_season.reset_index()
-        bowler_season2 = bowler.pivot_table(index=['bowler','season'],values=['age'],aggfunc='mean')
-        bowler_season2 = bowler_season2.reset_index()
-        bowler_season['rRuns'] = (bowler_season['runs_off_bat']+bowler_season['extras']) / bowler_season['bowl_runs_ball']
-        bowler_season['r0s'] = bowler_season['0s'] / bowler_season['0s_ball']
-        bowler_season['r1s'] = bowler_season['1s'] / bowler_season['1s_ball']
-        bowler_season['r2s'] = bowler_season['2s'] / bowler_season['2s_ball']
-        bowler_season['r4s'] = bowler_season['4s'] / bowler_season['4s_ball']
-        bowler_season['r6s'] = bowler_season['6s'] / bowler_season['6s_ball']
-        bowler_season['rextras'] = bowler_season['extras'] / bowler_season['extras_ball']
-        bowler_season['rWkts'] = bowler_season['dismissals'] / bowler_season['bowl_wkt_ball']
-        bowler_season = bowler_season.merge(bowler_season2, on=['bowler','season'], how='left')
-        df_conversion_bowl.append(bowler_season)
-        
-    conversions = league_conversion_factors(df_conversion, leagues, 1)
-    conversions_bowl = league_conversion_factors(df_conversion_bowl, leagues, 0)
-    #aging = aging_analysis(df_conversion)    
-    return df_game_stats, conversions, df_game_stats_bowl, conversions_bowl
-
-def apply_factors(df_list, df_factors, target, league_list, bat_bowl):
+def apply_factors(df_list, df_factors_pace, df_factors_spin, target, league_list, bat_bowl):
     c=0; df_list_modified = [];
     if(bat_bowl == 0): df_scale = [['league','scaled_balls','scaled_runs','scaled_dismissals', 'scaled_0s','scaled_1s','scaled_2s','scaled_4s','scaled_6s','scaled_extras','matches']]
     else: df_scale = [['league','scaled_balls','scaled_runs','scaled_dismissals', 'scaled_0s','scaled_1s','scaled_2s','scaled_4s','scaled_6s','matches']]
 
     for l in league_list:
         df = df_list[c]
-        df['runs_factor'] = np.exp(df_factors.loc[l] - df_factors.loc[target]).values[0]
-        df['wickets_factor'] = np.exp(df_factors.loc[l] - df_factors.loc[target]).values[1]
-        df['0s_factor'] = np.exp(df_factors.loc[l] - df_factors.loc[target]).values[2]
-        df['1s_factor'] = np.exp(df_factors.loc[l] - df_factors.loc[target]).values[3]
-        df['2s_factor'] = np.exp(df_factors.loc[l] - df_factors.loc[target]).values[4]
-        df['4s_factor'] = np.exp(df_factors.loc[l] - df_factors.loc[target]).values[5]
-        df['6s_factor'] = np.exp(df_factors.loc[l] - df_factors.loc[target]).values[6]
-        if(bat_bowl == 0): df['extras_factor'] = np.exp(df_factors.loc[l] - df_factors.loc[target]).values[7]
+        df['runs_factor'] = np.where(df['type']=='pace', np.exp(df_factors_pace.loc[l] - df_factors_pace.loc[target]).values[0], np.exp(df_factors_spin.loc[l] - df_factors_spin.loc[target]).values[0])
+        df['wickets_factor'] = np.where(df['type']=='pace', np.exp(df_factors_pace.loc[l] - df_factors_pace.loc[target]).values[1], np.exp(df_factors_spin.loc[l] - df_factors_spin.loc[target]).values[1])
+        df['0s_factor'] = np.where(df['type']=='pace', np.exp(df_factors_pace.loc[l] - df_factors_pace.loc[target]).values[2], np.exp(df_factors_spin.loc[l] - df_factors_spin.loc[target]).values[2])
+        df['1s_factor'] = np.where(df['type']=='pace', np.exp(df_factors_pace.loc[l] - df_factors_pace.loc[target]).values[3], np.exp(df_factors_spin.loc[l] - df_factors_spin.loc[target]).values[3])
+        df['2s_factor'] = np.where(df['type']=='pace', np.exp(df_factors_pace.loc[l] - df_factors_pace.loc[target]).values[4], np.exp(df_factors_spin.loc[l] - df_factors_spin.loc[target]).values[4])
+        df['4s_factor'] = np.where(df['type']=='pace', np.exp(df_factors_pace.loc[l] - df_factors_pace.loc[target]).values[5], np.exp(df_factors_spin.loc[l] - df_factors_spin.loc[target]).values[5])
+        df['6s_factor'] = np.where(df['type']=='pace', np.exp(df_factors_pace.loc[l] - df_factors_pace.loc[target]).values[6], np.exp(df_factors_spin.loc[l] - df_factors_spin.loc[target]).values[6])
+        if(bat_bowl == 0): df['extras_factor'] = np.where(df['type']=='pace', np.exp(df_factors_pace.loc[l] - df_factors_pace.loc[target]).values[7], np.exp(df_factors_spin.loc[l] - df_factors_spin.loc[target]).values[7])
         df['league'] = l
         m = pd.read_csv(f'{path}/raw/{l}.csv',sep=',',low_memory=False)
         m = len(m['match_id'].unique())
@@ -634,243 +658,62 @@ def stats_concat(df,df_scale, bat_bowl):
     else: df = df.sort_values(by=['striker', 'start_date'], ascending=[True, True])
     return df
 
-def bowling_usage(lg,df_bat,df_bowl):
-    if(lg in test_leagues()): limit = 225*6/5
-    elif(lg in short_leagues()): limit = 100/5
-    elif(lg in odi_leagues()): limit = 300/5
-    else: limit = 120/5
+def bat_bowl_usage_matrix(lg):
+    if(lg in test_leagues()): l = 'tests'
+    elif(lg in short_leagues()): l = 'hundred'
+    elif(lg in odi_leagues()): l = 'odi'
+    else: l = 't20i'
     
-    bowler_usage = df_bowl[['bowler','bowling_team','start_date','bowler_bb']].merge(df_bat[['striker','batting_team','start_date']], 
-                                                                                    left_on=['bowler','bowling_team','start_date'], 
-                                                                                    right_on=['striker','batting_team','start_date'], how='outer')
-    
-    bowler_usage['bowler'] = bowler_usage['bowler'].fillna(bowler_usage['striker'])
-    bowler_usage['bowler_bb'] = bowler_usage['bowler_bb'].fillna(0)
-    bowler_usage = bowler_usage[['bowler','start_date','bowler_bb']]
-    bowler_usage = bowler_usage.sort_values(by=['bowler','start_date'], ascending=[True,True])
-    
-    adj_usage = [['bowler','bowler_bb']]
-    for n in bowler_usage['bowler'].unique():
-        print(n)
-        try:
-            mean_bb, std_bb = kalman_filtering(bowler_usage,n,'bowler_bb',0)
-            adj_usage.append([n,mean_bb[-1]])
-        except IndexError:
-            adj_usage.append([n,0])
-            
-    adj_usage = pd.DataFrame(adj_usage[1:], columns=adj_usage[0])    
-    adj_usage['bowler_bb'] /= limit
-    return adj_usage
+    sample = league_data(l)
+    sample['start_date'] = pd.to_datetime(sample['start_date'], format='%Y-%m-%d')
+    """
+    bowl_pivot = sample.pivot_table(index=['bowler','start_date'],columns='over',values='ball',aggfunc='count')
+    bowl_pivot = bowl_pivot.reset_index()
+    bowl_pivot['weight'] = datetime.now() - bowl_pivot['start_date']
+    bowl_pivot['weight'] = bowl_pivot['weight'].dt.total_seconds()/(60*60*24)
+    bowl_pivot['weight'] = pow(.999,bowl_pivot['weight'])
+    bowl_pivot = bowl_pivot.fillna(0)
+    bowl_pivot = bowl_pivot.pivot_table(index='bowler', values=range(1,21), aggfunc= lambda rows: np.average(rows, weights = bowl_pivot.loc[rows.index, 'weight']))
+    bowl_pivot = bowl_pivot.div(bowl_pivot.sum(axis=1), axis=0)
+    bowl_pivot = bowl_pivot.fillna(1/20)
+    """
+    sequences = sample[['match_id','innings','over','Pos_bowler']].drop_duplicates()
+    sequences = sequences['Pos_bowler'].to_list()
+    matrix = pd.crosstab(
+        pd.Series(sequences[:-1], name='From'), 
+        pd.Series(sequences[1:], name='To'), 
+        normalize='index'  # Ensures rows sum to 1.0
+    )
+    matrix += 0.01 #verify this
+    np.fill_diagonal(matrix.values, 0)
+    matrix = matrix.div(matrix.sum(axis=1), axis=0)
+    """
+    bat_pivot = sample.pivot_table(index=['striker','start_date'],columns='Pos',values='ball',aggfunc='count')
+    bat_pivot = bat_pivot.reset_index()
+    bat_pivot['weight'] = datetime.now() - bat_pivot['start_date']
+    bat_pivot['weight'] = bat_pivot['weight'].dt.total_seconds()/(60*60*24)
+    bat_pivot['weight'] = pow(.999,bat_pivot['weight'])
+    bat_pivot = bat_pivot.fillna(0)
+    bat_pivot = bat_pivot.pivot_table(index='striker', values=range(1,12), aggfunc= lambda rows: np.average(rows, weights = bat_pivot.loc[rows.index, 'weight']))
+    bat_pivot += 0.1 #check this
+    bat_pivot = bat_pivot.div(bat_pivot.sum(axis=1), axis=0)
+    bat_pivot = bat_pivot.fillna(1/11)
+    """
+    return matrix
 
-def kalman_filtering(df,player,s1,bat_bowl):    
-    if(bat_bowl==1): key = 'striker'#; df = batter
-    elif(bat_bowl==-1): key = 'short'#; df = batter
-    else: key = 'bowler'#; df = bowler
+def mc_steady_state(P):
+    eigenvalues, eigenvectors = np.linalg.eig(P.T)
     
-    if(s1 in ['runs_off_bat','1s','2s','4s','6s'] and bat_bowl == 1): mf = 2
-    elif(s1 in ['runs_off_bat','1s','2s','4s','6s','extras'] and bat_bowl == 0): mf = 1/2
-    elif(s1 in ['dismissals','0s'] and bat_bowl == 1): mf = 1/2
-    elif(s1 in ['dismissals','0s'] and bat_bowl == 0): mf = 2
-    elif(s1 in ['Pos_bowler'] and bat_bowl == 0): mf = np.mean(df[s1])/11
-    else: mf = 1
+    idx = np.argmin(np.abs(eigenvalues - 1))
+    steady_state = np.real(eigenvectors[:, idx])
     
-    kf = KalmanFilter(transition_matrices = [1],
-                      observation_matrices = [1],
-                      initial_state_mean = np.mean(df[s1])/mf,
-                      initial_state_covariance = (1*np.std(df[s1]))**2,
-                      observation_covariance = (1*np.std(df[s1]))**2,
-                      transition_covariance = (.05*np.std(df[s1]))**2)
-    
-    stat = df.loc[df[key]==player,s1]
-    mean, cov = kf.filter(stat.values)
-    mean, std = mean.squeeze(), np.std(cov.squeeze())
-    return mean,std
-
-def kalman_stats_batting(df,player,print_val):
-    t_start = datetime.now()
-    mean_age, std_age = kalman_filtering(df,player,'age',1)
-    mean_pos, std_pos = kalman_filtering(df,player,'Pos',1)
-    mean_bf, std_bf = kalman_filtering(df,player,'batter_bf',1)
-    #mean_runs, std_runs = kalman_filtering(df,player,'runs_off_bat',1)
-    #mean_xruns, std_xruns = kalman_filtering(df,player,'bat_runs_ball',1)
-    mean_dismissals, std_dismissals = kalman_filtering(df,player,'dismissals',1)
-    mean_xdismissals, std_xdismissals = kalman_filtering(df,player,'bat_wkt_ball',1)
-    
-    mean_0s, std_0s = kalman_filtering(df,player,'0s',1)
-    mean_x0s, std_x0s = kalman_filtering(df,player,'0s_ball',1)
-    mean_1s, std_1s = kalman_filtering(df,player,'1s',1)
-    mean_x1s, std_x1s = kalman_filtering(df,player,'1s_ball',1)
-    mean_2s, std_2s = kalman_filtering(df,player,'2s',1)
-    mean_x2s, std_x2s = kalman_filtering(df,player,'2s_ball',1)
-    mean_4s, std_4s = kalman_filtering(df,player,'4s',1)
-    mean_x4s, std_x4s = kalman_filtering(df,player,'4s_ball',1)
-    mean_6s, std_6s = kalman_filtering(df,player,'6s',1)
-    mean_x6s, std_x6s = kalman_filtering(df,player,'6s_ball',1)
-    
-    try:
-        age = mean_age[-1]
-        pos = mean_pos[-1]
-        
-        mean_runs = mean_1s[-1] + 2*mean_2s[-1] + 4*mean_4s[-1] + 6*mean_6s[-1]
-        mean_xruns = mean_x1s[-1] + 2*mean_x2s[-1] + 4*mean_x4s[-1] + 6*mean_x6s[-1]
-        #mean_0s = mean_bf[-1]*(1 - (mean_1s[-1] + mean_2s[-1] + mean_4s[-1] + mean_6s[-1]))
-        #mean_x0s = mean_bf[-1]*(1 - (mean_x1s[-1] + mean_x2s[-1] + mean_x4s[-1] + mean_x6s[-1]))
-        
-        avg = mean_runs/mean_dismissals[-1]
-        xavg = mean_xruns/mean_xdismissals[-1]
-        sr = 100*mean_runs/mean_bf[-1]
-        xsr = 100*mean_xruns/mean_bf[-1]
-        bpd = mean_bf[-1]/mean_dismissals[-1]
-        xbpd = mean_bf[-1]/mean_xdismissals[-1]
-        
-        r0s = mean_0s[-1]/mean_x0s[-1]
-        r1s = mean_1s[-1]/mean_x1s[-1]
-        r2s = mean_2s[-1]/mean_x2s[-1]
-        r4s = mean_4s[-1]/mean_x4s[-1]
-        r6s = mean_6s[-1]/mean_x6s[-1]
-        
-    except IndexError:
-        age = mean_age.item()
-        pos = mean_pos.item()
-        
-        mean_runs = mean_1s.item() + 2*mean_2s.item() + 4*mean_4s.item() + 6*mean_6s.item()
-        mean_xruns = mean_x1s.item() + 2*mean_x2s.item() + 4*mean_x4s.item() + 6*mean_x6s.item()
-        #mean_0s = mean_bf[-1]*(1 - (mean_1s[-1] + mean_2s[-1] + mean_4s[-1] + mean_6s[-1]))
-        #mean_x0s = mean_bf[-1]*(1 - (mean_x1s[-1] + mean_x2s[-1] + mean_x4s[-1] + mean_x6s[-1]))
-        
-        avg = mean_runs/mean_dismissals.item()
-        xavg = mean_xruns/mean_xdismissals.item()
-        sr = 100*mean_runs/mean_bf.item()
-        xsr = 100*mean_xruns/mean_bf.item()
-        bpd = mean_bf.item()/mean_dismissals.item()
-        xbpd = mean_bf.item()/mean_xdismissals.item()
-        
-        r0s = mean_0s.item()/mean_x0s.item()
-        r1s = mean_1s.item()/mean_x1s.item()
-        r2s = mean_2s.item()/mean_x2s.item()
-        r4s = mean_4s.item()/mean_x4s.item()
-        r6s = mean_6s.item()/mean_x6s.item()
-    
-    t_end = datetime.now()
-    if(print_val==1):
-        print(player,age)
-        print("rAVG",avg/xavg)
-        print("rSR",sr/xsr)
-        print("rBPD",bpd/xbpd)
-        print()
-        print("AVG",avg)
-        print("xAVG",xavg)
-        print("SR",sr)
-        print("xSR",xsr)
-        print("BPD",bpd)
-        print("xBPD",xbpd)
-        print()
-        print('time',(t_end-t_start).total_seconds())
-    else:
-        print(player, (t_end-t_start).total_seconds())
-        return [player,age,pos,avg/xavg,sr/xsr,bpd/xbpd,avg,xavg,sr,xsr,bpd,xbpd,r0s,r1s,r2s,r4s,r6s]
-    
-def kalman_stats_bowling(df,player,print_val):
-    t_start = datetime.now()
-    mean_age, std_age = kalman_filtering(df,player,'age',0)
-    mean_pos, std_pos = kalman_filtering(df,player,'Pos_bowler',0)
-    
-    mean_bf, std_bf = kalman_filtering(df,player,'bowler_bb',0)
-    mean_runs, std_runs = kalman_filtering(df,player,'runs_off_bat',0)
-    mean_xruns, std_xruns = kalman_filtering(df,player,'bowl_runs_ball',0)
-    mean_dismissals, std_runs = kalman_filtering(df,player,'dismissals',0)
-    mean_xdismissals, std_xruns = kalman_filtering(df,player,'bowl_wkt_ball',0)
-    
-    mean_0s, std_0s = kalman_filtering(df,player,'0s',0)
-    mean_x0s, std_x0s = kalman_filtering(df,player,'0s_ball',0)
-    mean_1s, std_1s = kalman_filtering(df,player,'1s',0)
-    mean_x1s, std_x1s = kalman_filtering(df,player,'1s_ball',0)
-    mean_2s, std_2s = kalman_filtering(df,player,'2s',0)
-    mean_x2s, std_x2s = kalman_filtering(df,player,'2s_ball',0)
-    mean_4s, std_4s = kalman_filtering(df,player,'4s',0)
-    mean_x4s, std_x4s = kalman_filtering(df,player,'4s_ball',0)
-    mean_6s, std_6s = kalman_filtering(df,player,'6s',0)
-    mean_x6s, std_x6s = kalman_filtering(df,player,'6s_ball',0)
-    mean_extras, std_extras = kalman_filtering(df,player,'extras',0)
-    mean_xextras, std_xextras = kalman_filtering(df,player,'extras_ball',0)
-    
-    try:
-        age = mean_age[-1]
-        pos = mean_pos[-1]
-        avg = (mean_runs[-1]+mean_extras[-1])/mean_dismissals[-1]
-        xavg = mean_xruns[-1]/mean_xdismissals[-1]
-        sr = mean_bf[-1]/mean_dismissals[-1]
-        xsr = mean_bf[-1]/mean_xdismissals[-1]
-        econ = 6*(mean_runs[-1]+mean_extras[-1])/mean_bf[-1]
-        xecon = 6*mean_xruns[-1]/mean_bf[-1]
-        
-        r0s = mean_0s[-1]/mean_x0s[-1]
-        r1s = mean_1s[-1]/mean_x1s[-1]
-        r2s = mean_2s[-1]/mean_x2s[-1]
-        r4s = mean_4s[-1]/mean_x4s[-1]
-        r6s = mean_6s[-1]/mean_x6s[-1]
-        rextras = mean_extras[-1]/mean_xextras[-1]
-        
-    except IndexError:
-        age = mean_age.item()
-        pos = mean_pos.item()
-        avg = (mean_runs.item()+mean_extras.item())/mean_dismissals.item()
-        xavg = mean_xruns.item()/mean_xdismissals.item()
-        sr = mean_bf.item()/mean_dismissals.item()
-        xsr = mean_bf.item()/mean_xdismissals.item()
-        econ = 6*(mean_runs.item()+mean_extras.item())/mean_bf.item()
-        xecon = 6*mean_xruns.item()/mean_bf.item()
-        
-        r0s = mean_0s.item()/mean_x0s.item()
-        r1s = mean_1s.item()/mean_x1s.item()
-        r2s = mean_2s.item()/mean_x2s.item()
-        r4s = mean_4s.item()/mean_x4s.item()
-        r6s = mean_6s.item()/mean_x6s.item()
-        rextras = mean_extras.item()/mean_xextras.item()
-    
-    t_end = datetime.now()
-    if(print_val==1):
-        print(player)
-        print("rAVG",avg/xavg)
-        print("rSR",sr/xsr)
-        print("rECON",econ/xecon)
-        print()
-        print("AVG",avg)
-        print("xAVG",xavg)
-        print("SR",sr)
-        print("xSR",xsr)
-        print("ECON",econ)
-        print("xECON",xecon)
-        print('time',(t_end-t_start).total_seconds())
-    else:
-        print(player, (t_end-t_start).total_seconds())
-        return [player,age,pos,avg/xavg,sr/xsr,econ/xecon,avg,xavg,sr,xsr,econ,xecon,r0s,r1s,r2s,r4s,r6s,rextras]
-
-def kalman_summary(df, bat_bowl):
-    if(bat_bowl == 0): 
-        summary = [['player','w_age','Pos_bowler','rAVG','rSR','rECON','AVG','xAVG','SR','xSR','ECON','xECON','r0s','r1s','r2s','r4s','r6s','rextras']]
-        key = 'bowler'
-        typebowl = df[['bowler','bowlType']].drop_duplicates()
-        typebowl['type'] = typebowl['bowlType'].isin(['Right-arm offbreak','Legbreak googly','Legbreak','Slow left-arm orthodox',
-                                                      'Left-arm wrist-spin','Right-arm offbreak (underarm)'])
-        typebowl['type'] = typebowl['type'].replace({True: 'spin', False: 'pace'})
-    else: 
-        summary = [['player','w_age','Pos','rAVG','rSR','rBPD','AVG','xAVG','SR','xSR','BPD','xBPD','r0s','r1s','r2s','r4s','r6s']]
-        key = 'striker'
-    
-    for n in df[key].unique():
-        try: 
-            if(bat_bowl == 1): summary.append(kalman_stats_batting(df,n,0))
-            else: summary.append(kalman_stats_bowling(df,n,0))
-        except: summary
-        
-    summary = pd.DataFrame(summary[1:], columns=summary[0])
-    if(bat_bowl == 0): summary = summary.merge(typebowl, left_on='player', right_on='bowler', how='left')
-    return summary
+    steady_state = steady_state / steady_state.sum()
+    #print(steady_state)
+    return steady_state
 
 def apply_aging_factors(df,af,df_full,bat_bowl):
-    if(bat_bowl == 0): key = 'bowler'
-    else: key = 'striker'
+    if(bat_bowl == 0): key = 'player'
+    else: key = 'player'
         
     dob = df_full[[key,'dob']].drop_duplicates()
     dob['age'] = (datetime.now()-dob['dob']) / (pd.Timedelta(days=1)*365.25)
@@ -890,63 +733,123 @@ def apply_aging_factors(df,af,df_full,bat_bowl):
     if(bat_bowl == 0):
         df['rextras'] *= df['rextras_aging']
         df['rSR'] /= df['rWkts_aging']
-        df = df[['player','type','age','Pos_bowler','rSR','r0s', 'r1s', 'r2s', 'r4s', 'r6s', 'rextras']]
+        df = df[['player','type','age','Pos_bowler','Pos_bowler_std','rSR','r0s', 'r1s', 'r2s', 'r4s', 'r6s', 'rextras']]
     else:
         df['rBPD'] /= df['rWkts_aging']
-        df = df[['player','age','Pos','rBPD','r0s', 'r1s', 'r2s', 'r4s', 'r6s']]
+        df = df[['player','type','age','Pos','Pos_std','rBPD','r0s', 'r1s', 'r2s', 'r4s', 'r6s']]
     return df
 
-def bat_bowl_matrix(l):    
-    league_stats_concat = league_data(l)
-    """
-    if(l in ['odi','t20i']):
-        league_stats_concat = league_stats_concat[league_stats_concat['batting_team'].isin(['Australia','England','South Africa','India','West Indies',
-                                                                                            'Sri Lanka','New Zealand','Bangladesh','Pakistan','Afghanistan'])]
-        league_stats_concat = league_stats_concat[league_stats_concat['bowling_team'].isin(['Australia','England','South Africa','India','West Indies',
-                                                                                            'Sri Lanka','New Zealand','Bangladesh','Pakistan','Afghanistan'])]
-    """
-    league_stats_concat['start_date'] = pd.to_datetime(league_stats_concat['start_date'], format='%Y-%m-%d')
-    #league_stats_concat = league_stats_concat.sort_values(by=['start_date'], ascending=[True])
-    league_stats_concat['weight'] = (datetime.now() - league_stats_concat['start_date']) / (pd.Timedelta(days=1))
-    league_stats_concat['weight'] = pow(.9995,league_stats_concat['weight'])
-    innings = league_stats_concat.drop_duplicates(subset = 'match_id')['weight'].sum() #'innings'
+def player_projections(df,bat_bowl,full_player_list):    
+    if(bat_bowl == 1):
+        columns = ['0s', '0s_ball', '1s', '1s_ball', '2s', '2s_ball', '4s', '4s_ball', '6s', '6s_ball', 
+                   'bat_runs_ball', 'bat_wkt_ball', 'batter_bf', 'runs_off_bat', 'wicket_striker','wicket_non_striker_y']
+        df.rename(columns={'striker': 'player'}, inplace=True)
+    else:
+        columns = ['0s', '0s_ball', '1s', '1s_ball', '2s', '2s_ball', '4s', '4s_ball', '6s', '6s_ball', 'extras', 'extras_ball',
+                   'bowl_runs_ball', 'bowl_wkt_ball', 'bowler_bb', 'runs_off_bat', 'wicket_bowler']
+        df.rename(columns={'bowler': 'player'}, inplace=True)
+        
+    df_projection = df.copy()
+    for c in columns:
+        df_projection[c] *= df_projection['delta']
+        
+    df_projection = df_projection.pivot_table(index=['player','type'],values=columns,aggfunc="sum")
+    df_replacement = df_projection.sum()
     
-    if(l == 'tests'): filtered_concat = league_stats_concat
-    else: filtered_concat = league_stats_concat[league_stats_concat['innings']==1]
+    if(bat_bowl == 1): df_replacement *= 100/df_replacement['batter_bf'].sum()
+    else: df_replacement *= 100/df_replacement['bowler_bb'].sum()
     
-    avg_stats_bat = filtered_concat.pivot_table(index=['Pos'],
-                                                values=['batter_bf', 'bat_wkt_ball', '0s_ball', '1s_ball', '2s_ball', '4s_ball', '6s_ball'],
-                                                aggfunc=lambda rows: np.sum(rows * league_stats_concat.loc[rows.index, 'weight']))
-    
-    avg_stats_bat['BPG'] = avg_stats_bat['batter_bf']/innings
-    avg_stats_bat['BPD'] = avg_stats_bat['batter_bf']/avg_stats_bat['bat_wkt_ball']
-    avg_stats_bat['BPD_ratio'] = avg_stats_bat['BPG']/avg_stats_bat['BPD']
-    avg_stats_bat['0s_ball'] = avg_stats_bat['0s_ball']/avg_stats_bat['batter_bf']
-    avg_stats_bat['1s_ball'] = avg_stats_bat['1s_ball']/avg_stats_bat['batter_bf']
-    avg_stats_bat['2s_ball'] = avg_stats_bat['2s_ball']/avg_stats_bat['batter_bf']
-    avg_stats_bat['4s_ball'] = avg_stats_bat['4s_ball']/avg_stats_bat['batter_bf']
-    avg_stats_bat['6s_ball'] = avg_stats_bat['6s_ball']/avg_stats_bat['batter_bf']
-    avg_stats_bat['bat_wkt_ball'] = avg_stats_bat['bat_wkt_ball']/avg_stats_bat['batter_bf']
-    avg_stats_bat = avg_stats_bat[['BPD','BPD_ratio','0s_ball','1s_ball','2s_ball','4s_ball','6s_ball','bat_wkt_ball']]
-    avg_stats_bat = avg_stats_bat.reset_index()
-    #print("batting matrix done")
+    df_projection += df_replacement
+    if(bat_bowl == 1): df_projection['RAA/ball'] = (df_projection['runs_off_bat']-df_projection['bat_runs_ball'])/df_projection['batter_bf']
+    else: df_projection['RAA/ball'] = (df_projection['runs_off_bat']+df_projection['extras']-df_projection['bowl_runs_ball'])/df_projection['bowler_bb']
 
-    avg_stats_bowl = filtered_concat.pivot_table(index=['Pos_bowler'],
-                                                 values=['bowler_bb', 'bowl_wkt_ball', '0s_ball', '1s_ball', '2s_ball', '4s_ball', '6s_ball', 'extras_ball'], 
-                                                 aggfunc=lambda rows: np.sum(rows * league_stats_concat.loc[rows.index, 'weight']))
-    avg_stats_bowl['BPG'] = avg_stats_bowl['bowler_bb']/innings
-    avg_stats_bowl['0s_ball'] = avg_stats_bowl['0s_ball']/avg_stats_bowl['bowler_bb']
-    avg_stats_bowl['1s_ball'] = avg_stats_bowl['1s_ball']/avg_stats_bowl['bowler_bb']
-    avg_stats_bowl['2s_ball'] = avg_stats_bowl['2s_ball']/avg_stats_bowl['bowler_bb']
-    avg_stats_bowl['4s_ball'] = avg_stats_bowl['4s_ball']/avg_stats_bowl['bowler_bb']
-    avg_stats_bowl['6s_ball'] = avg_stats_bowl['6s_ball']/avg_stats_bowl['bowler_bb']
-    avg_stats_bowl['extras_ball'] = avg_stats_bowl['extras_ball']/avg_stats_bowl['bowler_bb']
-    avg_stats_bowl['bowl_wkt_ball'] = avg_stats_bowl['bowl_wkt_ball']/avg_stats_bowl['bowler_bb']
-    avg_stats_bowl = avg_stats_bowl[['BPG','0s_ball','1s_ball','2s_ball','4s_ball','6s_ball','extras_ball','bowl_wkt_ball']]
-    avg_stats_bowl = avg_stats_bowl.reset_index()
-    #print("bowling matrix done")
+    df_projection['r0s'] = df_projection['0s']/df_projection['0s_ball']
+    df_projection['r1s'] = df_projection['1s']/df_projection['1s_ball']
+    df_projection['r2s'] = df_projection['2s']/df_projection['2s_ball']
+    df_projection['r4s'] = df_projection['4s']/df_projection['4s_ball']
+    df_projection['r6s'] = df_projection['6s']/df_projection['6s_ball']
+    if(bat_bowl == 1): 
+        df_projection['rBPD'] = df_projection['bat_wkt_ball']/(df_projection['wicket_striker']+df_projection['wicket_non_striker_y'])
+    else:
+        df_projection['rextras'] = df_projection['extras']/df_projection['extras_ball']
+        df_projection['rSR'] = df_projection['bowl_wkt_ball']/df_projection['wicket_bowler']
+        
+    df_projection = df_projection.reset_index()
+    df['age'] = df['age'].fillna(28)
     
-    return avg_stats_bat, avg_stats_bowl
+    if(bat_bowl == 1): key = 'Pos'
+    else: key = 'Pos_bowler'
+    
+    df_age = df[['player','age',key,'delta']].drop_duplicates()
+    df_age['age_sum'] = df['age'] * df['delta']
+    df_age['Pos_sum'] = df[key] * df['delta']
+    df_agep = df_age.pivot_table(index=['player'],values=['age_sum','Pos_sum','delta'],aggfunc="sum")
+    df_agep['w_age'] = df_agep['age_sum']/df_agep['delta']
+    df_agep[key] = df_agep['Pos_sum']/df_agep['delta']
+    df_agep = df_agep.reset_index()
+
+    df_ages = df_age.pivot_table(index=['player'],values=[key],aggfunc="std")
+    df_ages[f'{key}_std'] = df_ages[key]
+    df_ages[f'{key}_std'] = df_ages[f'{key}_std'].fillna(0)
+    df_ages[f'{key}_std'] += 0.25
+    df_ages = df_ages.reset_index()
+
+    df_projection = df_projection.merge(df_agep[['player','w_age',key]],on='player',how='left')
+    df_projection = df_projection.merge(df_ages[['player',f'{key}_std']],on='player',how='left')
+    
+    if(bat_bowl == 1):
+        df_projection_full = pd.DataFrame(columns = ['player','type'])
+        df_projection_full['player'] = full_player_list*2
+        df_projection_full['type'] = ['pace'] * len(full_player_list) + ['spin'] * len(full_player_list)
+        df_projection_full = df_projection_full.merge(df_projection, on=['player','type'], how='left')
+        
+        df_projection_full[df_replacement.index] = df_projection_full[df_replacement.index].fillna(df_replacement)
+        df_projection_full['r0s'] = df_projection_full['0s']/df_projection_full['0s_ball']
+        df_projection_full['r1s'] = df_projection_full['1s']/df_projection_full['1s_ball']
+        df_projection_full['r2s'] = df_projection_full['2s']/df_projection_full['2s_ball']
+        df_projection_full['r4s'] = df_projection_full['4s']/df_projection_full['4s_ball']
+        df_projection_full['r6s'] = df_projection_full['6s']/df_projection_full['6s_ball']
+        df_projection_full['rBPD'] = df_projection_full['bat_wkt_ball']/(df_projection_full['wicket_striker']+df_projection_full['wicket_non_striker_y'])
+        df_projection_full['Pos'] = df_projection_full['Pos'].fillna(11)
+        df_projection_full['w_age'] = df_projection_full['w_age'].fillna(28)
+        df_projection_full['Pos_std'] = df_projection_full['Pos_std'].fillna(0.25)
+        
+        pos_ex = df_projection_full.pivot_table(index='player',values='Pos',aggfunc='mean')
+        pos_ex = pos_ex.reset_index()
+        df_projection_full = df_projection_full.drop(columns=['Pos'])
+        df_projection_full = df_projection_full.merge(pos_ex, on='player', how='left')
+        
+        df_projection = df_projection_full.copy()
+        
+    return df_projection
+
+def bowling_usage(lg,df_bat,df_bowl):
+    if(lg in test_leagues()): limit = 225*6
+    elif(lg in short_leagues()): limit = 100
+    elif(lg in odi_leagues()): limit = 300
+    else: limit = 120
+    
+    bowler_usage = df_bowl[['player','bowling_team','start_date','bowler_bb','delta']].merge(df_bat[['player','batting_team','start_date','delta']], 
+                                                                                    left_on=['player','bowling_team','start_date'], 
+                                                                                    right_on=['player','batting_team','start_date'], how='outer')
+    
+    bowler_usage['player'] = bowler_usage['player'].fillna(bowler_usage['player'])
+    bowler_usage['delta'] = bowler_usage['delta_x'].fillna(bowler_usage['delta_y'])
+    bowler_usage['bowler_bb'] = bowler_usage['bowler_bb'].fillna(0)
+    bowler_usage = bowler_usage[['player','start_date','bowler_bb','delta']]
+    bowler_usage = bowler_usage.sort_values(by=['player','start_date'], ascending=[True,True])
+    bowler_usage = bowler_usage.drop_duplicates()
+    bowler_usage['bowler_bb'] = bowler_usage['bowler_bb'] * bowler_usage['delta']
+    
+    adj_usage = bowler_usage.pivot_table(index='player',values=['delta','bowler_bb'],aggfunc="sum")
+    adj_usage['usage'] = adj_usage['bowler_bb']/adj_usage['delta']   
+    adj_usage['usage'] /= limit
+    if(limit != 225*6): adj_usage['usage'] = adj_usage['usage'].clip(upper=0.2)
+    else: adj_usage['usage'] = adj_usage['usage'].clip(upper=1)
+    adj_usage = adj_usage.reset_index()
+    adj_usage = adj_usage[['player','usage']]
+    
+    return adj_usage
 
 def venue_league_matrix(l):
     venues = pd.read_excel(f'{path}/excel/venues.xlsx','Sheet1')
@@ -1049,511 +952,704 @@ def venue_league_matrix(l):
     print("venue matrix done")
     return agg_venue_stats
 
-def match_calculations(lg,df,bat_bowl):
-    if(lg in test_leagues()): innings = 2; limit = 225*6
-    elif(lg in short_leagues()): innings = 1; limit = 100/5
-    elif(lg in odi_leagues()): innings = 1; limit = 300/5
-    else: innings = 1; limit = 120/5
+def comp_matrix(league):
+    sample = league_data(league)
     
-    if(bat_bowl == 1): df['balls'] = df['rBPD'] * df['BPD'] * df['BPD_ratio'] * innings
-    else: 
-        df['balls'] = df['rballs'] * df['BPG'] * innings
-        df['excess'] = df['balls'] - limit
-        df.loc[df['excess'] < 0, 'excess'] = 0
-        df['balls'] -= 2*df['excess']  
-        excess = df['excess'].sum()
-        df['balls'] += excess/len(df) 
+    sample['start_date'] = pd.to_datetime(sample['start_date'], format='%Y-%m-%d')
+    sample['delta'] = datetime.now() - sample['start_date']
+    sample['delta'] = sample['delta'].dt.total_seconds()/(60*60*24)
+    sample['delta'] = pow(.999,sample['delta'])
     
-    df['0s'] = df['r0s'] * df['balls'] * df['0s_ball']
-    df['1s'] = df['r1s'] * df['balls'] * df['1s_ball']
-    df['2s'] = df['r2s'] * df['balls'] * df['2s_ball']
-    df['4s'] = df['r4s'] * df['balls'] * df['4s_ball']
-    df['6s'] = df['r6s'] * df['balls'] * df['6s_ball']
-    if(bat_bowl == 1):
-        if(lg not in test_leagues()): wkt_adj = 5*limit/df['balls'].sum()
-        else: wkt_adj = 1 
-        
-        df['dismissals'] = wkt_adj * df['balls'] * df['bat_wkt_ball'] / df['rBPD']
-        if(df['dismissals'].sum() >= innings*10): df['dismissals'] *= (innings*10)/(df['dismissals'].sum())
-    else:
-        if(lg not in test_leagues()): wkt_adj = 5*limit/df['balls'].sum()
-        else: wkt_adj = 1 
-            
-        df['extras'] = df['rextras'] * df['balls'] * df['extras_ball']
-        df['wickets'] = wkt_adj * df['balls'] * df['bowl_wkt_ball'] / df['rSR']
-        if(df['wickets'].sum() >= innings*10*0.95): df['wickets'] *= (innings*10*0.95)/(df['wickets'].sum())
-        
-    if(bat_bowl == 0): df['runs'] = df['1s'] + 2*df['2s'] + 4*df['4s'] + 6*df['6s'] + df['extras']
-    else: df['runs'] = df['1s'] + 2*df['2s'] + 4*df['4s'] + 6*df['6s']
+    columns = ['0s_ball','1s_ball','2s_ball','4s_ball','6s_ball','extras_ball','bowl_wkt_ball','bat_wkt_ball']
+    for c in columns:
+        sample[c] *= sample['delta']
     
-    if(bat_bowl == 1): df = df[['player', 'team', 'age', 'Pos', 'balls', '0s', '1s', '2s', '4s', '6s', 'dismissals', 'runs']]
-    else: 
-        df = df[['player', 'team', 'age', 'type', 'Pos_bowler', 'balls', '0s', '1s', '2s', '4s', '6s', 'extras', 'wickets', 'runs']]
-        #df['ECON'] = 6*df['runs']/df['balls']
+    sample_pivot = sample.pivot_table(index='over',values=columns+['delta'], aggfunc='mean')
+    for c in columns:
+        sample_pivot[c] /= sample_pivot['delta']
+    return sample_pivot
+
+def randomize_pos(df,bat_bowl):
+    if(bat_bowl == 1): key = 'Pos'; f=1
+    else: key = 'Pos_bowler'; f=1
+    
+    df[key] += (2*np.random.rand(*df[key].shape)-1)*df[f'{key}_std']*f
+    df = df.sort_values(by=key)
+    df[key] = range(1, len(df) + 1)
     return df
 
-def balance(lg,bat,bowl):
-    if(lg in test_leagues()): limit = 225*6
-    elif(lg in short_leagues()): limit = 100
-    elif(lg in odi_leagues()): limit = 300
-    else: limit = 120
+def mc_game_engine(t1_name,t2_name,venue,t1_bat,t1_bowl,t2_bat,t2_bowl,full_bowl_matrix,print_val):
+    #t1_name = 'SRH'
+    #t2_name = 'RCB'
+    #venue = 'Uppal'
     
-    factors = ['rBPD','r0s', 'r1s', 'r2s', 'r4s', 'r6s', '0s_ball', '1s_ball', '2s_ball', '4s_ball', '6s_ball', 'bat_wkt_ball']
+    #t2 = ['JR Hazlewood', 'B Kumar', 'D Padikkal', 'Rasikh Salam', 'JM Sharma', 'KH Pandya', 'PD Salt', 'R Shepherd', 'RM Patidar', 'Suyash Sharma', 'TH David', 'V Kohli']
+    #t1 = ['Abhishek Sharma', 'Aniket Verma', 'DA Payne', 'E Malinga', 'H Klaasen', 'HV Patel', 'Harsh Dubey', 'Ishan Kishan', 'JD Unadkat', 'Nithish Kumar Reddy', 'S Arora', 'TM Head']
+    #t1_bat = batter_projection[batter_projection['player'].isin(t1)]
+    #t2_bowl = bowler_projection[bowler_projection['player'].isin(t2)]
+    #t2_bat = batter_projection[batter_projection['player'].isin(t2)]
+    #t1_bowl = bowler_projection[bowler_projection['player'].isin(t1)]
     
-    for f in factors:
-        if(f=='rBPD'): batf = 'rBPD'; bowlf = 'rSR'; ratio = 0.95 #bowl wkts by bat wickets
-        elif(f=='bat_wkt_ball'): batf = 'bat_wkt_ball'; bowlf = 'bowl_wkt_ball'; ratio = 1/0.95
-        else: batf = f; bowlf = f; ratio = 1
+    match_bat_outcome = []; match_bowl_outcome = []; match_ongoing = True; innings = 1; target = -1
+    
+    while(match_ongoing):
         
-        bat_val = (bat[batf]*bat['BPD']*bat['BPD_ratio']).sum()/(bat['BPD']*bat['BPD_ratio']).sum()
-        bowl_val = ratio * (bowl[bowlf]*bowl['BPG']).sum()/(bowl['BPG'].sum())
+        innings_ongoing = True 
+        if(innings == 1): 
+            bat_outcome = t1_bat[['player','age','Pos','Pos_std']].drop_duplicates(); bat_ref = t1_bat.copy()
+            bat_outcome['team'] = t1_name
+            bat_team_name = t1_name
+        else: 
+            bat_outcome = t2_bat[['player','age','Pos','Pos_std']].drop_duplicates(); bat_ref = t2_bat.copy()
+            bat_outcome['team'] = t2_name
+            bat_team_name = t2_name
         
-        equalized_val = np.sqrt(bat_val*bowl_val)
+        bat_outcome = bat_outcome.drop_duplicates()
+        bat_outcome = randomize_pos(bat_outcome.copy(),1)
+        bat_outcome[['balls_faced','0s','1s','2s','4s','6s','dismissals','runs']] = 0
         
-        if(f=='rBPD'): bowl['rballs'] = equalized_val#; print(bat_val,bowl_val,(bat[batf]*bat['BPD']*bat['BPD_ratio']).sum())
-        bat[batf] *= equalized_val/bat_val
-        bowl[bowlf] *= equalized_val/bowl_val
-    
-    #print((bat['rBPD']*bat['BPD']*bat['BPD_ratio']).sum())
-    #print((bat['bat_wkt_ball']*bat['BPD']*bat['BPD_ratio']).sum())
-    #print(limit*(bat['bat_wkt_ball']*bat['BPD']*bat['BPD_ratio']).sum()/(bat['rBPD']*bat['BPD']*bat['BPD_ratio']).sum())
-    
-    wickets_in_limit_balls = limit*(bat['bat_wkt_ball']*bat['BPD']*bat['BPD_ratio']).sum()/(bat['rBPD']*bat['BPD']*bat['BPD_ratio']).sum()
-    data = np.random.poisson(lam=wickets_in_limit_balls, size=1000)
-    data = limit*10/data
-    data = [min(x, limit) for x in data]
-    balls_game = sum(data)/1000
-    
-    reduction = balls_game/(bat['rBPD']*bat['BPD']*bat['BPD_ratio']).sum()
-    bat['BPD_ratio'] *= reduction
-    bowl['rballs'] *= reduction
-    
-    bat['dismissals'] = bat['bat_wkt_ball']*bat['BPD']*bat['BPD_ratio']
-    #print(bat['dismissals'])
-    bat['BPD_ratio'] = np.where(bat['dismissals'] >= .99, bat['BPD_ratio']*1/bat['dismissals'], bat['BPD_ratio'])
-    bat['bat_wkt_ball'] = np.where(bat['dismissals'] >= .99, bat['bat_wkt_ball']*1/bat['dismissals'], bat['bat_wkt_ball'])
-    
-    bowl['rballs'] *= (bat['rBPD']*bat['BPD']*bat['BPD_ratio']).sum()/balls_game
-    #print((bat['rBPD']*bat['BPD']*bat['BPD_ratio']).sum(), balls_game)
-    return bat, bowl
+        if(innings == 1): 
+            bowl_outcome = t2_bowl[['player','age','type','Pos_bowler','Pos_bowler_std','usage']].drop_duplicates(); bowl_ref = t2_bowl.copy()
+            bowl_outcome['team'] = t2_name
+        else: 
+            bowl_outcome = t1_bowl[['player','age','type','Pos_bowler','Pos_bowler_std','usage']].drop_duplicates(); bowl_ref = t1_bowl.copy()
+            bowl_outcome['team'] = t1_name
+        
+        bowl_outcome = bowl_outcome.drop_duplicates()
+        bowl_outcome = randomize_pos(bowl_outcome.copy(),0)
+        bowl_outcome[['balls_bowled','0s','1s','2s','4s','6s','extras','wickets','runs']] = 0
+        
+        striker = 1; non_striker = 2; bowler = 1; over = 1; ball = 1; wickets_innings = 0; newm = 1; score = 0
+        
+        bowl_matrix = full_bowl_matrix.copy()
+        ss = mc_steady_state(bowl_matrix)
+        ss_factor = bowl_outcome['usage'].to_list()[:len(ss)]/ss
+        #print(ss_factor)
+        for b in bowl_matrix.columns:
+            try: bowl_matrix[b] *= ss_factor[b-1]
+            except: bowl_matrix[b] *= 0
+        bowl_matrix = bowl_matrix.div(bowl_matrix.sum(axis=1), axis=0)
+        #print(bowl_matrix)
+        
+        while(innings_ongoing):
+            flag = random.random()
+            flag_extra = random.random()
+            flag_wicket_other = random.random()
+            
+            if(newm != 0):
+                striker_name = bat_outcome.loc[bat_outcome['Pos']==striker,'player'].values[0]
+                bowler_name = bowl_outcome.loc[bowl_outcome['Pos_bowler']==bowler,'player'].values[0]
+                b_type = bowl_outcome.loc[bowl_outcome['Pos_bowler']==bowler,'type'].values[0]
+                        
+                p_ball_0 = league_matrix.loc[over]['0s_ball'] * venue_matrix[(venue_matrix['venue']==venue)&(venue_matrix['type']==b_type)]['r0s'].values[0] * bat_ref.loc[(bat_ref['player']==striker_name)*(bat_ref['type']==b_type)]['r0s'].values[0] * bowl_ref.loc[bowl_ref['player']==bowler_name]['r0s'].values[0]
+                p_ball_1 = league_matrix.loc[over]['1s_ball'] * venue_matrix[(venue_matrix['venue']==venue)&(venue_matrix['type']==b_type)]['r1s'].values[0] * bat_ref.loc[(bat_ref['player']==striker_name)*(bat_ref['type']==b_type)]['r1s'].values[0] * bowl_ref.loc[bowl_ref['player']==bowler_name]['r1s'].values[0]
+                p_ball_2 = league_matrix.loc[over]['2s_ball'] * venue_matrix[(venue_matrix['venue']==venue)&(venue_matrix['type']==b_type)]['r2s'].values[0] * bat_ref.loc[(bat_ref['player']==striker_name)*(bat_ref['type']==b_type)]['r2s'].values[0] * bowl_ref.loc[bowl_ref['player']==bowler_name]['r2s'].values[0]
+                p_ball_4 = league_matrix.loc[over]['4s_ball'] * venue_matrix[(venue_matrix['venue']==venue)&(venue_matrix['type']==b_type)]['r4s'].values[0] * bat_ref.loc[(bat_ref['player']==striker_name)*(bat_ref['type']==b_type)]['r4s'].values[0] * bowl_ref.loc[bowl_ref['player']==bowler_name]['r4s'].values[0]
+                p_ball_6 = league_matrix.loc[over]['6s_ball'] * venue_matrix[(venue_matrix['venue']==venue)&(venue_matrix['type']==b_type)]['r6s'].values[0] * bat_ref.loc[(bat_ref['player']==striker_name)*(bat_ref['type']==b_type)]['r6s'].values[0] * bowl_ref.loc[bowl_ref['player']==bowler_name]['r6s'].values[0]
+                p_ball_extra = league_matrix.loc[over]['extras_ball'] * venue_matrix[(venue_matrix['venue']==venue)&(venue_matrix['type']==b_type)]['rextras'].values[0] * bowl_ref.loc[bowl_ref['player']==bowler_name]['rextras'].values[0]
+                p_ball_wicket_bowler = league_matrix.loc[over]['bowl_wkt_ball'] * venue_matrix[(venue_matrix['venue']==venue)&(venue_matrix['type']==b_type)]['rwkts'].values[0] * (1/bat_ref.loc[(bat_ref['player']==striker_name)*(bat_ref['type']==b_type)]['rBPD'].values[0]) * (1/bowl_ref.loc[bowl_ref['player']==bowler_name]['rSR'].values[0])
+                p_ball_wicket_batsman = league_matrix.loc[over]['bat_wkt_ball'] * venue_matrix[(venue_matrix['venue']==venue)&(venue_matrix['type']==b_type)]['rwkts'].values[0] * (1/bat_ref.loc[(bat_ref['player']==striker_name)*(bat_ref['type']==b_type)]['rBPD'].values[0]) * (1/bowl_ref.loc[bowl_ref['player']==bowler_name]['rSR'].values[0])
+                
+                p_sum = p_ball_0 + p_ball_1 + p_ball_2 + p_ball_4 + p_ball_6 + p_ball_wicket_bowler
+                p_ball_0 /= p_sum
+                p_ball_1 /= p_sum
+                p_ball_2 /= p_sum
+                p_ball_4 /= p_sum
+                p_ball_6 /= p_sum
+                p_ball_extra /= p_sum
+                p_ball_wicket_bowler /= p_sum
+                p_ball_wicket_batsman /= p_sum
+                p_ball_wicket_other = p_ball_wicket_batsman - p_ball_wicket_bowler
+            
+            if(flag_extra <= p_ball_extra):
+                score += 1
+                newm = 0
+                bowl_outcome.loc[bowl_outcome['player']==bowler_name,'extras'] += 1 
+                if(print_val == 1):print(over,ball,bowler_name,striker_name,"extra")
+                if(flag_wicket_other <= p_ball_wicket_other):
+                    newm = 1
+                    #assuming its the striker whos out here
+                    if(print_val == 1):print(over,ball,bowler_name,striker_name,"non-bowler wicket")
+                    bat_outcome.loc[bat_outcome['player']==striker_name,'dismissals'] += 1
+                    striker = max(striker,non_striker) + 1
+                    wickets_innings += 1
+            elif(flag <= p_ball_0): 
+                newm = 0
+                if(print_val == 1):print(over,ball,bowler_name,striker_name,"dot")
+                bat_outcome.loc[bat_outcome['player']==striker_name,'0s'] += 1
+                bowl_outcome.loc[bowl_outcome['player']==bowler_name,'0s'] += 1
+                bowl_outcome.loc[bowl_outcome['player']==bowler_name,'balls_bowled'] += 1
+                ball += 1
+                if(flag_wicket_other <= p_ball_wicket_other): 
+                    newm = 1
+                    #assuming its the striker whos out here
+                    if(print_val == 1):print(over,ball,bowler_name,striker_name,"non-bowler wicket")
+                    bat_outcome.loc[bat_outcome['player']==striker_name,'dismissals'] += 1
+                    striker = max(striker,non_striker) + 1
+                    wickets_innings += 1
+            elif(flag > p_ball_0 and flag <= (p_ball_0 + p_ball_1)):
+                score += 1
+                newm = 1
+                if(print_val == 1):print(over,ball,bowler_name,striker_name,"single")
+                bat_outcome.loc[bat_outcome['player']==striker_name,'1s'] += 1
+                bowl_outcome.loc[bowl_outcome['player']==bowler_name,'1s'] += 1
+                bowl_outcome.loc[bowl_outcome['player']==bowler_name,'balls_bowled'] += 1
+                ball += 1
+                if(flag_wicket_other <= p_ball_wicket_other):
+                    newm = 1
+                    #assuming its the striker whos out here
+                    if(print_val == 1):print(over,ball,bowler_name,striker_name,"non-bowler wicket")
+                    bat_outcome.loc[bat_outcome['player']==striker_name,'dismissals'] += 1
+                    striker = max(striker,non_striker) + 1
+                    wickets_innings += 1
+                copy = non_striker
+                non_striker = striker
+                striker = copy
+            elif(flag > (p_ball_0 + p_ball_1) and flag <= (p_ball_0 + p_ball_1 + p_ball_2)):
+                score += 2
+                newm = 0
+                if(print_val == 1):print(over,ball,bowler_name,striker_name,"two")
+                bat_outcome.loc[bat_outcome['player']==striker_name,'2s'] += 1
+                bowl_outcome.loc[bowl_outcome['player']==bowler_name,'2s'] += 1
+                bowl_outcome.loc[bowl_outcome['player']==bowler_name,'balls_bowled'] += 1
+                ball += 1
+                if(flag_wicket_other <= p_ball_wicket_other):
+                    newm = 1
+                    #assuming its the striker whos out here
+                    if(print_val == 1):print(over,ball,bowler_name,striker_name,"non-bowler wicket")
+                    bat_outcome.loc[bat_outcome['player']==striker_name,'dismissals'] += 1
+                    striker = max(striker,non_striker) + 1
+                    wickets_innings += 1
+            elif(flag > (p_ball_0 + p_ball_1 + p_ball_2) and flag <= (p_ball_0 + p_ball_1 + p_ball_2 + p_ball_4)):
+                score += 4
+                newm = 0
+                if(print_val == 1):print(over,ball,bowler_name,striker_name,"four")
+                bat_outcome.loc[bat_outcome['player']==striker_name,'4s'] += 1
+                bowl_outcome.loc[bowl_outcome['player']==bowler_name,'4s'] += 1
+                bowl_outcome.loc[bowl_outcome['player']==bowler_name,'balls_bowled'] += 1
+                ball += 1
+            elif(flag > (p_ball_0 + p_ball_1 + p_ball_2 + p_ball_4) and flag <= (p_ball_0 + p_ball_1 + p_ball_2 + p_ball_4 + p_ball_6)):
+                score += 6
+                newm = 0
+                if(print_val == 1):print(over,ball,bowler_name,striker_name,"six")
+                bat_outcome.loc[bat_outcome['player']==striker_name,'6s'] += 1
+                bowl_outcome.loc[bowl_outcome['player']==bowler_name,'6s'] += 1
+                bowl_outcome.loc[bowl_outcome['player']==bowler_name,'balls_bowled'] += 1
+                ball += 1
+            elif(flag > (p_ball_0 + p_ball_1 + p_ball_2 + p_ball_4 + p_ball_6)):
+                newm = 1
+                if(print_val == 1):print(over,ball,bowler_name,striker_name,"wicket")
+                bat_outcome.loc[bat_outcome['player']==striker_name,'dismissals'] += 1
+                bowl_outcome.loc[bowl_outcome['player']==bowler_name,'wickets'] += 1
+                bowl_outcome.loc[bowl_outcome['player']==bowler_name,'balls_bowled'] += 1
+                ball += 1
+                striker = max(striker,non_striker) + 1
+                wickets_innings += 1
+                
+            if(ball > 6): 
+                ball = 1; over += 1; newm = 1
+                bowler_bb = bowl_outcome.loc[bowl_outcome['Pos_bowler']==bowler,'balls_bowled'].sum()
+                if(bowler_bb >= 24): 
+                    bowl_matrix[bowler] = 0
+                    bowl_matrix = bowl_matrix.div(bowl_matrix.sum(axis=1), axis=0)
+                bowler = np.random.choice(range(1,len(bowl_matrix)+1), p=bowl_matrix.loc[bowler])
+                copy = non_striker
+                non_striker = striker
+                striker = copy
+                
+            if(over >= 21 or wickets_innings >= 10): innings_ongoing = False
+            if(innings > 1 and score > target): innings_ongoing = False
+            if(innings_ongoing == False): print(bat_team_name,score,"/",wickets_innings,"in",6*over-6+ball-1,"balls")
+         
+        bat_outcome['balls_faced'] = bat_outcome[['0s','1s','2s','4s','6s','dismissals']].sum(axis=1)
+        bat_outcome['runs'] = bat_outcome['1s'] + bat_outcome['2s']*2 + bat_outcome['4s']*4 + bat_outcome['6s']*6
+        bowl_outcome['balls_bowled'] = bowl_outcome[['0s','1s','2s','4s','6s','wickets']].sum(axis=1)
+        bowl_outcome['runs'] = bowl_outcome['1s'] + bowl_outcome['2s']*2 + bowl_outcome['4s']*4 + bowl_outcome['6s']*6 + bowl_outcome['extras']
+        bat_outcome = bat_outcome.drop('Pos_std',axis=1)
+        bowl_outcome = bowl_outcome.drop(['Pos_bowler_std','usage'],axis=1)
+        
+        if(print_val == 1): print(bat_outcome['runs'].sum(),bat_outcome['dismissals'].sum(),bowl_outcome['runs'].sum(),bowl_outcome['wickets'].sum(),over,ball)
+                
+        match_bat_outcome.append(bat_outcome)
+        match_bowl_outcome.append(bowl_outcome)
+        innings += 1
+        
+        if(innings > 2): match_ongoing = False
+        elif(innings == 2): target = score
+      
+    match_bat_outcome = pd.concat(match_bat_outcome)
+    match_bowl_outcome = pd.concat(match_bowl_outcome)
+    return match_bat_outcome, match_bowl_outcome
 
-def rebalance(bat,bowl):
-    factors = ['0s', '1s', '2s', '4s', '6s', 'dismissals']
-    
-    for f in factors:
-        if(f=='dismissals'):
-            bat_val = bat['dismissals'].sum()
-            #print(bat['dismissals'])
-            bowl_val = bowl['wickets'].sum()
-            equalized_val = bat_val
-            bat['dismissals'] *= equalized_val/bat_val
-            bowl['wickets'] *= 0.95*equalized_val/bowl_val
+def mc_game_engine2(t1_name,t2_name,venue,t1_bat,t1_bowl,t2_bat,t2_bowl,full_bowl_matrix,lg_matrix,print_val):
+
+    match_bat_outcome = []
+    match_bowl_outcome = []
+
+    innings = 1
+    match_ongoing = True
+    target = -1
+
+    while match_ongoing:
+
+        if innings == 1:
+            bat_df = t1_bat.copy()
+            bowl_df = t2_bowl.copy()
+            bat_team = t1_name
         else:
-            bat_val = bat[f].sum()
-            bowl_val = bowl[f].sum()
-            equalized_val = np.sqrt(bat_val*bowl_val)      
-            bat[f] *= equalized_val/bat_val
-            bowl[f] *= equalized_val/bowl_val
-            
-    return bat, bowl
+            bat_df = t2_bat.copy()
+            bowl_df = t1_bowl.copy()
+            bat_team = t2_name
 
-def venues_adj(df, bat_bowl):
-    df['r0s'] *= df['v_r0s']
-    df['r1s'] *= df['v_r1s']
-    df['r2s'] *= df['v_r2s']
-    df['r4s'] *= df['v_r4s']
-    df['r6s'] *= df['v_r6s']
-    if(bat_bowl==0): 
-        df['rSR'] /= df['v_rwkts']
-        df['BPG'] *= df['bias']
-    else: df['rBPD'] /= df['v_rwkts']
-    return df
+        # ------------------ Batting setup ------------------
+        bat_out = bat_df[['player','age','Pos','Pos_std']].drop_duplicates()
+        bat_out['team'] = bat_team
+        bat_out = randomize_pos(bat_out, 1)
 
-def sample_with_prob(df, n, prob_col):
-    df_det = df[df[prob_col] == 1]
+        bat_players = bat_out['player'].to_numpy()
+        n_bat = len(bat_players)
 
-    k = n - len(df_det)
-    if(k < 0): raise ValueError("More than n rows have probability=1. Impossible to sample n rows.")
-    df_prob = df[df[prob_col] < 1]
+        bat_0 = np.zeros(n_bat, int)
+        bat_1 = np.zeros(n_bat, int)
+        bat_2 = np.zeros(n_bat, int)
+        bat_4 = np.zeros(n_bat, int)
+        bat_6 = np.zeros(n_bat, int)
+        bat_w = np.zeros(n_bat, int)
 
-    probs = pd.to_numeric(df_prob[prob_col], errors="coerce").fillna(0).to_numpy()
-    if probs.sum() == 0 and k > 0: raise ValueError("Probabilities of non-1 rows sum to zero.")
-    probs = probs / probs.sum()
+        # ------------------ Bowling setup ------------------
+        bowl_out = bowl_df[['player','age','type','Pos_bowler','Pos_bowler_std','usage']].drop_duplicates()
+        bowl_out['team'] = t2_name if innings == 1 else t1_name
+        bowl_out = randomize_pos(bowl_out, 0)
 
-    chosen_idx = np.random.choice(
-        df_prob.index,
-        size=k,
-        replace=False,
-        p=probs
-    )
-    df_chosen = df_prob.loc[chosen_idx]
-    final = pd.concat([df_det, df_chosen], ignore_index=True)
-    return final
+        bowl_players = bowl_out['player'].to_numpy()
+        bowl_types = bowl_out['type'].to_numpy()
+        n_bowl = len(bowl_players)
 
-def pick_lineup_probabalistically(lg,df,t):
-    if(lg in ['ipl','ilt']): tot = 12
-    else: tot = 11
-    df = df[df[f'{lg}']==t]
-    sampled_df = df.sample(n=tot, weights='team', replace=False)
-    #sampled_df = sample_with_prob(df, tot, 'team')
-    return sampled_df['player'].to_list()
+        bowl_0 = np.zeros(n_bowl, int)
+        bowl_1 = np.zeros(n_bowl, int)
+        bowl_2 = np.zeros(n_bowl, int)
+        bowl_4 = np.zeros(n_bowl, int)
+        bowl_6 = np.zeros(n_bowl, int)
+        bowl_w = np.zeros(n_bowl, int)
+        bowl_ex = np.zeros(n_bowl, int)
+        bowl_bb = np.zeros(n_bowl, int)
 
-def game_prelims(lg):
-    if(lg in test_leagues()): sheet_p = 'tests'; sheet_matrix = 'test'; limit = 225*6/5; y = 4
-    elif(lg in short_leagues()): sheet_p = 'lo'; sheet_matrix = 'lo'; limit = 100/5; y = 8
-    elif(lg in odi_leagues()): sheet_p = 'lo'; sheet_matrix = 'lo'; limit = 300/5; y = 5.5
-    else: sheet_p = 'lo'; sheet_matrix = 'lo'; limit = 120/5; y = 7
-    
-    batter_projections = pd.read_excel(f'{path}/excel/projections.xlsx',f'{sheet_p} batters')
-    bowler_projections = pd.read_excel(f'{path}/excel/projections.xlsx',f'{sheet_p} bowlers')
-    squads = pd.read_excel(f'{path}/excel/projections.xlsx','squads')
-    #squads['team'] = squads['team'].fillna(0)
-    bat_matrix, bowl_matrix = bat_bowl_matrix(lg)
-    #bat_matrix = pd.read_excel(f'{path}/excel/matrix.xlsx',f'{sheet_matrix} batting')
-    #bowl_matrix = pd.read_excel(f'{path}/excel/matrix.xlsx',f'{sheet_matrix} bowling')
-    venue_matrix = pd.read_excel(f'{path}/excel/projections.xlsx',f'{sheet_matrix} venues')
-    
-    batter_projections = batter_projections.merge(squads[['player','team',f'{lg}']], on=['player'], how='left')
-    bowler_projections = bowler_projections.merge(squads[['player','team',f'{lg}']], on=['player'], how='left')
-    
-    return lg,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y
-    
-def game_engine(lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y,print_val):   
-    pace_avg = venue_matrix.loc[venue_matrix['type']=='pace','bias'].mean()
-    spin_avg = venue_matrix.loc[venue_matrix['type']=='spin','bias'].mean()
-    
-    t1_player_list = pick_lineup_probabalistically(lg,squads,t1)
-    t2_player_list = pick_lineup_probabalistically(lg,squads,t2)
-    
-    batter_projections = batter_projections.drop(columns=['team'])
-    bowler_projections = bowler_projections.drop(columns=['team'])
-    batter_projections = batter_projections.rename(columns={f'{lg}': 'team'})
-    bowler_projections = bowler_projections.rename(columns={f'{lg}': 'team'})
-    
-    bat_t1 = batter_projections[batter_projections['player'].isin(t1_player_list)]
-    bowl_t1 = bowler_projections[bowler_projections['player'].isin(t1_player_list)]
-    bat_t2 = batter_projections[batter_projections['player'].isin(t2_player_list)]
-    bowl_t2 = bowler_projections[bowler_projections['player'].isin(t2_player_list)]
-    
-    #bat_t1 = batter_projections[batter_projections['team']==t1]
-    #bowl_t1 = bowler_projections[bowler_projections['team']==t1]
-    #bat_t2 = batter_projections[batter_projections['team']==t2]
-    #bowl_t2 = bowler_projections[bowler_projections['team']==t2]
+        # ------------------ Cached parameters ------------------
+        bat_params = bat_df.set_index(['player','type'])[
+            ['r0s','r1s','r2s','r4s','r6s','rBPD']
+        ].to_dict('index')
 
-    bat_t1.loc[bat_t1.index,'Pos'] = bat_t1['Pos'].rank(method='dense', ascending=True)
-    bat_t2.loc[bat_t2.index,'Pos'] = bat_t2['Pos'].rank(method='dense', ascending=True)
-    bowl_t1.loc[bowl_t1.index,'Pos_bowler'] = bowl_t1['Pos_bowler'].rank(method='dense', ascending=True)
-    bowl_t2.loc[bowl_t2.index,'Pos_bowler'] = bowl_t2['Pos_bowler'].rank(method='dense', ascending=True)
+        bowl_params = bowl_df.set_index('player')[
+            ['r0s','r1s','r2s','r4s','r6s','rSR','rextras']
+        ].to_dict('index')
 
-    bat_t1 = bat_t1.merge(bat_matrix, on=['Pos'], how='left')
-    bat_t2 = bat_t2.merge(bat_matrix, on=['Pos'], how='left')
-    bowl_t1 = bowl_t1.merge(bowl_matrix, on=['Pos_bowler'], how='left')
-    bowl_t2 = bowl_t2.merge(bowl_matrix, on=['Pos_bowler'], how='left')
+        venue_params = venue_matrix.set_index(['venue','type'])[
+            ['r0s','r1s','r2s','r4s','r6s','rwkts','rextras']
+        ].to_dict('index')
 
-    bowl_t1['bowler_bb'] *= limit
-    bowl_t2['bowler_bb'] *= limit
-    bowl_t1['BPG'] = (bowl_t1['BPG'].sum()/bowl_t1['bowler_bb'].sum()) * bowl_t1['bowler_bb']
-    bowl_t2['BPG'] = (bowl_t2['BPG'].sum()/bowl_t2['bowler_bb'].sum()) * bowl_t2['bowler_bb']
-    #bowl_t1['BPG'] = bowl_t1['bowler_bb'] * limit
-    #bowl_t2['BPG'] = bowl_t2['bowler_bb'] * limit
-    
-    bat_t1['venue'] = venue
-    bat_t2['venue'] = venue
+        # ------------------ Bowling rotation ------------------
+        bowl_matrix = full_bowl_matrix.copy()
+        ss = mc_steady_state(bowl_matrix)
+        try: ss_factor = bowl_out['usage'].to_numpy()[:len(ss)] / ss
+        except ValueError: ss_factor = bowl_out['usage'].to_numpy() / ss[:len(bowl_out)]
 
-    venue_d = venue_matrix[venue_matrix['venue']==venue]
-    venue_d.columns = ['venue', 'type', 'bias', 'v_r0s', 'v_r1s', 'v_r2s', 'v_r4s', 'v_r6s', 'v_rextras', 'v_rwkts']
-    venue_bat = venue_d.pivot_table(values=['v_r0s', 'v_r1s', 'v_r2s', 'v_r4s', 'v_r6s', 'v_rwkts'], index=['venue'], 
-                              aggfunc=lambda rows: np.average(rows, weights=venue_d.loc[rows.index, 'bias']))
-    venue_bat = venue_bat.reset_index()
+        for i, col in enumerate(bowl_matrix.columns):
+            bowl_matrix[col] *= ss_factor[i] if i < len(ss_factor) else 0
+        bowl_matrix = bowl_matrix.div(bowl_matrix.sum(axis=1), axis=0)
 
-    venue_d.loc[venue_d['type']=='pace','bias'] /= pace_avg
-    venue_d.loc[venue_d['type']=='spin','bias'] /= spin_avg
-    bowl_t1 = bowl_t1.merge(venue_d, on=['type'], how='left')
-    bowl_t2 = bowl_t2.merge(venue_d, on=['type'], how='left')
-    bat_t1 = bat_t1.merge(venue_bat, on=['venue'], how='left')
-    bat_t2 = bat_t2.merge(venue_bat, on=['venue'], how='left')
+        # ------------------ Innings state ------------------
+        striker = 0
+        non_striker = 1
+        next_batsman = 2
+        bowler = 0
 
-    bowl_t1 = venues_adj(bowl_t1, 0)
-    bowl_t2 = venues_adj(bowl_t2, 0)
-    bat_t1 = venues_adj(bat_t1, 1)
-    bat_t2 = venues_adj(bat_t2, 1)
+        score = 0
+        wickets = 0
+        over = 1
+        ball = 1
 
-    #balancing
-    bat_t1_bowl_t2 = np.sqrt((bat_t1['BPD']*bat_t1['BPD_ratio']).sum()*bowl_t2['BPG'].sum())
-    bat_t2_bowl_t1 = np.sqrt((bat_t2['BPD']*bat_t2['BPD_ratio']).sum()*bowl_t1['BPG'].sum())
-    
-    bowl_t1['BPG'] *= bat_t2_bowl_t1/bowl_t1['BPG'].sum()
-    bowl_t2['BPG'] *= bat_t1_bowl_t2/bowl_t2['BPG'].sum()
-    bat_t2['BPD_ratio'] *= bat_t2_bowl_t1/(bat_t2['BPD']*bat_t2['BPD_ratio']).sum()
-    bat_t1['BPD_ratio'] *= bat_t1_bowl_t2/(bat_t1['BPD']*bat_t1['BPD_ratio']).sum()
-    #print(bowl_t1['BPG'].sum())
-    #print(bowl_t2['BPG'].sum())
-    #print((bat_t1['BPD']*bat_t1['BPD_ratio']).sum())
-    #print((bat_t2['BPD']*bat_t2['BPD_ratio']).sum())
+        innings_ongoing = True
 
-    bat_t1, bowl_t2 = balance(lg,bat_t1,bowl_t2)
-    bat_t2, bowl_t1 = balance(lg,bat_t2,bowl_t1)
+        def get_probs(over, striker_i, bowler_i):
+            bname = bat_players[striker_i]
+            blname = bowl_players[bowler_i]
+            btype = bowl_types[bowler_i]
 
-    bat_t1 = match_calculations(lg,bat_t1,1)
-    bat_t2 = match_calculations(lg,bat_t2,1)
-    bowl_t1 = match_calculations(lg,bowl_t1,0)
-    bowl_t2 = match_calculations(lg,bowl_t2,0)
-    """
-    print(bat_t1['balls'].sum(),bowl_t2['balls'].sum())
-    print(bat_t2['balls'].sum(),bowl_t1['balls'].sum())
-    print()
-    print(bat_t1['dismissals'].sum(),bowl_t2['wickets'].sum())
-    print(bat_t2['dismissals'].sum(),bowl_t1['wickets'].sum())
-    print()
-    print(bat_t1['runs'].sum(),bowl_t2['runs'].sum())
-    print(bat_t2['runs'].sum(),bowl_t1['runs'].sum())
-    """
-    bat_t1, bowl_t2 = rebalance(bat_t1,bowl_t2)
-    bat_t2, bowl_t1 = rebalance(bat_t2,bowl_t1)
-    
-    bat = pd.concat([bat_t1, bat_t2])
-    bowl = pd.concat([bowl_t1, bowl_t2])
-    
-    bat = bat.dropna(subset=['0s'], how='any')
-    #bat['AVG'] = bat['runs']/bat['dismissals']
-    #bat['SR'] = 100*bat['runs']/bat['balls']
-    bowl = bowl.dropna(subset=['0s'], how='any')
-    #bowl['ECON'] = 6*bowl['runs']/bowl['balls']
-    #bowl['SR'] = bowl['balls']/bowl['wickets']
-    
-    bat = bat.sort_values(by=['team','Pos'], ascending=[True,True])
-    bowl = bowl.sort_values(by=['team','balls'], ascending=[True,False])
-    bowl = bowl[bowl['balls']>=0.1]
-    
-    if(lg in test_leagues()): draw = 1/(1+pow(80*(bat['dismissals'].sum()/bat['balls'].sum()),8.5))  #draw formula for tests
-    else: draw = 0
-    
-    win_t1 = (1-draw)/(1+pow(bowl_t1['runs'].sum()/bowl_t2['runs'].sum(),y))
-    win_t2 = (1-draw)/(1+pow(bowl_t2['runs'].sum()/bowl_t1['runs'].sum(),y))
-    
-    if(print_val == 1):
-        print()
-        print(t1,"vs",t2)
-        print('Competition -',lg)
-        print("Venue -",venue)
-        print()
-        print(t1,round(bowl_t2['runs'].sum(),1),"/",round(bat_t1['dismissals'].sum(),1),"in",round(bat_t1['balls'].sum(),1),"balls")
-        print(t2,round(bowl_t1['runs'].sum(),1),"/",round(bat_t2['dismissals'].sum(),1),"in",round(bat_t2['balls'].sum(),1),"balls")
-        print()
-        print(t1,round(100*win_t1,2))
-        if(lg in test_leagues()): print("Draw",round(100*draw,2))
-        print(t2,round(100*win_t2,2))
-    
-    game_result = [['t1','t2','venue','t1_win','t2_win','t1_runs','t2_runs','t1_wickets','t2_wickets','t1_balls','t2_balls']]
-    game_result.append([t1,t2,venue,win_t1,win_t2,bowl_t2['runs'].sum(),bowl_t1['runs'].sum(),
-                        bat_t1['dismissals'].sum(),bat_t2['dismissals'].sum(),bat_t1['balls'].sum(),bat_t2['balls'].sum()])
-    
-    game_result = pd.DataFrame(game_result)
-    game_result.columns = game_result.iloc[0];game_result = game_result.drop(0)
-    game_result = game_result.apply(pd.to_numeric, errors='ignore')
-    return bat,bowl,game_result
+            bp = bat_params[(bname, btype)]
+            blp = bowl_params[blname]
+            vp = venue_params[(venue, btype)]
+            lm = lg_matrix.loc[over]
 
-def game_sim(lg,t1,t2,venue,print_val):
-    lg,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y = game_prelims(lg)
-    bat,bowl,game_result = game_engine(lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y,print_val)
-    return bat,bowl,game_result
+            p0 = lm['0s_ball'] * vp['r0s'] * bp['r0s'] * blp['r0s']
+            p1 = lm['1s_ball'] * vp['r1s'] * bp['r1s'] * blp['r1s']
+            p2 = lm['2s_ball'] * vp['r2s'] * bp['r2s'] * blp['r2s']
+            p4 = lm['4s_ball'] * vp['r4s'] * bp['r4s'] * blp['r4s']
+            p6 = lm['6s_ball'] * vp['r6s'] * bp['r6s'] * blp['r6s']
+            pw = lm['bowl_wkt_ball'] * vp['rwkts'] / (bp['rBPD'] * blp['rSR'])
 
-def monte_carlo_game_sim(lg,t1,t2,venue,iters):
-    lg,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y = game_prelims(lg)
-    bat,bowl,result = monte_carlo_game_engine(lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y,iters)
-    return bat,bowl,result
+            probs = np.array([p0,p1,p2,p4,p6,pw])
+            probs /= probs.sum()
+
+            p_extra = lm['extras_ball'] * vp['rextras'] * blp['rextras']
+            return probs, p_extra
+
+        # ================== BALL LOOP ==================
+        while innings_ongoing:
+            probs, p_extra = get_probs(over, striker, bowler)
+            striker_name = bat_players[striker]
+            bowler_name = bowl_players[bowler]
+
+            if random.random() <= p_extra:
+                score += 1
+                bowl_ex[bowler] += 1
+                if print_val == 1:
+                    print(over, ball, bowler_name, striker_name, "extra")
+
+            else:
+                outcome = np.random.choice(6, p=probs)
+
+                if outcome == 0:
+                    bat_0[striker] += 1
+                    bowl_0[bowler] += 1
+                    if print_val == 1:
+                        print(over, ball, bowler_name, striker_name, "dot")
+
+                elif outcome == 1:
+                    bat_1[striker] += 1
+                    bowl_1[bowler] += 1
+                    score += 1
+                    if print_val == 1:
+                        print(over, ball, bowler_name, striker_name, "single")
+                    striker, non_striker = non_striker, striker
+
+                elif outcome == 2:
+                    bat_2[striker] += 1
+                    bowl_2[bowler] += 1
+                    score += 2
+                    if print_val == 1:
+                        print(over, ball, bowler_name, striker_name, "two")
+
+                elif outcome == 3:
+                    bat_4[striker] += 1
+                    bowl_4[bowler] += 1
+                    score += 4
+                    if print_val == 1:
+                        print(over, ball, bowler_name, striker_name, "four")
+
+                elif outcome == 4:
+                    bat_6[striker] += 1
+                    bowl_6[bowler] += 1
+                    score += 6
+                    if print_val == 1:
+                        print(over, ball, bowler_name, striker_name, "six")
+
+                else:
+                    bat_w[striker] += 1
+                    bowl_w[bowler] += 1
+                    wickets += 1
+                    if print_val == 1:
+                        print(over, ball, bowler_name, striker_name, "wicket")
+                    striker = next_batsman
+                    next_batsman += 1
+                    if wickets >= 10:
+                        break
+
+                bowl_bb[bowler] += 1
+                ball += 1
+
+            # ---- Over end ----
+            if ball > 6:
+                ball = 1
+                over += 1
+                striker, non_striker = non_striker, striker
+
+                if bowl_bb[bowler] >= 24:
+                    bowl_matrix.iloc[:, bowler] = 0
+                    bowl_matrix = bowl_matrix.div(bowl_matrix.sum(axis=1), axis=0)
+
+                bowler = np.random.choice(range(len(bowl_matrix)), p=bowl_matrix.iloc[bowler].to_numpy())
+
+            if over >= 21:
+                innings_ongoing = False
+            if innings == 2 and score > target:
+                innings_ongoing = False
+
+        # ------------------ Innings print ------------------
+        if print_val == 1:
+            balls = 6*(over-1) + ball - 1
+            print(bat_team, score, "/", wickets, "in", balls, "balls")
+
+        # ------------------ Write back ------------------
+        bat_out['0s'] = bat_0
+        bat_out['1s'] = bat_1
+        bat_out['2s'] = bat_2
+        bat_out['4s'] = bat_4
+        bat_out['6s'] = bat_6
+        bat_out['dismissals'] = bat_w
+        bat_out['balls_faced'] = bat_0 + bat_1 + bat_2 + bat_4 + bat_6 + bat_w
+        bat_out['runs'] = bat_1 + 2*bat_2 + 4*bat_4 + 6*bat_6
+        bat_out = bat_out.drop(columns=['Pos_std'])
+
+        bowl_out['0s'] = bowl_0
+        bowl_out['1s'] = bowl_1
+        bowl_out['2s'] = bowl_2
+        bowl_out['4s'] = bowl_4
+        bowl_out['6s'] = bowl_6
+        bowl_out['wickets'] = bowl_w
+        bowl_out['extras'] = bowl_ex
+        bowl_out['balls_bowled'] = bowl_bb
+        bowl_out['runs'] = bowl_1 + 2*bowl_2 + 4*bowl_4 + 6*bowl_6 + bowl_ex
+        bowl_out = bowl_out.drop(columns=['Pos_bowler_std','usage'])
+
+        match_bat_outcome.append(bat_out)
+        match_bowl_outcome.append(bowl_out)
+
+        innings += 1
+        if innings == 2:
+            target = score
+        elif innings > 2:
+            match_ongoing = False
+
+    return pd.concat(match_bat_outcome), pd.concat(match_bowl_outcome)
+
+def pick_lineup_probabalistically2(lg, df, t):
+    tot = 12 if lg in ['ipl', 'ilt'] else 11
+    df = df[df[lg] == t]
+
+    # Step 1: force-include prob = 1 players
+    sure = df[df['team'] >= 1]
+    forced_players = sure['player'].tolist()
+
+    remaining_slots = tot - len(forced_players)
+    if remaining_slots <= 0:
+        return forced_players[:tot]
+
+    # Step 2: sample from remaining players
+    rest = df[df['team'] < 1]
+    sampled_rest = rest.sample(
+        n=remaining_slots,
+        weights='team',
+        replace=False
+    )['player'].tolist()
+
+    return forced_players + sampled_rest
+
+def multiple_mc_sims(lg,ta_name,tb_name,venue,squads,batter_projection,bowler_projection,lg_matrix,n,print_val2):
+    start_time = datetime.now()
+    bat_sims = []; bowl_sims=[]; 
+    match_outcomes = [['t1','t2','venue','t1_runs','t2_runs','t1_wickets','t2_wickets','t1_balls','t2_balls','t1_win','t2_win']]
+    i=0;
     
-def monte_carlo_game_engine(lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y,iters):
-    i=1; batters_all = []; bowlers_all = []; result_all = []
-    while(i<=iters):
-        batters_iter,bowlers_iter,result_iter = game_engine(lg,t1,t2,venue,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y,0)
-        batters_all.append(batters_iter)
-        bowlers_all.append(bowlers_iter)
-        result_all.append(result_iter)
-        #print(f"iteration {i} done")
+    #squads = pd.read_excel(f'{path}/excel/projections.xlsx','squads')
+    #t2_name = 'SRH'
+    #t1_name = 'RCB'
+    #venue = 'Uppal'
+    #t1 = ['JR Hazlewood', 'B Kumar', 'D Padikkal', 'Rasikh Salam', 'JM Sharma', 'KH Pandya', 'PD Salt', 'R Shepherd', 'RM Patidar', 'Suyash Sharma', 'TH David', 'V Kohli']
+    #t2 = ['Abhishek Sharma', 'Aniket Verma', 'DA Payne', 'E Malinga', 'H Klaasen', 'HV Patel', 'Harsh Dubey', 'Ishan Kishan', 'JD Unadkat', 'Nithish Kumar Reddy', 'S Arora', 'TM Head']
+    
+    print(ta_name,"vs",tb_name,"at",venue)
+    squad_pool = squads[((squads[lg] == ta_name) | (squads[lg] == tb_name)) & (squads['team'] > 0)]['player'].to_list()
+    bat_proj = batter_projection[batter_projection['player'].isin(squad_pool)]
+    bowl_proj = bowler_projection[bowler_projection['player'].isin(squad_pool)]
+    
+    while(i<n):
+        toss = random.random()
+        if(toss <= 0.5): 
+            t1_name, t2_name = ta_name, tb_name
+        else: 
+            t1_name, t2_name = tb_name, ta_name
+        
+        t1 = pick_lineup_probabalistically2(lg,squads,t1_name)
+        t2 = pick_lineup_probabalistically2(lg,squads,t2_name)
+        """
+        t1_bat = bat_proj[bat_proj['player'].isin(t1)]
+        t2_bowl = bowl_proj[bowl_proj['player'].isin(t2)]
+        t2_bat = bat_proj[bat_proj['player'].isin(t2)]
+        t1_bowl = bowl_proj[bowl_proj['player'].isin(t1)]
+        """        
+        t1_set = set(t1)
+        t2_set = set(t2)
+        
+        t1_bat  = bat_proj[[p in t1_set for p in bat_proj['player'].values]]
+        t1_bowl = bowl_proj[[p in t1_set for p in bowl_proj['player'].values]]
+        
+        t2_bat  = bat_proj[[p in t2_set for p in bat_proj['player'].values]]
+        t2_bowl = bowl_proj[[p in t2_set for p in bowl_proj['player'].values]]
+
+        #print("sim",i+1)
+        bat_game,bowl_game = mc_game_engine2(t1_name,t2_name,venue,t1_bat,t1_bowl,t2_bat,t2_bowl,bowl_pos_matrix.copy(),lg_matrix,0)
+        
+        bat_game['played'] = 1
+        bowl_game['played'] = 1
+        
+        bat_sims.append(bat_game)
+        bowl_sims.append(bowl_game)
+        
+        t1_runs = bowl_game.loc[bowl_game['team']==t2_name,'runs'].sum()
+        t2_runs = bowl_game.loc[bowl_game['team']==t1_name,'runs'].sum()
+        t1_wkts = bat_game.loc[bat_game['team']==t1_name,'dismissals'].sum()
+        t2_wkts = bat_game.loc[bat_game['team']==t2_name,'dismissals'].sum()
+        t1_bf = bat_game.loc[bat_game['team']==t1_name,'balls_faced'].sum()
+        t2_bf = bat_game.loc[bat_game['team']==t2_name,'balls_faced'].sum()
+        
+        if(t1_runs > t2_runs): t1_win = 1; t2_win = 0
+        elif(t1_runs < t2_runs): t1_win = 0; t2_win = 1
+        else: t1_win = 0.5; t2_win = 0.5
+        
+        match_outcomes.append([t1_name,t2_name,venue,t1_runs,t2_runs,t1_wkts,t2_wkts,t1_bf,t2_bf,t1_win,t2_win])
         i+=1
+        #print()
         
-    result_all = pd.concat(result_all)
-    batters_all = pd.concat(batters_all)
-    bowlers_all = pd.concat(bowlers_all)
+    match_outcomes = pd.DataFrame(match_outcomes)
+    match_outcomes.columns = match_outcomes.iloc[0];match_outcomes = match_outcomes.drop(0)
+    match_outcomes = match_outcomes.apply(pd.to_numeric, errors='ignore')
     
-    batters_all['lineup'] = 1
-    bowlers_all['lineup'] = 1
-    
-    result_all = result_all.pivot_table(index=['t1','t2','venue'],values=['t1_win', 't2_win', 't1_runs', 't2_runs','t1_wickets', 't2_wickets', 't1_balls', 't2_balls'], aggfunc="mean")
-    result_all = result_all.reset_index()
-    
-    bp1 = batters_all.pivot_table(index=['player','team','age'],values=['balls','0s','1s','2s','4s','6s','dismissals','runs','lineup'],aggfunc="sum")
-    bp1 = bp1/iters
-    bp2 = batters_all.pivot_table(index=['player','team','age'],values=['Pos'],aggfunc="mean")
-    bp1['Pos'] = bp2['Pos']
-    bp1 = bp1.reset_index()
-    bp1 = bp1[['player', 'team', 'age', 'lineup', 'Pos', 'balls', '0s', '1s', '2s', '4s', '6s', 'dismissals', 'runs']]
-    bp1 = bp1.sort_values(by=['team','Pos'], ascending=[True,True])
-    bp1['AVG'] = bp1['runs']/bp1['dismissals']
-    bp1['SR'] = 100*bp1['runs']/bp1['balls']
-    
-    bbp1 = bowlers_all.pivot_table(index=['player','team','age'],values=['balls','0s','1s','2s','4s','6s','extras','wickets','runs','lineup'],aggfunc="sum")
-    bbp1 = bbp1/iters
-    bbp2 = bowlers_all.pivot_table(index=['player','team','age'],values=['Pos_bowler'],aggfunc="mean")
-    bbp1['Pos_bowler'] = bbp2['Pos_bowler']
-    bbp1 = bbp1.reset_index()
-    bbp1 = bbp1[['player', 'team', 'age', 'lineup', 'Pos_bowler', 'balls', '0s', '1s', '2s', '4s', '6s', 'extras', 'wickets', 'runs']]
-    bbp1 = bbp1.sort_values(by=['team','balls'], ascending=[True,False])
-    bbp1['ECON'] = 6*bbp1['runs']/bbp1['balls']
-    bbp1['SR'] = bbp1['balls']/bbp1['wickets']
-    
-    win_t1 = result_all['t1_win'].mean()
-    win_t2 = result_all['t2_win'].mean()
-    
-    print()
-    print(t1,"vs",t2)
-    print('Competition -',lg)
-    print("Venue -",venue)
-    print()
-    print(t1,round(result_all['t1_runs'].mean(),1),"/",round(result_all['t1_wickets'].mean(),1),"in",round(result_all['t1_balls'].mean(),1),"balls")
-    print(t2,round(result_all['t2_runs'].mean(),1),"/",round(result_all['t2_wickets'].mean(),1),"in",round(result_all['t2_balls'].mean(),1),"balls")
-    print()
-    print(t1,round(100*win_t1,2))
-    if(lg in test_leagues()): print("Draw",round(100*(1-win_t1-win_t2),2))
-    print(t2,round(100*win_t2,2))
-    
-    return bp1,bbp1,result_all
+    if(print_val2 == 1):
+        print()
+        ta_wins = round(match_outcomes.loc[match_outcomes['t1']==ta_name,'t1_win'].sum() + match_outcomes.loc[match_outcomes['t2']==ta_name,'t2_win'].sum(),2)/n
+        ta_runs = round(match_outcomes.loc[match_outcomes['t1']==ta_name,'t1_runs'].sum() + match_outcomes.loc[match_outcomes['t2']==ta_name,'t2_runs'].sum(),2)/n
+        ta_balls = round(match_outcomes.loc[match_outcomes['t1']==ta_name,'t1_balls'].sum() + match_outcomes.loc[match_outcomes['t2']==ta_name,'t2_balls'].sum(),2)/n
+        ta_wickets = round(match_outcomes.loc[match_outcomes['t1']==ta_name,'t1_wickets'].sum() + match_outcomes.loc[match_outcomes['t2']==ta_name,'t2_wickets'].sum(),2)/n
+        tb_wins = round(match_outcomes.loc[match_outcomes['t1']==tb_name,'t1_win'].sum() + match_outcomes.loc[match_outcomes['t2']==tb_name,'t2_win'].sum(),2)/n
+        tb_runs = round(match_outcomes.loc[match_outcomes['t1']==tb_name,'t1_runs'].sum() + match_outcomes.loc[match_outcomes['t2']==tb_name,'t2_runs'].sum(),2)/n
+        tb_balls = round(match_outcomes.loc[match_outcomes['t1']==tb_name,'t1_balls'].sum() + match_outcomes.loc[match_outcomes['t2']==tb_name,'t2_balls'].sum(),2)/n
+        tb_wickets = round(match_outcomes.loc[match_outcomes['t1']==tb_name,'t1_wickets'].sum() + match_outcomes.loc[match_outcomes['t2']==tb_name,'t2_wickets'].sum(),2)/n
+        print(ta_name,"p(win)",ta_wins,"score",ta_runs,"/",ta_wickets,"in",ta_balls)
+        print(tb_name,"p(win)",tb_wins,"score",tb_runs,"/",tb_wickets,"in",tb_balls)
+        print()
+        
+    print("total minutes for run",round((datetime.now()-start_time).total_seconds()/60,2))
+    return bat_sims,bowl_sims,match_outcomes
 
-def sample_tournament(lg,iters):
-    from itertools import permutations
-    teams = ['Chennai Super Kings','Delhi Capitals','Gujarat Titans','Kolkata Knight Riders','Lucknow Super Giants','Mumbai Indians',
-             'Punjab Kings','Rajasthan Royals','Royal Challengers Bengaluru','Sunrisers Hyderabad']
-    homes = ['Chepauk','Kotla','Motera','Eden Gardens','Ekana','Wankhede','Mullanpur','Sawai Mansingh','Chinnaswamy','Uppal']
+def mc_tournament(lg,squads,batter_projection,bowler_projection,lg_matrix,n):
+    schedule = pd.read_excel(f'{path}/excel/projections.xlsx','schedule', index_col=0)
+    schedule = schedule.fillna(0)
+    
+    table = pd.DataFrame(columns=['team','wins','playoffs'])
+    table['team'] = list(set(schedule['Home'].to_list() + schedule['Away'].to_list()))
+    table['wins'] = table['wins'].fillna(0)
+    table['playoffs'] = table['playoffs'].fillna(0)
+    home_wins = schedule.pivot_table(index='Home',values='home_win',aggfunc="sum")
+    away_wins = schedule.pivot_table(index='Away',values='away_win',aggfunc="sum")
+    table['wins'] = table['team'].map(home_wins['home_win'] + away_wins['away_win'])
+    
+    pending = schedule[(schedule['home_win']+schedule['away_win'])<=0]    
+    bat_game_t = []; bowl_game_t = []; results_t = []
+    
+    for p in pending.values:
+        bat_game_i,bowl_game_i,game_result_i = multiple_mc_sims(lg,p[1],p[2],p[3],squads,batter_projection,bowler_projection,lg_matrix,n,0)
+        bat_game_i,bowl_game_i = summarize_df(bat_game_i,bowl_game_i,n)
         
-    fixtures = list(permutations(teams, 2))
-    corresponding_data = [homes[teams.index(p[0])] for p in fixtures]
+        bat_game_t.append(bat_game_i)
+        bowl_game_t.append(bowl_game_i)
+        results_t.append(game_result_i)
     
-    fixtures = pd.DataFrame(fixtures, columns=['t1', 't2'])
-    fixtures['venue'] = corresponding_data
+    r = 0; all_tables = []
+    while(r<n):
+        r2 = 0; table_i = table.copy()
+        while(r2<len(pending)):
+            table_i.loc[table_i['team']==results_t[r2].iloc[r]['t1'],'wins'] += results_t[r2].iloc[r]['t1_win']
+            table_i.loc[table_i['team']==results_t[r2].iloc[r]['t2'],'wins'] += results_t[r2].iloc[r]['t2_win']
+            r2+=1
+        table_i.loc[table_i.nlargest(4, 'wins').index, 'playoffs'] = 1
+        all_tables.append(table_i)
+        r+=1
+    all_tables = pd.concat(all_tables)
+    all_tables = all_tables.groupby(['team']).mean().reset_index()
     
-    bat_t = []; bowl_t = [];results_t = []
-    lg,batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y = game_prelims(lg)
-    
-    for f in fixtures.values: 
-        #print(f)
-        #batters_f,bowlers_f,result_f = game_sim(league,f[0],f[1],f[2])
-        batters_f,bowlers_f,result_f = monte_carlo_game_engine(lg,f[0],f[1],f[2],batter_projections,bowler_projections,squads,bat_matrix,bowl_matrix,venue_matrix,limit,y,iters)
-        bat_t.append(batters_f)
-        bowl_t.append(bowlers_f)
-        results_t.append(result_f)
+    return bat_game_t,bowl_game_t,all_tables
         
-    results_t = pd.concat(results_t)
-    wins = results_t.pivot_table(index=['t1'], values=['t1_balls','t1_runs','t1_wickets','t1_win'],aggfunc="sum")
-    wins2 = results_t.pivot_table(index=['t2'], values=['t2_balls','t2_runs','t2_wickets','t2_win'],aggfunc="sum")
-    wins['t1_balls'] += wins2['t2_balls']
-    wins['t1_runs'] += wins2['t2_runs']
-    wins['t1_wickets'] += wins2['t2_wickets']
-    wins['t1_win'] += wins2['t2_win']
-    #without full schedule reduce from 18 to 14 games
-    wins = wins * 14/18
-    wins = wins.reset_index()
-    wins = wins[['t1','t1_win']]
+def summarize_df(bat_sims,bowl_sims,n):    
+    bat_sims = pd.concat(bat_sims)
+    bat_sims = bat_sims.groupby(['player','team']).sum().reset_index()
+    bat_sims['Pos'] /= bat_sims['played']
+    bat_sims['age'] /= bat_sims['played']
+    bat_sims[['0s', '1s', '2s', '4s', '6s', 'dismissals', 'balls_faced', 'runs', 'played']] /= n
+
+    bowl_sims = pd.concat(bowl_sims)
+    bowl_sims = bowl_sims.groupby(['player','team','type']).sum().reset_index()
+    bowl_sims['age'] /= bowl_sims['played']
+    bowl_sims['Pos_bowler'] /= bowl_sims['played']
+    bowl_sims[['0s', '1s', '2s', '4s', '6s', 'wickets', 'extras', 'balls_bowled', 'runs', 'played']] /= n
     
-    bat_t = pd.concat(bat_t)
-    bat_t = bat_t.pivot_table(index=['player','team','age'], values = ['lineup', 'Pos', 'balls', '0s', '1s', '2s','4s', '6s', 'dismissals', 'runs'], aggfunc = "sum")
-    bat_t *= 14/18
-    bat_t['Pos'] /= 14
-    bat_t = bat_t.reset_index()
-    bat_t = bat_t[['player', 'team', 'age', 'lineup', 'Pos', 'balls', '0s', '1s', '2s', '4s', '6s', 'dismissals', 'runs']]
-    bat_t['AVG'] = bat_t['runs']/bat_t['dismissals']
-    bat_t['SR'] = 100*bat_t['runs']/bat_t['balls']
+    return bat_sims,bowl_sims
+
+def generate_projections(league,read_file):
+    if(league in test_leagues()): sheet_p = 'tests'; sheet_m = 'tests'
+    elif(league in short_leagues()): sheet_p = 'lo'; sheet_m = 'hundred'
+    elif(league in odi_leagues()): sheet_p = 'lo'; sheet_m = 'odi'
+    else: sheet_p = 'lo'; sheet_m = 't20i'
     
-    bowl_t = pd.concat(bowl_t)
-    bowl_t = bowl_t.pivot_table(index=['player','team','age'], values = ['lineup', 'Pos_bowler', 'balls', '0s', '1s', '2s', '4s', '6s', 'extras', 'wickets', 'runs'], aggfunc = "sum")
-    bowl_t *= 14/18
-    bowl_t['Pos_bowler'] /= 14
-    bowl_t = bowl_t.reset_index()
-    bowl_t = bowl_t[['player', 'team', 'age', 'lineup', 'Pos_bowler', 'balls', '0s', '1s', '2s', '4s', '6s', 'extras', 'wickets', 'runs']]
-    bowl_t['ECON'] = 6*bowl_t['runs']/bowl_t['balls']
-    bowl_t['SR'] = bowl_t['balls']/bowl_t['wickets']
+    if(read_file == 0):     
+        batter, factors_bat_pace, factors_bat_spin, bowler, factors_bowler_pace, factors_bowler_spin = extract_all_league_stats(leagues_considered(league))
     
-    return bat_t, bowl_t, results_t, wins
+        aging_factors = aging_analysis(batter,1)
+        aging_factors_bowler = aging_analysis(bowler,0)
+        print(aging_factors,aging_factors_bowler)
+        aging = [aging_factors_bowler,aging_factors]
+    
+        batter,scale = apply_factors(batter, factors_bat_pace, factors_bat_spin, league, leagues_considered(league), 1)
+        scale = league_scaling(scale.copy(),league,1)
+        batter = stats_concat(batter.copy(),scale.copy(),1)
+    
+        bowler,scale_bowler = apply_factors(bowler.copy(), factors_bowler_pace, factors_bowler_spin, league, leagues_considered(league), 0)
+        scale_bowler = league_scaling(scale_bowler.copy(),league,0)
+        bowler = stats_concat(bowler.copy(),scale_bowler.copy(),0)
+    
+        print(factors_bowler_pace,factors_bowler_spin,factors_bat_pace,factors_bat_spin)
+        league_conversions = [factors_bowler_pace, factors_bowler_spin, factors_bat_pace, factors_bat_spin]
+        league_scales = [scale_bowler, scale]
+    
+        player_name_changes_list = player_name_changes()
+        batter['striker'] = batter['striker'].map(player_name_changes_list).fillna(batter['striker'])
+        bowler['bowler'] = bowler['bowler'].map(player_name_changes_list).fillna(bowler['bowler'])    
+    
+        full_player_list = list(set(batter['striker'].to_list() + bowler['bowler'].to_list()))
+        batter_projection = player_projections(batter,1,full_player_list)
+        bowler_projection = player_projections(bowler,0,full_player_list)
+        
+        batter_projection = apply_aging_factors(batter_projection.copy(),aging[1],batter,1)
+        bowler_projection = apply_aging_factors(bowler_projection.copy(),aging[0],bowler,0)
+    
+        adj_bowling_usage = bowling_usage(league,batter,bowler)
+        bowler_projection = bowler_projection.merge(adj_bowling_usage, on='player', how='left')
+    
+        batter_projection = batter_projection.drop_duplicates(subset=['player','type'])
+        bowler_projection = bowler_projection.drop_duplicates(subset=['player','type'])
+        
+        bowl_pos_matrix = bat_bowl_usage_matrix(league)
+        venue_matrix = venue_league_matrix(league)
+        
+        with pd.ExcelWriter(f'{path}/excel/projections.xlsx', engine="openpyxl") as writer:
+            batter_projection.to_excel(writer, sheet_name=f"{sheet_p} batters")
+            bowler_projection.to_excel(writer, sheet_name=f"{sheet_p} bowlers")
+            bowl_pos_matrix.to_excel(writer, sheet_name=f"{sheet_m} bowl matrix")
+            venue_matrix.to_excel(writer, sheet_name=f"{sheet_p} venues")
+            
+    else:
+        batter_projection = pd.read_excel(f'{path}/excel/projections.xlsx',f'{sheet_p} batters', index_col=0)
+        bowler_projection = pd.read_excel(f'{path}/excel/projections.xlsx',f'{sheet_p} bowlers', index_col=0)
+        bowl_pos_matrix = pd.read_excel(f'{path}/excel/projections.xlsx',f'{sheet_m} bowl matrix', index_col=0)
+        venue_matrix = pd.read_excel(f'{path}/excel/projections.xlsx',f'{sheet_p} venues', index_col=0)
+
+    return batter_projection, bowler_projection, bowl_pos_matrix, venue_matrix
 
 #%% concat raw data files
 concat_game_files('mlc')
 
-#%% analysis
-batter, factors, bowler, factors_bowler = extract_all_league_stats(leagues_considered(league))
-
-aging_factors = aging_analysis(batter,1)
-aging_factors_bowler = aging_analysis(bowler,0)
-aging = [aging_factors_bowler,aging_factors]
-del aging_factors, aging_factors_bowler
-
-batter,scale = apply_factors(batter.copy(), factors, league, leagues_considered(league), 1)
-scale = league_scaling(scale.copy(),league,1)
-batter = stats_concat(batter.copy(),scale.copy(),1)
-
-bowler,scale_bowler = apply_factors(bowler.copy(), factors_bowler, league, leagues_considered(league), 0)
-scale_bowler = league_scaling(scale_bowler.copy(),league,0)
-bowler = stats_concat(bowler.copy(),scale_bowler.copy(),0)
-
-league_conversions = [factors_bowler, factors]
-league_scaling = [scale_bowler, scale]
-del scale, scale_bowler, factors_bowler, factors
-
-player_name_changes = player_name_changes()
-batter['striker'] = batter['striker'].map(player_name_changes).fillna(batter['striker'])
-bowler['bowler'] = bowler['bowler'].map(player_name_changes).fillna(bowler['bowler'])
-del player_name_changes
-
-#%% remove everyone who hasnt played in 4 years (to speed up sims)
-batters_alive = batter.groupby('striker')['start_date'].max()
-batters_alive = batters_alive.reset_index()
-batters_alive.columns = ['player','latest_game']
-batters_alive = batters_alive[batters_alive['latest_game'] > datetime(datetime.now().year-4, 1, 1, 0, 0, 0)]
-
-bowlers_alive = bowler.groupby('bowler')['start_date'].max()
-bowlers_alive = bowlers_alive.reset_index()
-bowlers_alive.columns = ['player','latest_game']
-bowlers_alive = bowlers_alive[bowlers_alive['latest_game'] > datetime(datetime.now().year-4, 1, 1, 0, 0, 0)]
-
-active_list = batters_alive['player'].to_list() + bowlers_alive['player'].to_list()
-active_list = list(set(active_list))
-
-batter = batter[batter['striker'].isin(active_list)]
-bowler = bowler[bowler['bowler'].isin(active_list)]
-
-del batters_alive, bowlers_alive, active_list
-
-#%% get projections
-#kalman_stats_batting(batter,'SP Narine',1)
-#kalman_stats_bowling(bowler,'SP Narine',1)
-
-batter_projections = kalman_summary(batter.copy(), 1)
-print()
-bowler_projections = kalman_summary(bowler.copy(), 0)
-
-#%% aging applied
-batter_projections = apply_aging_factors(batter_projections.copy(),aging[1],batter,1)
-bowler_projections = apply_aging_factors(bowler_projections.copy(),aging[0],bowler,0)
-
-adj_bowling_usage = bowling_usage(league,batter,bowler)
-bowler_projections = bowler_projections.merge(adj_bowling_usage, left_on='player', right_on='bowler', how='left')
-bowler_projections = bowler_projections[['player','type','age','Pos_bowler','bowler_bb','rSR','r0s','r1s','r2s','r4s','r6s','rextras']]
-
-batter_projections = batter_projections.drop_duplicates(subset=['player'])
-bowler_projections = bowler_projections.drop_duplicates(subset=['player'])
-
-del batter, bowler, adj_bowling_usage
-
 #%% venue stats derived
-venue_matrix = venue_league_matrix(league)
+batter_projection, bowler_projection, bowl_pos_matrix, venue_matrix = generate_projections(league,1)
+league_matrix = comp_matrix(league)
 
-#%% get team and bio info for players
-squads = squad_info()
-#lineups = active_lineups('ipl')
+#%% squad info
+#squads = squad_info()
+squads = pd.read_excel(f'{path}/excel/projections.xlsx','squads')
+#lineups = active_lineups(league)
 
-#%% game sims
+#%% sims
+#bat_game,bowl_game = mc_game_engine(bowl_pos_matrix.copy(),1)
 
-#batters,bowlers,result = game_sim(league,'Royal Challengers Bengaluru','Sunrisers Hyderabad','Chinnaswamy',1)
+#bat_game,bowl_game,game_result = multiple_mc_sims(league,'Gujarat Titans','Royal Challengers Bengaluru','Chinnaswamy',squads,batter_projection,bowler_projection,league_matrix,1000,1)
+#bat_game,bowl_game = summarize_df(bat_game,bowl_game,1000)
 
-batters,bowlers,result = monte_carlo_game_sim(league,'Rajasthan Royals','Chennai Super Kings','Barsapara',100)
-
-#batters,bowlers,result,table = sample_tournament(league,100)
+bat_game,bowl_game,game_result = mc_tournament(league,squads,batter_projection,bowler_projection,league_matrix,1000)
